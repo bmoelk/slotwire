@@ -36,7 +36,7 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
       maxAge: 60 * 60 * 4, // 4 hours
     });
 
-    // 1. Direct Live Draft Rendering Mode
+    // 1. Direct Live Draft Rendering Mode (with authentic template)
     const viewMode = url.searchParams.get('view');
     if (viewMode === 'live') {
       try {
@@ -59,29 +59,31 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
           let rawContent = postData.data.content || '';
           rawContent = rawContent.replace(/^\s*import\s+[^\r\n]+;?\r?$/gm, '');
           
-          // Simple markdown converter
+          // Markdown formatting with Admonition styling
           let bodyHtml = rawContent
             .replace(/^### (.*$)/gim, '<h3 class="text-xl font-bold font-serif text-zinc-900 dark:text-zinc-100 mt-8 mb-4">$1</h3>')
             .replace(/^## (.*$)/gim, '<h2 class="text-2xl font-bold font-serif text-zinc-900 dark:text-zinc-100 mt-10 mb-4">$1</h2>')
             .replace(/^# (.*$)/gim, '<h1 class="text-3xl font-bold font-serif text-zinc-900 dark:text-zinc-100 mt-12 mb-6">$1</h1>')
             .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
             .replace(/\*(.*?)\*/gim, '<em>$1</em>')
-            .replace(/```ts([\s\S]*?)```/gim, '<pre class="bg-zinc-900 text-zinc-100 p-4 rounded-lg my-4 overflow-x-auto text-xs font-mono"><code>$1</code></pre>')
-            .replace(/```([\s\S]*?)```/gim, '<pre class="bg-zinc-900 text-zinc-100 p-4 rounded-lg my-4 overflow-x-auto text-xs font-mono"><code>$1</code></pre>')
+            .replace(/```ts([\s\S]*?)```/gim, '<pre class="bg-zinc-900 text-zinc-100 p-4 rounded-lg my-4 overflow-x-auto text-xs font-mono border border-zinc-800"><code>$1</code></pre>')
+            .replace(/```([\s\S]*?)```/gim, '<pre class="bg-zinc-900 text-zinc-100 p-4 rounded-lg my-4 overflow-x-auto text-xs font-mono border border-zinc-800"><code>$1</code></pre>')
             .replace(/<Admonition\s+variant="([^"]+)">([\s\S]*?)<\/Admonition>/gim, (_m: string, v: string, inner: string) => {
               const variant = v.toLowerCase();
-              const border = variant === 'tip' ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300' :
-                             variant === 'caution' ? 'border-amber-500 bg-amber-500/10 text-amber-300' : 'border-sky-500 bg-sky-500/10 text-sky-300';
+              const border = variant === 'tip' ? 'border-emerald-500 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300' :
+                             variant === 'caution' || variant === 'warning' ? 'border-amber-500 bg-amber-500/10 text-amber-800 dark:text-amber-300' :
+                             variant === 'danger' ? 'border-rose-500 bg-rose-500/10 text-rose-800 dark:text-rose-300' :
+                             'border-sky-500 bg-sky-500/10 text-sky-800 dark:text-sky-300';
               return `<div class="my-6 rounded-r-lg border-l-4 p-4 ${border}"><div class="font-bold text-xs uppercase mb-1">${variant}</div>${inner.trim()}</div>`;
             })
             .replace(/\n\n/gim, '</p><p class="my-4 leading-relaxed text-zinc-700 dark:text-zinc-300">');
 
           const categoriesList = typeof postData.data.categories === 'string'
             ? postData.data.categories.split(',').map((c: string) => c.trim()).filter(Boolean)
-            : (Array.isArray(postData.data.categories) ? postData.data.categories : ['Engineering', 'Architecture']);
+            : (Array.isArray(postData.data.categories) ? postData.data.categories : ['Architecture', 'Systems Engineering', 'Edge Computing']);
 
           const liveHtml = `<!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -93,43 +95,65 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
       theme: {
         extend: {
           colors: {
-            brand: {
-              50: '#eef2ff',
-              500: '#6366f1',
-              600: '#4f46e5',
-            }
+            brand: { 50: '#eef2ff', 500: '#6366f1', 600: '#4f46e5' }
           }
         }
       }
     };
+    function initTheme() {
+      const colorTheme = localStorage.getItem("colorTheme");
+      if (!colorTheme || colorTheme === "light") {
+        document.documentElement.classList.remove("dark");
+      } else if (colorTheme === "dark") {
+        document.documentElement.classList.add("dark");
+      }
+    }
+    initTheme();
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle("dark");
+      localStorage.setItem("colorTheme", isDark ? "dark" : "light");
+    }
   </script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #070a12; color: #f1f5f9; }
-    h1, h2, h3, .font-serif { font-family: 'Cinzel', serif; }
+    @font-face {
+      font-family: "Harabara";
+      font-style: normal;
+      font-weight: 400 700;
+      font-display: swap;
+      src: url("/fonts/Harabara.ttf") format("truetype");
+    }
+    .font-harabara { font-family: "Harabara", sans-serif; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
   </style>
 </head>
-<body class="min-h-screen bg-[#070a12] text-slate-100 flex flex-col justify-between selection:bg-emerald-500/30">
-  <!-- Live Preview Floating Header Bar -->
-  <header class="sticky top-0 z-50 backdrop-blur-md bg-[#0b1120]/80 border-b border-white/10">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+<body class="min-h-screen bg-stone-50 dark:bg-[#070a12] text-zinc-900 dark:text-zinc-100 flex flex-col justify-between transition-colors duration-200">
+  <!-- Top Navigation Bar -->
+  <header class="sticky top-0 z-50 backdrop-blur-md bg-white/80 dark:bg-[#0b1120]/80 border-b border-zinc-200 dark:border-white/10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
       <div class="flex items-center gap-8">
-        <a href="/" class="flex items-center gap-2 text-lg font-bold tracking-tight text-white">
-          <span class="text-emerald-400 font-serif">⚡</span> BrainEndeavor
+        <!-- BrainEndeavor Brand Logo -->
+        <a href="/" class="flex items-center gap-3 group">
+          <img src="/assets/logo_without_text.png" alt="BrainEndeavor Logo" class="h-10 w-auto object-contain shrink-0 drop-shadow transition-transform group-hover:scale-105" />
+          <span class="font-harabara text-2xl sm:text-3xl font-normal leading-none tracking-wide lowercase">
+            <span class="text-[#9f2020]">brain</span><span class="text-[#f5a41f]">endeavor</span>
+          </span>
         </a>
-        <nav class="hidden md:flex items-center gap-6 text-sm text-slate-300">
-          <a href="/#services" class="hover:text-white transition-colors">Services</a>
-          <a href="/#technology" class="hover:text-white transition-colors">Technology</a>
-          <a href="/blog" class="text-emerald-400 font-medium">Blog</a>
-          <a href="/about" class="hover:text-white transition-colors">About</a>
-          <a href="/contact" class="hover:text-white transition-colors">Contact</a>
+        <nav class="hidden md:flex items-center gap-6 text-sm text-zinc-600 dark:text-zinc-300 font-medium">
+          <a href="/#services" class="hover:text-zinc-900 dark:hover:text-white transition-colors">Services</a>
+          <a href="/#technology" class="hover:text-zinc-900 dark:hover:text-white transition-colors">Technology</a>
+          <a href="/blog" class="text-[#9f2020] dark:text-emerald-400 font-semibold">Blog</a>
+          <a href="/about" class="hover:text-zinc-900 dark:hover:text-white transition-colors">About</a>
+          <a href="/contact" class="hover:text-zinc-900 dark:hover:text-white transition-colors">Contact</a>
         </nav>
       </div>
+
       <div class="flex items-center gap-3">
-        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold animate-pulse">
-          <span class="size-1.5 rounded-full bg-emerald-400"></span> Live Preview (Draft)
+        <button onclick="toggleTheme()" class="p-2 rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" title="Toggle Light/Dark Theme">
+          <svg class="size-4 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 9h-1m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+          <svg class="size-4 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+        </button>
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+          <span class="size-1.5 rounded-full bg-emerald-500 animate-ping"></span> Live Draft Preview
         </span>
       </div>
     </div>
@@ -141,33 +165,33 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
       <!-- Categories & Metadata -->
       <div class="flex flex-wrap items-center justify-center gap-2 mb-6">
         ${categoriesList.map((cat: string) => `
-          <span class="px-3 py-1 text-xs font-semibold uppercase tracking-wider rounded-full bg-emerald-950/60 text-emerald-400 border border-emerald-500/20">
+          <span class="px-3 py-1 text-xs font-semibold uppercase tracking-wider rounded-full bg-zinc-100 dark:bg-emerald-950/60 text-zinc-700 dark:text-emerald-400 border border-zinc-200 dark:border-emerald-500/20">
             ${cat}
           </span>
         `).join('')}
       </div>
 
       <!-- Title -->
-      <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold font-serif text-center text-white leading-tight mb-6">
+      <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold font-serif text-center text-zinc-900 dark:text-white leading-tight mb-6">
         ${postData.data.title || postData.title}
       </h1>
 
       <!-- Author Row -->
-      <div class="flex items-center justify-center gap-4 text-xs text-slate-400 mb-10 pb-6 border-b border-white/10">
+      <div class="flex items-center justify-center gap-4 text-xs text-zinc-500 dark:text-zinc-400 mb-10 pb-6 border-b border-zinc-200 dark:border-white/10">
         <div class="flex items-center gap-2">
-          <div class="size-7 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center font-bold text-emerald-300">
+          <div class="size-7 rounded-full bg-zinc-200 dark:bg-emerald-500/20 border border-zinc-300 dark:border-emerald-500/40 flex items-center justify-center font-bold text-zinc-700 dark:text-emerald-300">
             BM
           </div>
-          <span class="text-slate-200 font-medium">Brian Moelk</span>
+          <span class="text-zinc-800 dark:text-zinc-200 font-medium">Brian Moelk</span>
         </div>
         <span>&bull;</span>
         <time datetime="${new Date().toISOString()}">${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</time>
         <span>&bull;</span>
-        <span class="text-emerald-400">5 min read</span>
+        <span class="text-emerald-600 dark:text-emerald-400 font-medium">5 min read</span>
       </div>
 
       <!-- Hero Image -->
-      <div class="rounded-2xl overflow-hidden mb-12 border border-white/10 shadow-2xl bg-slate-900">
+      <div class="rounded-2xl overflow-hidden mb-12 border border-zinc-200 dark:border-white/10 shadow-lg dark:shadow-2xl bg-zinc-100 dark:bg-zinc-900">
         <img 
           src="${postData.data.heroImage || 'https://cms.brainendeavor.com/media/data-migration-hero.jpg'}" 
           alt="${postData.data.title || postData.title}" 
@@ -177,25 +201,25 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
       </div>
 
       <!-- Article Body -->
-      <div class="prose prose-invert prose-lg max-w-none text-slate-300 leading-relaxed prose-headings:font-serif prose-headings:text-white prose-a:text-emerald-400 prose-code:text-emerald-300">
-        <p class="leading-relaxed text-slate-300 text-lg">${bodyHtml}</p>
+      <div class="prose prose-zinc dark:prose-invert prose-lg max-w-none text-zinc-700 dark:text-zinc-300 leading-relaxed prose-headings:font-serif prose-headings:text-zinc-900 dark:prose-headings:text-white prose-a:text-[#9f2020] dark:prose-a:text-emerald-400 prose-code:text-emerald-700 dark:prose-code:text-emerald-300">
+        <p class="leading-relaxed text-zinc-700 dark:text-zinc-300 text-lg">${bodyHtml}</p>
       </div>
 
       <!-- Author Bio Footer -->
-      <div class="mt-16 p-6 rounded-xl bg-slate-900/60 border border-white/10 flex items-start gap-4">
-        <div class="size-12 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center font-bold text-lg text-emerald-300 shrink-0">
+      <div class="mt-16 p-6 rounded-xl bg-white dark:bg-zinc-900/60 border border-zinc-200 dark:border-white/10 flex items-start gap-4 shadow-sm">
+        <div class="size-12 rounded-full bg-zinc-100 dark:bg-emerald-500/20 border border-zinc-200 dark:border-emerald-500/40 flex items-center justify-center font-bold text-lg text-zinc-800 dark:text-emerald-300 shrink-0">
           BM
         </div>
         <div>
-          <h4 class="font-bold text-white text-sm">Brian Moelk</h4>
-          <p class="text-xs text-slate-400 mt-1">Founder & Principal Systems Architect at BrainEndeavor. Specializing in high-performance distributed systems, edge runtimes, and headless CMS integrations.</p>
+          <h4 class="font-bold text-zinc-900 dark:text-white text-sm">Brian Moelk</h4>
+          <p class="text-xs text-zinc-600 dark:text-zinc-400 mt-1">Founder & Principal Systems Architect at BrainEndeavor. Specializing in high-performance distributed systems, edge runtimes, and headless CMS integrations.</p>
         </div>
       </div>
     </article>
   </main>
 
   <!-- Site Footer -->
-  <footer class="mt-20 border-t border-white/10 bg-[#040711] py-8 text-center text-xs text-slate-500">
+  <footer class="mt-20 border-t border-zinc-200 dark:border-white/10 bg-white dark:bg-[#040711] py-8 text-center text-xs text-zinc-500">
     <div class="max-w-7xl mx-auto px-4">
       <p>&copy; ${new Date().getFullYear()} BrainEndeavor, LLC. All rights reserved. Live Preview Bridge &bull; Cloudflare Edge Runtime.</p>
     </div>
@@ -236,7 +260,6 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
     const envLabel = url.hostname.includes('staging') 
       ? 'Staging' 
       : (url.hostname.includes('localhost') || url.hostname.includes('127.0.0.1') ? 'Localhost' : 'Production');
-    const envBadgeColor = envLabel === 'Production' ? 'badge-warning' : 'badge-success';
 
     // Render developer diagnostic workbench
     const html = `<!DOCTYPE html>
@@ -244,7 +267,7 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>⚡ SlotWire Preview Bridge & Diagnostics</title>
+  <title>SlotWire Preview Bridge & Diagnostics</title>
   <style>
     :root {
       --bg: #070a12;
@@ -255,7 +278,6 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
       --muted: #94a3b8;
       --emerald: #10b981;
       --emerald-bg: rgba(16, 185, 129, 0.12);
-      --indigo: #6366f1;
       --amber: #f59e0b;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -277,11 +299,15 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
     }
     .brand { display: flex; align-items: center; gap: 12px; }
     .brand-icon {
-      font-size: 24px;
-      background: var(--emerald-bg);
+      width: 36px;
+      height: 36px;
+      background: rgba(16, 185, 129, 0.1);
       border: 1px solid rgba(16, 185, 129, 0.3);
-      padding: 6px 10px;
-      border-radius: 8px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      shrink-0: 0;
     }
     .brand-title { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; }
     .brand-subtitle { font-size: 12px; color: var(--muted); }
@@ -322,11 +348,38 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
     .metric-box { background: var(--card-alt); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; }
     .metric-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
     .metric-value { font-family: ui-monospace, monospace; font-size: 13px; font-weight: 600; word-break: break-all; }
-    .full-url-box { background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
+    .full-url-box {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 10px;
+    }
     .full-url-text { font-family: ui-monospace, monospace; font-size: 12px; color: #38bdf8; word-break: break-all; }
-    .btn-copy { background: var(--card-alt); border: 1px solid var(--border); color: var(--text); font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 5px; cursor: pointer; transition: all 0.15s; }
-    .btn-copy:hover { background: rgba(255, 255, 255, 0.1); }
-    .actions-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+    .btn-copy {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: var(--muted);
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+    .btn-copy:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+    .actions-row { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
     .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; background: var(--emerald); color: #042f2e; text-decoration: none; }
     .probe-badge { font-family: ui-monospace, monospace; font-size: 12px; padding: 4px 10px; border-radius: 6px; background: var(--card-alt); border: 1px solid var(--border); }
     .preview-frame-card { background: #000; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
@@ -343,7 +396,27 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
   <div class="container">
     <header class="header">
       <div class="brand">
-        <div class="brand-icon">⚡</div>
+        <div class="brand-icon">
+          <!-- Bespoke SlotWire Connector SVG Logo -->
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="2" y="4" width="6" height="16" rx="2.5" fill="#0f172a" stroke="#10b981" stroke-width="1.8"/>
+            <rect x="16" y="4" width="6" height="16" rx="2.5" fill="#0f172a" stroke="#06b6d4" stroke-width="1.8"/>
+            <circle cx="5" cy="8.5" r="1.2" fill="#10b981"/>
+            <circle cx="5" cy="15.5" r="1.2" fill="#10b981"/>
+            <circle cx="19" cy="8.5" r="1.2" fill="#06b6d4"/>
+            <circle cx="19" cy="15.5" r="1.2" fill="#06b6d4"/>
+            <path d="M6.5 8.5H17.5" stroke="url(#swg1)" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M6.5 15.5H17.5" stroke="url(#swg2)" stroke-width="1.8" stroke-linecap="round"/>
+            <defs>
+              <linearGradient id="swg1" x1="6.5" y1="8.5" x2="17.5" y2="8.5" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#10b981"/><stop offset="1" stop-color="#06b6d4"/>
+              </linearGradient>
+              <linearGradient id="swg2" x1="6.5" y1="15.5" x2="17.5" y2="15.5" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#10b981"/><stop offset="1" stop-color="#06b6d4"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
         <div>
           <h1 class="brand-title">SlotWire Preview Bridge & Diagnostics</h1>
           <p class="brand-subtitle">Reverse Route Resolver & Live Telemetry Inspector</p>
@@ -368,7 +441,7 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
       <div class="telemetry-grid">
         <div class="metric-box">
           <div class="metric-label">Target Route</div>
-          <div class="metric-value" style="color: var(--emerald);">${livePreviewTarget}</div>
+          <div class="metric-value" style="color: var(--emerald);">${resolvedPath}</div>
         </div>
         <div class="metric-box">
           <div class="metric-label">Slot / Collection</div>
@@ -389,11 +462,14 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
           <span style="font-size: 11px; color: var(--muted); text-transform: uppercase;">Full URL:</span>
           <span class="full-url-text" id="full-url-display">${fullDestinationUrl}</span>
         </div>
-        <button class="btn-copy" onclick="copyFullUrl()" id="copy-btn">📋 Copy URL</button>
+        <button class="btn-copy" onclick="copyFullUrl()" id="copy-btn" title="Copy URL to clipboard">
+          <svg id="copy-icon-svg" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+          </svg>
+        </button>
       </div>
 
       <div class="actions-row">
-        <div style="font-size: 12px; color: var(--muted);">Raw Query: <code>${url.search || '(none)'}</code></div>
         <a href="${livePreviewTarget}" class="btn" target="_blank"><span>🚀 Open Full Window &rarr;</span></a>
       </div>
     </div>
@@ -409,7 +485,7 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
     <div class="config-card">
       <div class="card-header">
         <div class="card-title" style="color: var(--muted);">⚙️ Contract Configuration Reference</div>
-        <button class="btn-copy" onclick="toggleJsonView()" id="json-btn-text">{ } View JSON</button>
+        <button class="btn-copy" style="width: auto; padding: 4px 8px; font-size: 11px;" onclick="toggleJsonView()" id="json-btn-text">{ } View JSON</button>
       </div>
 
       <div id="slots-table-view">
@@ -441,8 +517,10 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
     function copyFullUrl() {
       navigator.clipboard.writeText(fullUrl).then(() => {
         const btn = document.getElementById('copy-btn');
-        btn.innerText = '✅ Copied!';
-        setTimeout(() => { btn.innerText = '📋 Copy URL'; }, 2000);
+        btn.innerHTML = '<svg width="14" height="14" fill="none" stroke="#10b981" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>';
+        setTimeout(() => {
+          btn.innerHTML = '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>';
+        }, 2000);
       });
     }
 
@@ -450,6 +528,7 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
       const statusEl = document.getElementById('probe-status');
       const latencyEl = document.getElementById('latency-indicator');
       const startTime = performance.now();
+
       try {
         const res = await fetch(targetRoute, { method: 'GET' });
         const elapsed = Math.round(performance.now() - startTime);
@@ -477,7 +556,7 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
       status: 200,
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
-        'Set-Cookie': `${cookieName}=true; Path=/; Max-Age=14400; SameSite=Lax; HttpOnly`,
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
       },
     });
   };
