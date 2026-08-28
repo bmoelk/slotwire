@@ -108,11 +108,21 @@ export const s = {
   },
 };
 
+function normalizeKey(str: string): string {
+  return str.toLowerCase().replace(/[-_\s]+/g, '').replace(/s$/, '');
+}
+
 export function resolvePreviewRoute(config: SlotWireConfig, slotKeyOrCollection: string, doc: Record<string, any> = {}): string | null {
+  if (!slotKeyOrCollection) return '/';
+  
+  const targetNorm = normalizeKey(slotKeyOrCollection);
+
   for (const [slotKey, slotDef] of Object.entries(config.slots)) {
-    const isMatch = slotKey === slotKeyOrCollection || 
-      (slotDef.kind === 'collection' && slotDef.collectionName === slotKeyOrCollection);
-    if (isMatch) {
+    const collName = slotDef.kind === 'collection' ? slotDef.collectionName : slotKey;
+    const isExactMatch = slotKey === slotKeyOrCollection || collName === slotKeyOrCollection;
+    const isNormMatch = normalizeKey(slotKey) === targetNorm || normalizeKey(collName) === targetNorm;
+
+    if (isExactMatch || isNormMatch) {
       const pattern = (slotDef as any).previewRoutePattern || (slotDef as any).previewRoute;
       if (typeof pattern === 'function') {
         return pattern(doc);
