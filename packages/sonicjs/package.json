@@ -16,7 +16,8 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "@slotwire/core": "file:../core"
+    "@slotwire/core": "file:../core",
+    "hono": "^4.6.0"
   },
   "peerDependencies": {
     "@sonicjs-cms/core": "^3.0.0-beta.27"
