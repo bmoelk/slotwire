@@ -28,17 +28,24 @@ export interface FieldDefinition {
   zodSchema: z.ZodTypeAny;
 }
 
+export type PreviewRouteFn = (doc: Record<string, any>) => string;
+export type PreviewRoute = string | PreviewRouteFn;
+
 export type SlotDefinition =
   | {
       kind: 'object';
       properties: Record<string, FieldDefinition>;
       zodSchema: z.ZodTypeAny;
+      previewRoute?: PreviewRoute;
+      previewRouteFn?: (route: PreviewRoute) => SlotDefinition;
     }
   | {
       kind: 'collection';
       collectionName: string;
       properties: Record<string, FieldDefinition>;
       zodSchema: z.ZodTypeAny;
+      previewRoute?: PreviewRoute;
+      previewRouteFn?: (route: PreviewRoute) => SlotDefinition;
     };
 
 export interface SlotWireConfig {
@@ -46,6 +53,7 @@ export interface SlotWireConfig {
     provider: 'sonicjs' | 'custom';
     apiUrl: string;
     apiKey?: string;
+    previewSecret?: string;
   };
   slots: Record<string, SlotDefinition>;
 }
@@ -61,6 +69,7 @@ export interface SlotValidationResult {
     message: string;
   }>;
   payloadCount?: number;
+  previewUrl?: string;
 }
 
 export interface ContractValidationReport {
@@ -73,3 +82,23 @@ export interface ContractValidationReport {
   results: SlotValidationResult[];
   isFullyCovered: boolean;
 }
+
+export interface OrphanedContentItem {
+  id: string;
+  collection: string;
+  title: string;
+  slug: string;
+  reason: 'unreachable_route' | 'dangling_reference' | 'unreferenced_media';
+  details: string;
+}
+
+export interface OrphanedContentReport {
+  timestamp: string;
+  apiUrl: string;
+  totalChecked: number;
+  ghostDocuments: OrphanedContentItem[];
+  danglingReferences: OrphanedContentItem[];
+  deadMedia: OrphanedContentItem[];
+  isClean: boolean;
+}
+

@@ -66,36 +66,69 @@ export const s = {
     return builder;
   },
 
-  object: (props: Record<string, FieldBuilder>): SlotDefinition => {
+  object: (props: Record<string, FieldBuilder>) => {
     const properties: Record<string, FieldDefinition> = {};
     const shape: Record<string, z.ZodTypeAny> = {};
     for (const [key, builder] of Object.entries(props)) {
       properties[key] = builder.build();
       shape[key] = properties[key].zodSchema;
     }
-    return {
+    const def: any = {
       kind: 'object',
       properties,
       zodSchema: z.object(shape),
+      previewRoute: undefined,
     };
+    def.previewRoute = (route: string | ((doc: any) => string)) => {
+      def.previewRoutePattern = route;
+      return def;
+    };
+    return def;
   },
 
-  collection: (collectionName: string, props: Record<string, FieldBuilder>): SlotDefinition => {
+  collection: (collectionName: string, props: Record<string, FieldBuilder>) => {
     const properties: Record<string, FieldDefinition> = {};
     const shape: Record<string, z.ZodTypeAny> = {};
     for (const [key, builder] of Object.entries(props)) {
       properties[key] = builder.build();
       shape[key] = properties[key].zodSchema;
     }
-    return {
+    const def: any = {
       kind: 'collection',
       collectionName,
       properties,
       zodSchema: z.array(z.object(shape)),
+      previewRoute: undefined,
     };
+    def.previewRoute = (route: string | ((doc: any) => string)) => {
+      def.previewRoutePattern = route;
+      return def;
+    };
+    return def;
   },
 };
+
+export function resolvePreviewRoute(config: SlotWireConfig, slotKeyOrCollection: string, doc: Record<string, any> = {}): string | null {
+  for (const [slotKey, slotDef] of Object.entries(config.slots)) {
+    const isMatch = slotKey === slotKeyOrCollection || 
+      (slotDef.kind === 'collection' && slotDef.collectionName === slotKeyOrCollection);
+    if (isMatch) {
+      const pattern = (slotDef as any).previewRoutePattern || (slotDef as any).previewRoute;
+      if (typeof pattern === 'function') {
+        return pattern(doc);
+      }
+      if (typeof pattern === 'string') {
+        return pattern;
+      }
+      return '/';
+    }
+  }
+  return null;
+}
 
 export function defineContract(config: SlotWireConfig): SlotWireConfig {
   return config;
 }
+
+export const defineConfig = defineContract;
+
