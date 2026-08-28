@@ -1,0 +1,25 @@
+{
+  "name": "slotwire-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "2-way schema contract, build-time validator, and visual in-situ inspector bridging Astro with Headless CMSs",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run --workspaces --if-present build",
+    "test": "npm run --workspaces --if-present test",
+    "lint": "npm run --workspaces --if-present lint"
+  },
+  "keywords": [
+    "astro",
+    "sonicjs",
+    "headless-cms",
+    "schema",
+    "contract",
+    "in-situ",
+    "visual-inspector"
+  ],
+  "author": "BrainEndeavor",
+  "license": "MIT"
+}

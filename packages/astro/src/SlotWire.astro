@@ -1,0 +1,57 @@
+---
+/**
+ * SlotWire In-Situ Visual Slot Inspector & Fallback Component
+ */
+interface Props {
+  slot: string;
+  data?: any;
+  required?: boolean;
+  class?: string;
+  adminUrl?: string;
+}
+
+const { slot, data, required = false, class: className = '', adminUrl = 'https://cms.brainendeavor.com/admin' } = Astro.props;
+
+const isDev = import.meta.env.DEV;
+const isMissing = data === undefined || data === null || data === '' || (Array.isArray(data) && data.length === 0);
+---
+
+{isMissing && isDev ? (
+  <div class={`slotwire-dev-slot my-2 rounded-xl border-2 border-dashed border-amber-500/80 bg-amber-50/90 dark:bg-amber-950/40 p-4 text-xs font-mono text-amber-900 dark:text-amber-200 shadow-sm transition-all duration-200 hover:border-amber-600 ${className}`}>
+    <div class="flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2">
+        <span class="inline-flex items-center rounded-full bg-amber-500/20 px-2 py-0.5 font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+          ⚡ SlotWire
+        </span>
+        <span class="font-semibold text-amber-800 dark:text-amber-200">
+          Slot: <code class="rounded bg-amber-100 dark:bg-amber-900 px-1 py-0.5">{slot}</code>
+        </span>
+        {required && (
+          <span class="rounded bg-red-100 dark:bg-red-950 px-1.5 py-0.5 font-bold text-red-600 dark:text-red-400">
+            REQUIRED
+          </span>
+        )}
+      </div>
+      <a
+        href={adminUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-1 rounded-md bg-amber-600 hover:bg-amber-700 px-2.5 py-1 font-sans text-xs font-semibold text-white shadow-sm transition-colors"
+      >
+        Populate in CMS ↗
+      </a>
+    </div>
+    <p class="mt-2 text-xs text-amber-700 dark:text-amber-300">
+      This content slot is currently unpopulated in the Headless CMS database.
+    </p>
+    <div class="mt-3 opacity-60">
+      <slot name="fallback">
+        <slot />
+      </slot>
+    </div>
+  </div>
+) : (
+  <slot>
+    <slot name="fallback" />
+  </slot>
+)}

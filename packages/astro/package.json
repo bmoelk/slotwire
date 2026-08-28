@@ -1,0 +1,30 @@
+{
+  "name": "astro-slotwire",
+  "version": "0.1.0",
+  "description": "Astro integration for SlotWire with visual in-situ Dev Toolbar and build-time validation",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./SlotWire.astro": "./src/SlotWire.astro"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@slotwire/core": "^0.1.0"
+  },
+  "peerDependencies": {
+    "astro": "^4.0.0 || ^5.0.0 || ^7.0.0"
+  },
+  "devDependencies": {
+    "astro": "^5.0.0",
+    "typescript": "^5.5.4"
+  },
+  "license": "MIT"
+}
