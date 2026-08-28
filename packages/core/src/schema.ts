@@ -112,6 +112,29 @@ function normalizeKey(str: string): string {
   return str.toLowerCase().replace(/[-_\s]+/g, '').replace(/s$/, '');
 }
 
+export function interpolateRouteTemplate(template: string, doc: Record<string, any> = {}): string {
+  let result = template;
+  const slugVal = doc.slug || doc.id || '';
+  
+  if (result.includes('{slug}')) {
+    if (slugVal) {
+      result = result.replace(/{slug}/g, encodeURIComponent(slugVal));
+    } else {
+      result = result.replace(/\/{slug}/g, '').replace(/{slug}/g, '');
+    }
+  }
+
+  if (result.includes('{id}')) {
+    if (doc.id) {
+      result = result.replace(/{id}/g, encodeURIComponent(doc.id));
+    } else {
+      result = result.replace(/\/{id}/g, '').replace(/{id}/g, '');
+    }
+  }
+
+  return result || '/';
+}
+
 export function resolvePreviewRoute(config: SlotWireConfig, slotKeyOrCollection: string, doc: Record<string, any> = {}): string | null {
   if (!slotKeyOrCollection) return '/';
   
@@ -128,12 +151,31 @@ export function resolvePreviewRoute(config: SlotWireConfig, slotKeyOrCollection:
         return pattern(doc);
       }
       if (typeof pattern === 'string') {
-        return pattern;
+        return interpolateRouteTemplate(pattern, doc);
       }
       return '/';
     }
   }
   return null;
+}
+
+export function exportContractToJson(config: SlotWireConfig): string {
+  const serializable: any = {
+    cms: config.cms,
+    slots: {} as Record<string, any>,
+  };
+
+  for (const [key, def] of Object.entries(config.slots)) {
+    serializable.slots[key] = {
+      kind: def.kind,
+      collectionName: (def as any).collectionName || key,
+      previewRoute: typeof (def as any).previewRoutePattern === 'string' 
+        ? (def as any).previewRoutePattern 
+        : (typeof (def as any).previewRoute === 'string' ? (def as any).previewRoute : '/'),
+    };
+  }
+
+  return JSON.stringify(serializable, null, 2);
 }
 
 export function defineContract(config: SlotWireConfig): SlotWireConfig {
