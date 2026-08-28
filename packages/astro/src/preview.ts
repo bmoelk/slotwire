@@ -76,28 +76,130 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
             })
             .replace(/\n\n/gim, '</p><p class="my-4 leading-relaxed text-zinc-700 dark:text-zinc-300">');
 
+          const categoriesList = typeof postData.data.categories === 'string'
+            ? postData.data.categories.split(',').map((c: string) => c.trim()).filter(Boolean)
+            : (Array.isArray(postData.data.categories) ? postData.data.categories : ['Engineering', 'Architecture']);
+
           const liveHtml = `<!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>[LIVE DRAFT] ${postData.data.title || postData.title}</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>tailwind.config = { darkMode: 'class' };</script>
+  <title>${postData.data.title || postData.title} | BrainEndeavor</title>
+  <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #070a12; color: #f1f5f9; }
+    h1, h2, h3, .font-serif { font-family: 'Cinzel', serif; }
+  </style>
 </head>
-<body class="bg-zinc-950 text-zinc-100 min-h-screen py-12 px-4">
-  <div class="max-w-3xl mx-auto">
-    <div class="mb-6 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-semibold">
-      <span>●</span> Live Draft (Direct from SonicJS D1)
+<body class="min-h-screen bg-[#070a12] text-slate-100 flex flex-col justify-between selection:bg-emerald-500/30">
+  <!-- Live Preview Floating Header Bar -->
+  <header class="sticky top-0 z-50 backdrop-blur-md bg-[#0b1120]/80 border-b border-white/10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-8">
+        <a href="/" class="flex items-center gap-2 text-lg font-bold tracking-tight text-white">
+          <span class="text-emerald-400 font-serif">⚡</span> BrainEndeavor
+        </a>
+        <nav class="hidden md:flex items-center gap-6 text-sm text-slate-300">
+          <a href="/#services" class="hover:text-white transition-colors">Services</a>
+          <a href="/#technology" class="hover:text-white transition-colors">Technology</a>
+          <a href="/blog" class="text-emerald-400 font-medium">Blog</a>
+          <a href="/about" class="hover:text-white transition-colors">About</a>
+          <a href="/contact" class="hover:text-white transition-colors">Contact</a>
+        </nav>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold animate-pulse">
+          <span class="size-1.5 rounded-full bg-emerald-400"></span> Live Preview (Draft)
+        </span>
+      </div>
     </div>
-    <h1 class="text-4xl font-bold font-serif mb-4 text-white">${postData.data.title || postData.title}</h1>
-    <div class="text-xs text-zinc-400 mb-8 border-b border-zinc-800 pb-4">
-      Slug: <code class="text-emerald-400">${slug}</code> | Status: <span class="capitalize">${postData.status || 'draft'}</span>
+  </header>
+
+  <!-- Main Article Layout -->
+  <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
+    <article class="max-w-4xl mx-auto">
+      <!-- Categories & Metadata -->
+      <div class="flex flex-wrap items-center justify-center gap-2 mb-6">
+        ${categoriesList.map((cat: string) => `
+          <span class="px-3 py-1 text-xs font-semibold uppercase tracking-wider rounded-full bg-emerald-950/60 text-emerald-400 border border-emerald-500/20">
+            ${cat}
+          </span>
+        `).join('')}
+      </div>
+
+      <!-- Title -->
+      <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold font-serif text-center text-white leading-tight mb-6">
+        ${postData.data.title || postData.title}
+      </h1>
+
+      <!-- Author Row -->
+      <div class="flex items-center justify-center gap-4 text-xs text-slate-400 mb-10 pb-6 border-b border-white/10">
+        <div class="flex items-center gap-2">
+          <div class="size-7 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center font-bold text-emerald-300">
+            BM
+          </div>
+          <span class="text-slate-200 font-medium">Brian Moelk</span>
+        </div>
+        <span>&bull;</span>
+        <time datetime="${new Date().toISOString()}">${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</time>
+        <span>&bull;</span>
+        <span class="text-emerald-400">5 min read</span>
+      </div>
+
+      <!-- Hero Image -->
+      <div class="rounded-2xl overflow-hidden mb-12 border border-white/10 shadow-2xl bg-slate-900">
+        <img 
+          src="${postData.data.heroImage || 'https://cms.brainendeavor.com/media/data-migration-hero.jpg'}" 
+          alt="${postData.data.title || postData.title}" 
+          class="w-full max-h-[460px] object-cover"
+          onerror="this.style.display='none'"
+        />
+      </div>
+
+      <!-- Article Body -->
+      <div class="prose prose-invert prose-lg max-w-none text-slate-300 leading-relaxed prose-headings:font-serif prose-headings:text-white prose-a:text-emerald-400 prose-code:text-emerald-300">
+        <p class="leading-relaxed text-slate-300 text-lg">${bodyHtml}</p>
+      </div>
+
+      <!-- Author Bio Footer -->
+      <div class="mt-16 p-6 rounded-xl bg-slate-900/60 border border-white/10 flex items-start gap-4">
+        <div class="size-12 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center font-bold text-lg text-emerald-300 shrink-0">
+          BM
+        </div>
+        <div>
+          <h4 class="font-bold text-white text-sm">Brian Moelk</h4>
+          <p class="text-xs text-slate-400 mt-1">Founder & Principal Systems Architect at BrainEndeavor. Specializing in high-performance distributed systems, edge runtimes, and headless CMS integrations.</p>
+        </div>
+      </div>
+    </article>
+  </main>
+
+  <!-- Site Footer -->
+  <footer class="mt-20 border-t border-white/10 bg-[#040711] py-8 text-center text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto px-4">
+      <p>&copy; ${new Date().getFullYear()} BrainEndeavor, LLC. All rights reserved. Live Preview Bridge &bull; Cloudflare Edge Runtime.</p>
     </div>
-    <div class="prose prose-invert max-w-none text-zinc-300">
-      <p class="my-4 leading-relaxed text-zinc-300">${bodyHtml}</p>
-    </div>
-  </div>
+  </footer>
 </body>
 </html>`;
           return new Response(liveHtml, {
@@ -130,6 +232,12 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
       ? `/api/preview?${secretParam}=${encodeURIComponent(token || '')}&collection=${encodeURIComponent(slot)}&slug=${encodeURIComponent(slug)}&view=live`
       : resolvedPath;
 
+    const fullDestinationUrl = `${url.origin}${livePreviewTarget}`;
+    const envLabel = url.hostname.includes('staging') 
+      ? 'Staging' 
+      : (url.hostname.includes('localhost') || url.hostname.includes('127.0.0.1') ? 'Localhost' : 'Production');
+    const envBadgeColor = envLabel === 'Production' ? 'badge-warning' : 'badge-success';
+
     // Render developer diagnostic workbench
     const html = `<!DOCTYPE html>
 <html lang="en">
@@ -143,27 +251,22 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
       --card: #0e1526;
       --card-alt: #131c31;
       --border: rgba(255, 255, 255, 0.08);
-      --border-focus: rgba(16, 185, 129, 0.4);
       --text: #f8fafc;
       --muted: #94a3b8;
       --emerald: #10b981;
       --emerald-bg: rgba(16, 185, 129, 0.12);
       --indigo: #6366f1;
       --amber: #f59e0b;
-      --red: #ef4444;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background: var(--bg);
       color: var(--text);
       padding: 24px 16px;
       line-height: 1.5;
     }
-    .container {
-      max-width: 1040px;
-      margin: 0 auto;
-    }
+    .container { max-width: 1040px; margin: 0 auto; }
     .header {
       display: flex;
       align-items: center;
@@ -172,221 +275,68 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
       padding-bottom: 14px;
       border-bottom: 1px solid var(--border);
     }
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
+    .brand { display: flex; align-items: center; gap: 12px; }
     .brand-icon {
-      background: linear-gradient(135deg, #10b981, #06b6d4);
-      color: #042f2e;
-      font-weight: 900;
-      font-size: 18px;
-      width: 36px;
-      height: 36px;
-      border-radius: 9px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      font-size: 24px;
+      background: var(--emerald-bg);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 6px 10px;
+      border-radius: 8px;
     }
-    .brand-title {
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-    }
-    .brand-subtitle {
-      font-size: 12px;
-      color: var(--muted);
-    }
+    .brand-title { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; }
+    .brand-subtitle { font-size: 12px; color: var(--muted); }
+    .header-badges { display: flex; align-items: center; gap: 8px; }
     .badge {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      padding: 3px 10px;
+      gap: 6px;
+      padding: 4px 10px;
       border-radius: 9999px;
       font-size: 11px;
       font-weight: 600;
     }
-    .badge-success {
-      background: rgba(16, 185, 129, 0.15);
-      color: #34d399;
-      border: 1px solid rgba(16, 185, 129, 0.3);
-    }
-    .badge-warning {
-      background: rgba(245, 158, 11, 0.15);
-      color: #fbbf24;
-      border: 1px solid rgba(245, 158, 11, 0.3);
-    }
+    .badge-success { background: var(--emerald-bg); color: var(--emerald); border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-warning { background: rgba(245, 158, 11, 0.12); color: var(--amber); border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-env { background: rgba(99, 102, 241, 0.12); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.3); }
     .card {
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 20px;
+      padding: 18px 20px;
       margin-bottom: 20px;
+      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
     }
-    .card-primary {
-      border-color: rgba(16, 185, 129, 0.3);
-      box-shadow: 0 10px 30px -10px rgba(16, 185, 129, 0.15);
-    }
-    .card-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 14px;
-    }
+    .card-primary { border-color: rgba(16, 185, 129, 0.35); background: linear-gradient(180deg, #0e172a 0%, #0c1322 100%); }
+    .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
     .card-title {
-      font-size: 14px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: var(--text);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .card-title-muted {
-      color: var(--muted);
-      font-size: 12px;
-    }
-    .telemetry-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-    .metric-box {
-      background: var(--card-alt);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 10px 14px;
-    }
-    .metric-label {
-      font-size: 11px;
-      color: var(--muted);
-      text-transform: uppercase;
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-    .metric-value {
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       font-size: 13px;
       font-weight: 700;
-      color: var(--text);
-      word-break: break-all;
-    }
-    .actions-row {
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--emerald);
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-top: 14px;
-      padding-top: 14px;
-      border-top: 1px solid var(--border);
-    }
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
       gap: 6px;
-      padding: 9px 16px;
-      border-radius: 7px;
-      font-size: 13px;
-      font-weight: 600;
-      text-decoration: none;
-      cursor: pointer;
-      border: none;
-      transition: all 0.15s ease;
     }
-    .btn-primary {
-      background: var(--emerald);
-      color: #042f2e;
-    }
-    .btn-primary:hover {
-      background: #059669;
-    }
-    .btn-secondary {
-      background: var(--card-alt);
-      color: var(--text);
-      border: 1px solid var(--border);
-    }
-    .btn-secondary:hover {
-      background: rgba(255, 255, 255, 0.08);
-    }
-    .probe-badge {
-      font-family: ui-monospace, monospace;
-      font-size: 12px;
-      padding: 4px 10px;
-      border-radius: 6px;
-      background: var(--card-alt);
-      border: 1px solid var(--border);
-    }
-    /* In-situ Live Frame */
-    .preview-frame-card {
-      background: #000;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-      margin-bottom: 24px;
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
-    }
-    .frame-toolbar {
-      background: var(--card-alt);
-      padding: 8px 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: 12px;
-      border-bottom: 1px solid var(--border);
-    }
-    iframe {
-      width: 100%;
-      height: 560px;
-      border: none;
-      background: #000;
-    }
-    /* Contract Config Section (Distinct Subordinate Visual Style) */
-    .config-card {
-      background: #0b111f;
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 12px;
-      padding: 20px;
-    }
-    .config-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12px;
-      margin-top: 12px;
-    }
-    .config-table th {
-      text-align: left;
-      padding: 8px 12px;
-      color: var(--muted);
-      font-weight: 600;
-      border-bottom: 1px solid var(--border);
-      background: rgba(0, 0, 0, 0.2);
-    }
-    .config-table td {
-      padding: 8px 12px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    }
-    .config-table tr.active-slot {
-      background: rgba(16, 185, 129, 0.1);
-    }
-    .code-block {
-      background: #040711;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 12px 16px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 12px;
-      color: #94a3b8;
-      max-height: 220px;
-      overflow-y: auto;
-      margin-top: 12px;
-      white-space: pre;
-    }
+    .telemetry-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 14px; }
+    .metric-box { background: var(--card-alt); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; }
+    .metric-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .metric-value { font-family: ui-monospace, monospace; font-size: 13px; font-weight: 600; word-break: break-all; }
+    .full-url-box { background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
+    .full-url-text { font-family: ui-monospace, monospace; font-size: 12px; color: #38bdf8; word-break: break-all; }
+    .btn-copy { background: var(--card-alt); border: 1px solid var(--border); color: var(--text); font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 5px; cursor: pointer; transition: all 0.15s; }
+    .btn-copy:hover { background: rgba(255, 255, 255, 0.1); }
+    .actions-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; background: var(--emerald); color: #042f2e; text-decoration: none; }
+    .probe-badge { font-family: ui-monospace, monospace; font-size: 12px; padding: 4px 10px; border-radius: 6px; background: var(--card-alt); border: 1px solid var(--border); }
+    .preview-frame-card { background: #000; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
+    .frame-toolbar { background: var(--card-alt); padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; font-size: 12px; border-bottom: 1px solid var(--border); }
+    iframe { width: 100%; height: 720px; border: none; background: #000; display: block; }
+    .config-card { background: #090d16; border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; }
+    .config-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
+    .config-table th { text-align: left; padding: 6px 12px; color: var(--muted); border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; }
+    .config-table td { padding: 8px 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); font-family: ui-monospace, monospace; }
+    .code-block { background: #040711; border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; font-family: ui-monospace, monospace; font-size: 11px; color: #94a3b8; max-height: 220px; overflow-y: auto; margin-top: 12px; white-space: pre; }
   </style>
 </head>
 <body>
@@ -399,27 +349,29 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
           <p class="brand-subtitle">Reverse Route Resolver & Live Telemetry Inspector</p>
         </div>
       </div>
-      <div class="badge ${isTokenValid ? 'badge-success' : 'badge-warning'}">
-        <span>●</span> ${isTokenValid ? 'Auth Verified' : 'Token Mismatch'}
+      <div class="header-badges">
+        <div class="badge badge-env">
+          <span>🌐</span> Env: <strong>${envLabel} (${url.host})</strong>
+        </div>
+        <div class="badge ${isTokenValid ? 'badge-success' : 'badge-warning'}">
+          <span>●</span> ${isTokenValid ? 'Auth Verified' : 'Token Mismatch'}
+        </div>
       </div>
     </header>
 
-    <!-- 1. Resolution Diagnostics Card (Primary Outcome) -->
     <div class="card card-primary">
       <div class="card-header">
-        <div class="card-title">
-          <span>● Resolution Outcome</span>
-        </div>
+        <div class="card-title"><span>● Resolution Outcome</span></div>
         <span id="probe-status" class="probe-badge">Probing route...</span>
       </div>
 
       <div class="telemetry-grid">
         <div class="metric-box">
           <div class="metric-label">Target Route</div>
-          <div class="metric-value" style="color: var(--emerald);">${resolvedPath}</div>
+          <div class="metric-value" style="color: var(--emerald);">${livePreviewTarget}</div>
         </div>
         <div class="metric-box">
-          <div class="metric-label">Incoming Slot / Collection</div>
+          <div class="metric-label">Slot / Collection</div>
           <div class="metric-value">${slot || '(empty)'}</div>
         </div>
         <div class="metric-box">
@@ -427,71 +379,49 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
           <div class="metric-value">${slug || '(empty)'}</div>
         </div>
         <div class="metric-box">
-          <div class="metric-label">Preview Cookie</div>
-          <div class="metric-value" style="color: #38bdf8;">slotwire_preview=true</div>
+          <div class="metric-label">Active Environment</div>
+          <div class="metric-value" style="color: #a5b4fc;">${envLabel}</div>
         </div>
+      </div>
+
+      <div class="full-url-box">
+        <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
+          <span style="font-size: 11px; color: var(--muted); text-transform: uppercase;">Full URL:</span>
+          <span class="full-url-text" id="full-url-display">${fullDestinationUrl}</span>
+        </div>
+        <button class="btn-copy" onclick="copyFullUrl()" id="copy-btn">📋 Copy URL</button>
       </div>
 
       <div class="actions-row">
-        <div style="font-size: 12px; color: var(--muted);">
-          Raw Query: <code>${url.search || '(none)'}</code>
-        </div>
-        <div style="display: flex; gap: 8px;">
-          <a href="${livePreviewTarget}" class="btn btn-primary" target="_blank">
-            <span>🚀 Open Full Window &rarr;</span>
-          </a>
-          <button class="btn btn-secondary" onclick="reloadFrame()">
-            <span>↻ Refresh Frame</span>
-          </button>
-        </div>
+        <div style="font-size: 12px; color: var(--muted);">Raw Query: <code>${url.search || '(none)'}</code></div>
+        <a href="${livePreviewTarget}" class="btn" target="_blank"><span>🚀 Open Full Window &rarr;</span></a>
       </div>
     </div>
 
-    <!-- 2. Automatic In-Situ Live Preview Frame -->
     <div class="preview-frame-card">
       <div class="frame-toolbar">
-        <div>
-          <span>Live In-Situ Preview: </span>
-          <code style="color: var(--emerald); font-weight: bold;">${livePreviewTarget}</code>
-        </div>
+        <div>Live In-Situ Preview: <code style="color: var(--emerald); font-weight: bold;">${livePreviewTarget}</code></div>
         <div id="latency-indicator" style="color: var(--muted); font-size: 11px;">Loading...</div>
       </div>
       <iframe id="preview-iframe" src="${livePreviewTarget}"></iframe>
     </div>
 
-    <!-- 3. Contract Configuration Reference (Underneath & Visually Subordinate) -->
     <div class="config-card">
       <div class="card-header">
-        <div>
-          <div class="card-title card-title-muted">⚙️ Contract Configuration Reference</div>
-          <div style="font-size: 12px; color: var(--muted); margin-top: 2px;">
-            The active schema matrix used to determine route destinations. Configured in <code>slotwire.config.ts</code> or via JSON.
-          </div>
-        </div>
-        <button class="btn btn-secondary" style="font-size: 11px; padding: 4px 10px;" onclick="toggleJsonView()">
-          <span id="json-btn-text">{ } View JSON Contract</span>
-        </button>
+        <div class="card-title" style="color: var(--muted);">⚙️ Contract Configuration Reference</div>
+        <button class="btn-copy" onclick="toggleJsonView()" id="json-btn-text">{ } View JSON</button>
       </div>
 
       <div id="slots-table-view">
         <table class="config-table">
-          <thead>
-            <tr>
-              <th>Contract Slot</th>
-              <th>CMS Collection</th>
-              <th>Kind</th>
-              <th>Route Pattern</th>
-            </tr>
-          </thead>
+          <thead><tr><th>Slot</th><th>Collection</th><th>Kind</th><th>Pattern</th></tr></thead>
           <tbody>
             ${registeredSlots.map(s => `
               <tr class="${(s.key === slot || s.collName === slot) ? 'active-slot' : ''}">
-                <td style="color: ${s.key === slot ? 'var(--emerald)' : 'var(--text)'}; font-weight: 600;">
-                  ${s.key} ${s.key === slot ? '◄' : ''}
-                </td>
-                <td style="color: var(--muted);">${s.collName}</td>
-                <td style="color: var(--muted);">${s.kind}</td>
-                <td style="color: #38bdf8;">${s.pattern}</td>
+                <td style="color: ${s.key === slot ? 'var(--emerald)' : 'var(--text)'}; font-weight: 600;">${s.key}</td>
+                <td><code>${s.collName}</code></td>
+                <td><span style="color: var(--muted);">${s.kind}</span></td>
+                <td><code>${s.pattern}</code></td>
               </tr>
             `).join('')}
           </tbody>
@@ -499,42 +429,33 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
       </div>
 
       <div id="json-contract-view" style="display: none;">
-        <div class="code-block">${jsonContract}</div>
-        <div style="font-size: 11px; color: var(--muted); margin-top: 8px;">
-          💡 <b>Remote Storage</b>: This contract schema is pure JSON-serializable and can be dynamically loaded from Cloudflare R2 or KV via <code>env.SLOTWIRE_CONTRACT_JSON</code>.
-        </div>
+        <div class="code-block">${JSON.stringify(jsonContract, null, 2)}</div>
       </div>
     </div>
   </div>
 
   <script>
     const targetRoute = "${livePreviewTarget}";
+    const fullUrl = "${fullDestinationUrl}";
 
-    // Auto-probe route on page load
+    function copyFullUrl() {
+      navigator.clipboard.writeText(fullUrl).then(() => {
+        const btn = document.getElementById('copy-btn');
+        btn.innerText = '✅ Copied!';
+        setTimeout(() => { btn.innerText = '📋 Copy URL'; }, 2000);
+      });
+    }
+
     async function autoProbe() {
       const statusEl = document.getElementById('probe-status');
       const latencyEl = document.getElementById('latency-indicator');
       const startTime = performance.now();
-
       try {
         const res = await fetch(targetRoute, { method: 'GET' });
         const elapsed = Math.round(performance.now() - startTime);
-        if (res.status === 200) {
-          statusEl.innerHTML = '<span style="color: #34d399;">● HTTP 200 OK (' + elapsed + 'ms)</span>';
-        } else {
-          statusEl.innerHTML = '<span style="color: #fbbf24;">● HTTP ' + res.status + ' (' + elapsed + 'ms)</span>';
-        }
+        statusEl.innerHTML = res.status === 200 ? '<span style="color: #34d399;">● HTTP 200 (' + elapsed + 'ms)</span>' : '<span style="color: #fbbf24;">● HTTP ' + res.status + '</span>';
         latencyEl.innerText = 'Rendered in ' + elapsed + 'ms';
-      } catch (err) {
-        statusEl.innerHTML = '<span style="color: #ef4444;">● Probe Failed: ' + err.message + '</span>';
-        latencyEl.innerText = 'Failed to load';
-      }
-    }
-
-    function reloadFrame() {
-      const frame = document.getElementById('preview-iframe');
-      frame.src = targetRoute;
-      autoProbe();
+      } catch (err) { statusEl.innerHTML = '<span style="color: #ef4444;">● Probe Failed</span>'; }
     }
 
     function toggleJsonView() {
@@ -542,16 +463,11 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
       const json = document.getElementById('json-contract-view');
       const btn = document.getElementById('json-btn-text');
       if (json.style.display === 'none') {
-        json.style.display = 'block';
-        tbl.style.display = 'none';
-        btn.innerText = '☰ View Slots Table';
+        json.style.display = 'block'; tbl.style.display = 'none'; btn.innerText = '☰ View Slots';
       } else {
-        json.style.display = 'none';
-        tbl.style.display = 'block';
-        btn.innerText = '{ } View JSON Contract';
+        json.style.display = 'none'; tbl.style.display = 'block'; btn.innerText = '{ } View JSON';
       }
     }
-
     autoProbe();
   </script>
 </body>
