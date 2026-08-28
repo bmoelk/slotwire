@@ -115,12 +115,12 @@ function normalizeKey(str: string): string {
 export function interpolateRouteTemplate(template: string, doc: Record<string, any> = {}): string {
   let result = template;
   const slugVal = doc.slug || doc.id || '';
-  
+
   if (result.includes('{slug}')) {
     if (slugVal) {
       result = result.replace(/{slug}/g, encodeURIComponent(slugVal));
     } else {
-      result = result.replace(/\/{slug}/g, '').replace(/{slug}/g, '');
+      throw new Error(`[SlotWire] Route template '${template}' requires a slug, but none was provided in document context.`);
     }
   }
 
@@ -128,24 +128,20 @@ export function interpolateRouteTemplate(template: string, doc: Record<string, a
     if (doc.id) {
       result = result.replace(/{id}/g, encodeURIComponent(doc.id));
     } else {
-      result = result.replace(/\/{id}/g, '').replace(/{id}/g, '');
+      throw new Error(`[SlotWire] Route template '${template}' requires an id, but none was provided in document context.`);
     }
   }
 
-  return result || '/';
+  return result;
 }
 
 export function resolvePreviewRoute(config: SlotWireConfig, slotKeyOrCollection: string, doc: Record<string, any> = {}): string | null {
   if (!slotKeyOrCollection) return '/';
   
-  const targetNorm = normalizeKey(slotKeyOrCollection);
-
+  // Pass 1: Exact string match
   for (const [slotKey, slotDef] of Object.entries(config.slots)) {
     const collName = slotDef.kind === 'collection' ? slotDef.collectionName : slotKey;
-    const isExactMatch = slotKey === slotKeyOrCollection || collName === slotKeyOrCollection;
-    const isNormMatch = normalizeKey(slotKey) === targetNorm || normalizeKey(collName) === targetNorm;
-
-    if (isExactMatch || isNormMatch) {
+    if (slotKey === slotKeyOrCollection || collName === slotKeyOrCollection) {
       const pattern = (slotDef as any).previewRoutePattern || (slotDef as any).previewRoute;
       if (typeof pattern === 'function') {
         return pattern(doc);
@@ -156,6 +152,23 @@ export function resolvePreviewRoute(config: SlotWireConfig, slotKeyOrCollection:
       return '/';
     }
   }
+
+  // Pass 2: Normalized fuzzy match (only if no exact match)
+  const targetNorm = normalizeKey(slotKeyOrCollection);
+  for (const [slotKey, slotDef] of Object.entries(config.slots)) {
+    const collName = slotDef.kind === 'collection' ? slotDef.collectionName : slotKey;
+    if (normalizeKey(slotKey) === targetNorm || normalizeKey(collName) === targetNorm) {
+      const pattern = (slotDef as any).previewRoutePattern || (slotDef as any).previewRoute;
+      if (typeof pattern === 'function') {
+        return pattern(doc);
+      }
+      if (typeof pattern === 'string') {
+        return interpolateRouteTemplate(pattern, doc);
+      }
+      return '/';
+    }
+  }
+
   return null;
 }
 

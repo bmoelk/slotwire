@@ -36,6 +36,83 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
       maxAge: 60 * 60 * 4, // 4 hours
     });
 
+    // 1. Direct Live Draft Rendering Mode
+    const viewMode = url.searchParams.get('view');
+    if (viewMode === 'live') {
+      try {
+        const primaryApi = config.cms.apiUrl || 'https://cms.brainendeavor.com';
+        const fallbackApi = 'https://brainendeavor-cms.bmoelk.workers.dev';
+        const queryPath = `/api/collections/${encodeURIComponent(slot || 'blog_post')}/content?filter[data.slug][equals]=${encodeURIComponent(slug || 'data-migration-strategies')}&_t=${Date.now()}`;
+        
+        let apiRes = await fetch(`${primaryApi}${queryPath}`, { cache: 'no-store' }).catch(() => null);
+        if (!apiRes || !apiRes.ok) {
+          apiRes = await fetch(`${fallbackApi}${queryPath}`, { cache: 'no-store' }).catch(() => null);
+        }
+
+        let postData: any = null;
+        if (apiRes && apiRes.ok) {
+          const json: any = await apiRes.json();
+          postData = json.data?.[0];
+        }
+
+        if (postData && postData.data) {
+          let rawContent = postData.data.content || '';
+          rawContent = rawContent.replace(/^\s*import\s+[^\r\n]+;?\r?$/gm, '');
+          
+          // Simple markdown converter
+          let bodyHtml = rawContent
+            .replace(/^### (.*$)/gim, '<h3 class="text-xl font-bold font-serif text-zinc-900 dark:text-zinc-100 mt-8 mb-4">$1</h3>')
+            .replace(/^## (.*$)/gim, '<h2 class="text-2xl font-bold font-serif text-zinc-900 dark:text-zinc-100 mt-10 mb-4">$1</h2>')
+            .replace(/^# (.*$)/gim, '<h1 class="text-3xl font-bold font-serif text-zinc-900 dark:text-zinc-100 mt-12 mb-6">$1</h1>')
+            .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+            .replace(/```ts([\s\S]*?)```/gim, '<pre class="bg-zinc-900 text-zinc-100 p-4 rounded-lg my-4 overflow-x-auto text-xs font-mono"><code>$1</code></pre>')
+            .replace(/```([\s\S]*?)```/gim, '<pre class="bg-zinc-900 text-zinc-100 p-4 rounded-lg my-4 overflow-x-auto text-xs font-mono"><code>$1</code></pre>')
+            .replace(/<Admonition\s+variant="([^"]+)">([\s\S]*?)<\/Admonition>/gim, (_m: string, v: string, inner: string) => {
+              const variant = v.toLowerCase();
+              const border = variant === 'tip' ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300' :
+                             variant === 'caution' ? 'border-amber-500 bg-amber-500/10 text-amber-300' : 'border-sky-500 bg-sky-500/10 text-sky-300';
+              return `<div class="my-6 rounded-r-lg border-l-4 p-4 ${border}"><div class="font-bold text-xs uppercase mb-1">${variant}</div>${inner.trim()}</div>`;
+            })
+            .replace(/\n\n/gim, '</p><p class="my-4 leading-relaxed text-zinc-700 dark:text-zinc-300">');
+
+          const liveHtml = `<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>[LIVE DRAFT] ${postData.data.title || postData.title}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: 'class' };</script>
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen py-12 px-4">
+  <div class="max-w-3xl mx-auto">
+    <div class="mb-6 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-semibold">
+      <span>●</span> Live Draft (Direct from SonicJS D1)
+    </div>
+    <h1 class="text-4xl font-bold font-serif mb-4 text-white">${postData.data.title || postData.title}</h1>
+    <div class="text-xs text-zinc-400 mb-8 border-b border-zinc-800 pb-4">
+      Slug: <code class="text-emerald-400">${slug}</code> | Status: <span class="capitalize">${postData.status || 'draft'}</span>
+    </div>
+    <div class="prose prose-invert max-w-none text-zinc-300">
+      <p class="my-4 leading-relaxed text-zinc-300">${bodyHtml}</p>
+    </div>
+  </div>
+</body>
+</html>`;
+          return new Response(liveHtml, {
+            status: 200,
+            headers: {
+              'Content-Type': 'text/html; charset=utf-8',
+              'Cache-Control': 'no-store, no-cache, must-revalidate',
+            },
+          });
+        }
+      } catch (err: any) {
+        return new Response(`Error rendering live draft: ${err.message}`, { status: 500 });
+      }
+    }
+
     // Resolve target route
     const resolvedPath = resolvePreviewRoute(config, slot, { slug, id: slug }) || '/';
     
@@ -49,6 +126,9 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
 
     const isTokenValid = token === expectedSecret;
     const jsonContract = exportContractToJson(config);
+    const livePreviewTarget = (slot === 'blog_post' || slot === 'blog_posts' || slot === 'blog-posts')
+      ? `/api/preview?${secretParam}=${encodeURIComponent(token || '')}&collection=${encodeURIComponent(slot)}&slug=${encodeURIComponent(slug)}&view=live`
+      : resolvedPath;
 
     // Render developer diagnostic workbench
     const html = `<!DOCTYPE html>
@@ -357,7 +437,7 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
           Raw Query: <code>${url.search || '(none)'}</code>
         </div>
         <div style="display: flex; gap: 8px;">
-          <a href="${resolvedPath}" class="btn btn-primary" target="_top">
+          <a href="${livePreviewTarget}" class="btn btn-primary" target="_blank">
             <span>🚀 Open Full Window &rarr;</span>
           </a>
           <button class="btn btn-secondary" onclick="reloadFrame()">
@@ -372,11 +452,11 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
       <div class="frame-toolbar">
         <div>
           <span>Live In-Situ Preview: </span>
-          <code style="color: var(--emerald); font-weight: bold;">${resolvedPath}</code>
+          <code style="color: var(--emerald); font-weight: bold;">${livePreviewTarget}</code>
         </div>
         <div id="latency-indicator" style="color: var(--muted); font-size: 11px;">Loading...</div>
       </div>
-      <iframe id="preview-iframe" src="${resolvedPath}"></iframe>
+      <iframe id="preview-iframe" src="${livePreviewTarget}"></iframe>
     </div>
 
     <!-- 3. Contract Configuration Reference (Underneath & Visually Subordinate) -->
@@ -428,7 +508,7 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
   </div>
 
   <script>
-    const targetRoute = "${resolvedPath}";
+    const targetRoute = "${livePreviewTarget}";
 
     // Auto-probe route on page load
     async function autoProbe() {
