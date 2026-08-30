@@ -12,11 +12,13 @@
 
 When building modern websites with Astro and a Headless CMS (SonicJS, Strapi, Sanity, Contentful), teams constantly hit three chronic issues:
 
-1. **Blind CMS Setup**: Frontend developers build UI components with specific props/slots, but editors must manually guess and recreate dozens of collections and field names in the CMS dashboard.
-2. **Silent Schema Drift**: When an editor renames, deletes, or omits a field in the CMS, the frontend silently breaks or leaves awkward gaps in the layout.
-3. **No In-Situ Feedback**: Content creators cannot see which visual slots on the website correspond to which fields in the CMS.
+1. **Blind CMS Setup & Content Modeling Fatigue**: Frontend developers build UI components with specific props/slots, while editors and AI agents face a blank canvas—often inventing fragmented, ad-hoc tables for every single page (`about_hero_v2`, `pottery_table`, `tech_bullets`).
+2. **Silent Schema Drift & The "Headless Disconnect"**: When an editor renames, deletes, or omits a field in the CMS, the frontend silently breaks with zero in-situ visual feedback.
+3. **No Visual In-Situ Feedback**: Content creators cannot see which visual slots on the website correspond to which fields in the CMS.
 
-**SlotWire solves this by turning your content requirements into a live, validated 2-way contract.**
+**SlotWire solves this through Lightweight Semantic Archetypes (`pages`, `page_sections`, `feature_cards`, `gallery`, `testimonials`) backed by live, validated 2-way contracts.**
+
+*For the full industry analysis and research citations (Builder.io, Webiny, Brightspot, Deane Barker), see [docs/SEMANTIC_ARCHETYPES.md](docs/SEMANTIC_ARCHETYPES.md).*
 
 ---
 
