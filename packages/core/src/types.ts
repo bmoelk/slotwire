@@ -48,6 +48,36 @@ export type SlotDefinition =
       previewRouteFn?: (route: PreviewRoute) => SlotDefinition;
     };
 
+export type SlotArchetype =
+  | 'page'
+  | 'section'
+  | 'cards'
+  | 'gallery'
+  | 'endorsements'
+  | 'qa'
+  | 'singleton'
+  | string;
+
+export interface SlotMetadata {
+  slot: string;
+  archetype?: SlotArchetype;
+  collection?: string;
+  pageSlug?: string;
+  sectionKey?: string;
+  documentId?: string;
+  required?: boolean;
+}
+
+export interface CmsDeepLinkOptions {
+  provider?: 'sonicjs' | 'strapi' | 'payload' | 'custom' | string;
+  adminUrl?: string;
+  collection?: string;
+  documentId?: string;
+  pageSlug?: string;
+  sectionKey?: string;
+  action?: 'create' | 'edit';
+}
+
 export interface SlotWireConfig {
   cms: {
     provider: 'sonicjs' | 'custom';

@@ -10,11 +10,17 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./SlotWire.astro": "./src/SlotWire.astro"
+    "./SlotWire.astro": "./src/SlotWire.astro",
+    "./GhostSlot.astro": "./src/GhostSlot.astro",
+    "./deep-link": {
+      "types": "./dist/deep-link.d.ts",
+      "import": "./dist/deep-link.js"
+    }
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "test": "node --test tests/**/*.test.js"
   },
   "dependencies": {
     "@slotwire/core": "file:../core"
