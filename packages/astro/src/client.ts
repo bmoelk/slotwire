@@ -304,6 +304,26 @@ export function initSlotWirePreview(options: { adminUrl?: string; provider?: str
   // Initial Run
   updateHud();
 
+  // Auto-Highlight Target Slot from Ticket / Deep-Link (e.g. #slotwire-highlight=hero)
+  function checkUrlHighlight() {
+    const hash = window.location.hash;
+    if (hash.includes('slotwire-highlight=')) {
+      const slotName = decodeURIComponent(hash.split('slotwire-highlight=')[1].split('&')[0]);
+      setTimeout(() => {
+        const target = document.querySelector<HTMLElement>(`[data-slotwire-slot="${slotName}"]`);
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          target.classList.add('ring-4', 'ring-emerald-500', 'ring-offset-4', 'transition-all', 'duration-300');
+          setTimeout(() => {
+            target.classList.remove('ring-4', 'ring-emerald-500', 'ring-offset-4');
+          }, 3000);
+        }
+      }, 300);
+    }
+  }
+  checkUrlHighlight();
+  window.addEventListener('hashchange', checkUrlHighlight);
+
   // Listen for Custom Recompile Events
   window.addEventListener('slotwire:recompiled', updateHud);
 }

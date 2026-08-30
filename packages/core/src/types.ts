@@ -132,6 +132,84 @@ export interface ScaffoldResult {
   targetUrl?: string;
 }
 
+export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'dismissed';
+export type TicketSeverity = 'low' | 'medium' | 'high' | 'blocking';
+
+export interface TicketContext {
+  sourceUrl: string;
+  route: string;
+  slotKey: string;
+  archetype?: string;
+  collection?: string;
+  sectionKey?: string;
+  documentId?: string;
+  pageSlug?: string;
+}
+
+export interface TicketDeepLinks {
+  stagingUrl: string;
+  cmsEditUrl: string;
+}
+
+export interface TicketReporter {
+  email?: string;
+  authenticatedVia?: string;
+}
+
+export interface ContentTicket {
+  ticketId: string;
+  version: '1.0.0' | string;
+  title: string;
+  description: string;
+  status: TicketStatus;
+  severity: TicketSeverity;
+  context: TicketContext;
+  deepLinks: TicketDeepLinks;
+  reporter?: TicketReporter;
+  createdAt: string;
+  resolvedAt?: string;
+}
+
+export interface TicketingConfig {
+  webhookUrl?: string;
+  internalQueue?: boolean;
+}
+
+export interface TicketDispatchOptions {
+  webhookUrl?: string;
+  internalQueueEndpoint?: string;
+  apiKey?: string;
+}
+
+export interface TicketDispatchResult {
+  success: boolean;
+  ticketId: string;
+  webhookDispatched: boolean;
+  internalQueueSaved: boolean;
+  errors?: string[];
+}
+
+export interface TokenPayload {
+  collection?: string;
+  slug?: string;
+  exp: number;
+  iat: number;
+  role?: string;
+}
+
+export interface VerifyTokenResult {
+  valid: boolean;
+  payload?: TokenPayload;
+  error?: string;
+}
+
+export interface BookmarkletOptions {
+  adminUrl?: string;
+  stagingUrl?: string;
+  provider?: string;
+  webhookUrl?: string;
+}
+
 export interface SlotWireConfig {
   cms: {
     provider: 'sonicjs' | 'custom' | string;
@@ -139,6 +217,8 @@ export interface SlotWireConfig {
     apiKey?: string;
     previewSecret?: string;
   };
+  staticTagging?: boolean;
+  ticketing?: TicketingConfig;
   slots: Record<string, SlotDefinition>;
   archetypes?: Record<string, ArchetypeDefinition>;
 }

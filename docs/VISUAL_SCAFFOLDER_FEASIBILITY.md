@@ -316,43 +316,65 @@ export default defineContract({
 
 ---
 
-## 6. Production Semantic Tagging (`data-slotwire-*`) & Issue Ticketing
+## 6. Static Semantic Tagging & The Zero-JS Bookmarklet Architecture
 
-Production builds remain 100% free of heavy client-side JavaScript, scaffolding modals, or visual overlays. However, `<SlotWire />` components preserve **lightweight semantic dataset attributes** in the static HTML markup.
+A core design principle of SlotWire is that **production sites must ship 0 KB of client-side JavaScript for SlotWire, while preserving full inspectability for internal editors**.
 
-### Semantic DOM Signature
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                      Production Zero-JS Architecture                   │
+├───────────────────────────────────┬────────────────────────────────────┤
+│ 1. Public Production Build        │ 2. Internal Editor Bookmarklet     │
+├───────────────────────────────────┼────────────────────────────────────┤
+│ • Pure static HTML markup         │ • Stored in Editor's Bookmarks bar │
+│ • Semantic `data-slotwire-*` tags │ • Injects inspector ON DEMAND only │
+│ • 0 KB Client-side JavaScript     │ • Highlights slots on hover        │
+│ • 0 KB CSS stylesheet bloat       │ • 1-Click Fix Ticket (GitHub/Linear│
+│ • Zero performance penalty        │ • Deep-links to Staging Preview    │
+└───────────────────────────────────┴────────────────────────────────────┘
+```
 
+---
+
+### A. Static Semantic DOM Tagging (`data-slotwire-*`)
+`<SlotWire />` components naturally emit semantic HTML attributes at build time:
 ```html
-<!-- Clean Production Rendered HTML -->
 <section 
   data-slotwire-slot="about_philosophy"
   data-slotwire-archetype="feature_cards"
   data-slotwire-collection="feature_cards"
   data-slotwire-page="about"
   data-slotwire-section="philosophy"
-  class="relative py-24"
+  class="py-24"
 >
-  <div 
-    data-slotwire-id="doc-phil-1" 
-    data-slotwire-slug="continuous-craft"
-    class="bento-card"
-  >
-    <h3>Continuous Craft</h3>
-    <p>Iterative design and high-fidelity prototypes...</p>
-  </div>
+  ...
 </section>
 ```
+These attributes are **100% inert, valid HTML5 datasets** (costing ~20 bytes per section), completely SEO neutral, and require **zero JavaScript** to render.
 
-### Production Content Ticket Dispatcher
+---
 
-When an editor or QA auditor views a production page and notices missing or outdated copy:
-1. A lightweight browser bookmarklet or authenticated diagnostic trigger inspects the selected DOM node.
-2. The script extracts the `data-slotwire-*` dataset (`collection`, `page`, `section`, `id`).
-3. It immediately generates an actionable **Fix Content Ticket** or opens a direct deep link into the staging environment:
-   ```
-   https://staging.example.com/about?slotwire_preview=true#slotwire-highlight=about_philosophy
-   ```
-4. The staging environment activates the live Ghost Slot / CMS Edit link for that exact component.
+### B. The SlotWire Editor Bookmarklet (On-Demand Injection)
+
+Instead of injecting scripts into the production bundle, inspection is triggered **exclusively via an editor browser bookmarklet**:
+
+1. **Installation**: Editors drag the *"⚡ SlotWire Inspector"* bookmarklet from the CMS Admin or Staging Toolbar into their browser bookmarks bar.
+2. **On-Demand Activation**:
+   - Browsing `https://example.com/about`, the editor clicks the bookmarklet.
+   - The bookmarklet temporarily mounts a lightweight overlay in the editor's local DOM session.
+   - Hovering over page sections outlines active `<SlotWire />` slots with a cyan/emerald bounding box and displays the slot key, collection, and document ID.
+3. **1-Click Actions**:
+   - **`[ 📋 Copy Fix Ticket ]`**: Copies pre-formatted Markdown for GitHub Issues / Linear:
+     ```markdown
+     ### [SlotWire Content Fix]: `about_philosophy`
+     - **Route**: https://example.com/about
+     - **Slot**: `about_philosophy`
+     - **Collection**: `feature_cards`
+     - **Staging Preview**: https://staging.example.com/about?slotwire_preview=true#slotwire-highlight=about_philosophy
+     - **CMS Edit Link**: https://cms.example.com/admin/collections/feature_cards/new?pageSlug=about&sectionKey=philosophy
+     ```
+   - **`[ 🚀 Open in Staging Preview ]`**: Opens the staging URL directly to view Ghost Slots and live drafts.
+   - **`[ ✕ Close Inspector ]`**: Removes the overlay from the DOM immediately.
 
 ---
 

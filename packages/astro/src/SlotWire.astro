@@ -13,6 +13,7 @@ export interface Props {
   required?: boolean;
   adminUrl?: string;
   provider?: string;
+  staticTagging?: boolean;
   as?: string;
   class?: string;
 }
@@ -28,9 +29,16 @@ const {
   required = false,
   adminUrl = 'https://cms.brainendeavor.com/admin',
   provider = 'sonicjs',
+  staticTagging = true,
   as: Tag = 'div',
   class: className = '',
 } = Astro.props;
+
+// Kill Switch Check (Controlled via prop or environment variable)
+const isTaggingEnabled =
+  staticTagging !== false &&
+  import.meta.env.SLOTWIRE_DISABLE_TAGS !== 'true' &&
+  (globalThis as any).process?.env?.SLOTWIRE_DISABLE_TAGS !== 'true';
 
 // Dynamic Preview Detection (Cookie, URL Query Param, or Local Dev)
 const isPreview =
@@ -68,7 +76,7 @@ const isMissing =
   ) : (
     <slot name="fallback" />
   )
-) : (
+) : isTaggingEnabled ? (
   <Tag
     data-slotwire-slot={slot}
     data-slotwire-archetype={archetype}
@@ -80,4 +88,9 @@ const isMissing =
   >
     <slot />
   </Tag>
+) : (
+  <Tag class={className}>
+    <slot />
+  </Tag>
 )}
+

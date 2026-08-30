@@ -95,6 +95,43 @@ export function generateSonicCollectionConfig(slotKey: string, slotDef: SlotDefi
   };
 }
 
+export function generateSonicTicketCollectionConfig(): any {
+  return {
+    name: 'slotwire_tickets',
+    displayName: 'SlotWire Content Issues & TODOs',
+    slug: 'slotwire-tickets',
+    description: 'Internal content issue queue auto-populated from production and preview inspection',
+    schema: {
+      type: 'object',
+      properties: {
+        ticketId: { type: 'string', title: 'Ticket ID' },
+        title: { type: 'string', title: 'Title' },
+        description: { type: 'textarea', title: 'Description / Notes' },
+        status: { type: 'select', title: 'Status', options: ['open', 'in_progress', 'resolved', 'dismissed'] },
+        severity: { type: 'select', title: 'Severity', options: ['low', 'medium', 'high', 'blocking'] },
+        route: { type: 'string', title: 'Route' },
+        slotKey: { type: 'string', title: 'Slot Key' },
+        collection: { type: 'string', title: 'Collection' },
+        pageSlug: { type: 'string', title: 'Page Slug' },
+        sectionKey: { type: 'string', title: 'Section Key' },
+        documentId: { type: 'string', title: 'Document ID' },
+        stagingUrl: { type: 'string', title: 'Staging Preview URL' },
+        cmsEditUrl: { type: 'string', title: 'CMS Edit URL' },
+        reporterEmail: { type: 'string', title: 'Reporter Email' },
+      },
+      required: ['ticketId', 'title', 'route', 'slotKey', 'status'],
+    },
+    managed: true,
+    isActive: true,
+    access: {
+      public: ['read'],
+    },
+    cache: {
+      enabled: false,
+    },
+  };
+}
+
 export function scaffoldAllSonicCollections(config: SlotWireConfig): any[] {
   const collections: any[] = [];
   const processedNames = new Set<string>();
@@ -105,6 +142,12 @@ export function scaffoldAllSonicCollections(config: SlotWireConfig): any[] {
       processedNames.add(name);
       collections.push(generateSonicCollectionConfig(slotKey, slotDef));
     }
+  }
+
+  // Include internal ticket queue collection if enabled (default: true)
+  if (config.ticketing?.internalQueue !== false && !processedNames.has('slotwire_tickets')) {
+    processedNames.add('slotwire_tickets');
+    collections.push(generateSonicTicketCollectionConfig());
   }
 
   return collections;
