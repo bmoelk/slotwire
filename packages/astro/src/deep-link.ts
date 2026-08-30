@@ -24,13 +24,13 @@ export function buildCmsDeepLink(options: CmsDeepLinkOptions): string {
   switch (provider) {
     case 'sonicjs': {
       if (action === 'edit' && documentId) {
-        return `${base}/content/edit/${encodeURIComponent(documentId)}?${params.toString()}`;
+        return `${base}/content/documents/${encodeURIComponent(collection)}/${encodeURIComponent(documentId)}?${params.toString()}`;
       }
       if (collection) {
         const queryStr = params.toString() ? `?${params.toString()}` : '';
-        return `${base}/collections/${encodeURIComponent(collection)}/new${queryStr}`;
+        return `${base}/content/documents/${encodeURIComponent(collection)}/new${queryStr}`;
       }
-      return `${base}/collections`;
+      return `${base}/content`;
     }
 
     case 'strapi': {

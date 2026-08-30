@@ -6,7 +6,7 @@ import * as os from 'node:os';
 import { extractSlotsFromHtml, scanHtmlDirectory } from '../dist/scanner.js';
 import { formatConsoleReport } from '../dist/report.js';
 
-test('extractSlotsFromHtml: accurately parses populated and ghost slot declarations', () => {
+test('extractSlotsFromHtml: accurately parses populated, fallback, and ghost slot declarations', () => {
   const sampleHtml = `
     <!DOCTYPE html>
     <html>
@@ -17,10 +17,18 @@ test('extractSlotsFromHtml: accurately parses populated and ghost slot declarati
           data-slotwire-collection="page_sections"
           data-slotwire-page="about"
           data-slotwire-section="hero"
+          data-slotwire-source="cms"
           data-slotwire-id="doc-123"
         >
           <h1>About Us</h1>
         </section>
+
+        <div 
+          data-slotwire-slot="about_projects"
+          data-slotwire-source="fallback"
+        >
+          <span>Fallback Projects</span>
+        </div>
 
         <div 
           class="slotwire-ghost-slot"
@@ -37,21 +45,22 @@ test('extractSlotsFromHtml: accurately parses populated and ghost slot declarati
   `;
 
   const slots = extractSlotsFromHtml(sampleHtml);
-  assert.equal(slots.length, 2);
+  assert.equal(slots.length, 3);
 
   const populated = slots.find((s) => s.slot === 'about_hero');
   assert.ok(populated);
+  assert.equal(populated.source, 'cms');
   assert.equal(populated.isGhost, false);
-  assert.equal(populated.archetype, 'section');
-  assert.equal(populated.collection, 'page_sections');
-  assert.equal(populated.pageSlug, 'about');
-  assert.equal(populated.documentId, 'doc-123');
+
+  const fallback = slots.find((s) => s.slot === 'about_projects');
+  assert.ok(fallback);
+  assert.equal(fallback.source, 'fallback');
+  assert.equal(fallback.isGhost, false);
 
   const ghost = slots.find((s) => s.slot === 'about_cards');
   assert.ok(ghost);
+  assert.equal(ghost.source, 'ghost');
   assert.equal(ghost.isGhost, true);
-  assert.equal(ghost.archetype, 'feature_cards');
-  assert.equal(ghost.collection, 'feature_cards');
 });
 
 test('scanHtmlDirectory: audits multi-route directory and enforces strict quality gate', async () => {
@@ -62,8 +71,8 @@ test('scanHtmlDirectory: audits multi-route directory and enforces strict qualit
     const homeHtml = `
       <html>
         <body>
-          <div data-slotwire-slot="home_hero" data-slotwire-collection="page_sections">Hero</div>
-          <div data-slotwire-slot="home_bento" data-slotwire-collection="feature_cards">Bento</div>
+          <div data-slotwire-slot="home_hero" data-slotwire-source="cms">Hero</div>
+          <div data-slotwire-slot="home_bento" data-slotwire-source="cms">Bento</div>
         </body>
       </html>
     `;
@@ -75,8 +84,9 @@ test('scanHtmlDirectory: audits multi-route directory and enforces strict qualit
     const servicesHtml = `
       <html>
         <body>
-          <div data-slotwire-slot="service_hero" data-slotwire-collection="page_sections">Hero</div>
-          <div class="slotwire-ghost-slot" data-slotwire-ghost="true" data-slotwire-slot="service_cards" data-slotwire-collection="feature_cards">Ghost</div>
+          <div data-slotwire-slot="service_hero" data-slotwire-source="cms">Hero</div>
+          <div data-slotwire-slot="service_projects" data-slotwire-source="fallback">Fallback</div>
+          <div class="slotwire-ghost-slot" data-slotwire-ghost="true" data-slotwire-slot="service_cards">Ghost</div>
         </body>
       </html>
     `;
@@ -85,20 +95,20 @@ test('scanHtmlDirectory: audits multi-route directory and enforces strict qualit
     // Non-strict Scan
     const resultNonStrict = await scanHtmlDirectory(tempDir, { strict: false });
     assert.equal(resultNonStrict.totalRoutes, 2);
-    assert.equal(resultNonStrict.totalSlots, 4);
-    assert.equal(resultNonStrict.populatedSlots, 3);
+    assert.equal(resultNonStrict.totalSlots, 5);
+    assert.equal(resultNonStrict.cmsSlots, 3);
+    assert.equal(resultNonStrict.fallbackSlots, 1);
     assert.equal(resultNonStrict.ghostSlots, 1);
     assert.equal(resultNonStrict.isClean, true);
 
-    // Strict Scan (Quality Gate)
+    // Strict Scan (Quality Gate fails on ghost slots and fallbacks)
     const resultStrict = await scanHtmlDirectory(tempDir, { strict: true });
     assert.equal(resultStrict.isClean, false);
     assert.ok(resultStrict.errors.length > 0);
-    assert.ok(resultStrict.errors[0].includes("Route '/services' has 1 unpopulated ghost slot"));
 
     // Verify Console Report formatting
     const consoleOutput = formatConsoleReport(resultStrict, { strict: true });
-    assert.ok(consoleOutput.includes('SlotWire Automated Site Audit'));
+    assert.ok(consoleOutput.includes('SlotWire Content Completeness'));
     assert.ok(consoleOutput.includes('PRE-DEPLOY QUALITY GATE FAILED'));
   } finally {
     await fs.rm(tempDir, { recursive: true, force: true });

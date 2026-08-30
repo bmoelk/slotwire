@@ -18,7 +18,7 @@ const {
   class: className = '',
 } = Astro.props;
 
-// Dynamic Preview Detection
+// Dynamic Preview Detection (Cookie, URL Query Param, or Dev Mode)
 const isPreview =
   Astro.cookies.get('slotwire_preview')?.value === 'true' ||
   Astro.url.searchParams.get('slotwire_preview') === 'true' ||
@@ -28,110 +28,297 @@ const isPreview =
 {isPreview && (
   <aside
     id="slotwire-checklist-hud"
-    class={`fixed bottom-4 right-4 z-[9999] font-sans antialiased ${className}`}
+    class={`slotwire-hud-container ${className}`}
     data-slotwire-hud="true"
     data-page-slug={pageSlug}
     data-admin-url={adminUrl}
     data-provider={provider}
   >
-    <!-- Collapsed Toggle Pill -->
-    <div
-      id="slotwire-hud-pill"
-      class="flex items-center gap-3 rounded-full border border-emerald-500/40 bg-zinc-950/90 px-4 py-2.5 text-xs text-zinc-100 shadow-2xl backdrop-blur-md transition-all duration-200 hover:border-emerald-400 hover:scale-[1.02] cursor-pointer"
-    >
-      <div class="flex items-center gap-2">
-        <span class="relative flex size-2.5">
-          <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-          <span class="relative inline-flex size-2.5 rounded-full bg-emerald-500"></span>
-        </span>
-        <span class="font-bold tracking-wide text-emerald-400 uppercase text-[11px]">⚡ SlotWire Live</span>
+    <!-- Collapsed Toggle Pill in Bottom Right -->
+    <div id="slotwire-hud-pill" class="sw-hud-pill">
+      <div class="sw-hud-pill-left">
+        <svg class="sw-hud-logo" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="2" y="4" width="6" height="16" rx="2.5" fill="#0f172a" stroke="#10b981" stroke-width="1.8"/>
+          <rect x="16" y="4" width="6" height="16" rx="2.5" fill="#0f172a" stroke="#06b6d4" stroke-width="1.8"/>
+          <circle cx="5" cy="8.5" r="1.2" fill="#10b981"/>
+          <circle cx="5" cy="15.5" r="1.2" fill="#10b981"/>
+          <circle cx="19" cy="8.5" r="1.2" fill="#06b6d4"/>
+          <circle cx="19" cy="15.5" r="1.2" fill="#06b6d4"/>
+          <path d="M6.5 8.5H17.5" stroke="#10b981" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M6.5 15.5H17.5" stroke="#06b6d4" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        <span class="sw-hud-title">SlotWire</span>
       </div>
 
-      <div class="h-3.5 w-px bg-zinc-800"></div>
+      <div class="sw-hud-divider"></div>
 
-      <span id="slotwire-hud-summary-text" class="font-mono text-zinc-300">
+      <span id="slotwire-hud-summary-text" class="sw-hud-summary">
         Auditing slots...
       </span>
 
-      <button
-        id="slotwire-hud-toggle-btn"
-        class="ml-1 rounded bg-zinc-800/80 px-2 py-0.5 text-[11px] font-semibold text-zinc-300 hover:bg-zinc-700 hover:text-white"
-        aria-label="Toggle Blueprint Checklist"
-      >
-        Checklist ▾
+      <button id="slotwire-hud-toggle-btn" class="sw-hud-btn-toggle" aria-label="Toggle Inspector">
+        Inspector ▾
       </button>
     </div>
 
     <!-- Expanded Checklist Drawer -->
-    <div
-      id="slotwire-hud-drawer"
-      class="hidden mt-3 w-96 max-h-[560px] overflow-hidden flex-col rounded-2xl border border-zinc-800 bg-zinc-950/95 text-zinc-200 shadow-2xl backdrop-blur-xl transition-all duration-200"
-    >
+    <div id="slotwire-hud-drawer" class="sw-hud-drawer">
       <!-- Header -->
-      <div class="flex items-center justify-between border-b border-zinc-800/80 px-4 py-3 bg-zinc-900/60">
+      <div class="sw-drawer-header">
         <div>
-          <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-400">Blueprint Checklist</h3>
-          <p id="slotwire-hud-route-label" class="font-mono text-[11px] text-zinc-400 mt-0.5">Route: {pageSlug || '/'}</p>
+          <h3 class="sw-drawer-title">SlotWire Inspector</h3>
+          <p id="slotwire-hud-route-label" class="sw-drawer-route">Route: {pageSlug || '/'}</p>
         </div>
 
-        <div class="flex items-center gap-2">
-          <button
-            id="slotwire-hud-rescan-btn"
-            title="Recompile / Rescan Page Slots"
-            class="rounded-lg bg-zinc-800 px-2.5 py-1 text-[11px] font-semibold text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors"
-          >
-            ↻ Rescan
-          </button>
-          <button
-            id="slotwire-hud-close-btn"
-            class="rounded-lg p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
-            aria-label="Close Drawer"
-          >
-            ✕
-          </button>
+        <div class="sw-drawer-actions">
+          <button id="slotwire-hud-rescan-btn" class="sw-drawer-btn">↻ Rescan</button>
+          <button id="slotwire-hud-close-btn" class="sw-drawer-close" aria-label="Close">✕</button>
         </div>
+      </div>
+
+      <!-- CMS Info Banner -->
+      <div class="sw-drawer-cms-info">
+        <span>Target CMS:</span>
+        <a href={`${adminUrl.replace(/\/+$/, '')}/content`} target="_blank" rel="noopener noreferrer" class="sw-drawer-cms-link">
+          SonicJS (cms.brainendeavor.com) ↗
+        </a>
       </div>
 
       <!-- Completeness Progress Bar -->
-      <div class="border-b border-zinc-800/60 px-4 py-3 bg-zinc-900/30">
-        <div class="flex items-center justify-between text-xs mb-1.5 font-mono">
-          <span class="text-zinc-400">Completeness:</span>
-          <span id="slotwire-hud-progress-label" class="font-bold text-emerald-400">0%</span>
+      <div class="sw-drawer-progress-box">
+        <div class="sw-drawer-progress-label-row">
+          <span>Completeness:</span>
+          <span id="slotwire-hud-progress-label" style="color: #10b981; font-weight: bold;">0%</span>
         </div>
-        <div class="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
-          <div
-            id="slotwire-hud-progress-bar"
-            class="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300"
-            style="width: 0%"
-          ></div>
+        <div class="sw-drawer-bar-bg">
+          <div id="slotwire-hud-progress-bar" class="sw-drawer-bar-fill" style="width: 0%"></div>
         </div>
       </div>
 
-      <!-- Checklist Items List (Populated via in-situ DOM client introspection) -->
-      <div id="slotwire-hud-slot-list" class="flex-1 overflow-y-auto p-3 space-y-2 text-xs">
-        <div class="py-6 text-center text-zinc-500 font-mono text-xs">
+      <!-- Slot Items List -->
+      <div id="slotwire-hud-slot-list" class="sw-drawer-list">
+        <div style="text-align: center; padding: 20px; color: #71717a;">
           Scanning DOM for active slots...
         </div>
       </div>
 
       <!-- Action Footer -->
-      <div class="border-t border-zinc-800/80 px-4 py-3 bg-zinc-900/60 flex items-center justify-between gap-3">
-        <button
-          id="slotwire-precreate-trigger-btn"
-          class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-transform active:scale-[0.98]"
-        >
-          <span>🚀 Pre-Create Page</span>
+      <div class="sw-drawer-footer">
+        <button id="slotwire-precreate-trigger-btn" class="sw-drawer-btn-cta">
+          <span>🚀 Pre-Create Blueprint</span>
         </button>
 
         <a
-          href={`${adminUrl.replace(/\/+$/, '')}/collections`}
+          href={`${adminUrl.replace(/\/+$/, '')}/content`}
           target="_blank"
           rel="noopener noreferrer"
-          class="inline-flex items-center justify-center rounded-lg bg-zinc-800 hover:bg-zinc-700 px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white transition-colors"
+          class="sw-drawer-btn-cms"
         >
-          CMS Admin ↗
+          CMS Content ↗
         </a>
       </div>
     </div>
   </aside>
 )}
+
+<style>
+  .slotwire-hud-container {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    z-index: 99999;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color-scheme: dark;
+  }
+  .sw-hud-pill {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: #09090b;
+    border: 1px solid rgba(16, 185, 129, 0.5);
+    border-radius: 9999px;
+    padding: 8px 16px;
+    color: #f4f4f5;
+    font-size: 12px;
+    box-shadow: 0 10px 25px -5px rgba(0,0,0,0.6), 0 8px 10px -6px rgba(0,0,0,0.6);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .sw-hud-pill:hover {
+    border-color: #10b981;
+    transform: translateY(-1px);
+  }
+  .sw-hud-pill-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sw-hud-logo {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+  .sw-hud-title {
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 11px;
+    color: #34d399;
+    letter-spacing: 0.05em;
+  }
+  .sw-hud-divider {
+    width: 1px;
+    height: 14px;
+    background-color: #27272a;
+  }
+  .sw-hud-summary {
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    color: #d4d4d8;
+  }
+  .sw-hud-btn-toggle {
+    background: #18181b;
+    border: 1px solid #27272a;
+    color: #a1a1aa;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .sw-hud-drawer {
+    display: none;
+    margin-top: 10px;
+    width: 360px;
+    max-height: 520px;
+    background-color: #09090b;
+    border: 1px solid #27272a;
+    border-radius: 16px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+    overflow: hidden;
+    flex-direction: column;
+  }
+  .sw-hud-drawer.open {
+    display: flex;
+  }
+  .sw-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background-color: #18181b;
+    border-bottom: 1px solid #27272a;
+  }
+  .sw-drawer-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #34d399;
+    margin: 0;
+  }
+  .sw-drawer-route {
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-size: 11px;
+    color: #71717a;
+    margin: 2px 0 0 0;
+  }
+  .sw-drawer-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sw-drawer-btn {
+    background: #27272a;
+    border: 1px solid #3f3f46;
+    color: #f4f4f5;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .sw-drawer-close {
+    background: transparent;
+    border: none;
+    color: #71717a;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 4px;
+  }
+  .sw-drawer-close:hover {
+    color: #f4f4f5;
+  }
+  .sw-drawer-cms-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    font-size: 11px;
+    background: #111113;
+    border-bottom: 1px solid #1f1f23;
+    color: #a1a1aa;
+  }
+  .sw-drawer-cms-link {
+    color: #34d399;
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .sw-drawer-progress-box {
+    padding: 12px 16px;
+    background: #111113;
+    border-bottom: 1px solid #27272a;
+  }
+  .sw-drawer-progress-label-row {
+    display: flex;
+    justify-content: space-between;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-size: 11px;
+    margin-bottom: 6px;
+  }
+  .sw-drawer-bar-bg {
+    width: 100%;
+    height: 8px;
+    background: #27272a;
+    border-radius: 9999px;
+    overflow: hidden;
+  }
+  .sw-drawer-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #059669, #10b981);
+    border-radius: 9999px;
+    transition: width 0.3s ease;
+  }
+  .sw-drawer-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .sw-drawer-footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: #18181b;
+    border-top: 1px solid #27272a;
+  }
+  .sw-drawer-btn-cta {
+    flex: 1;
+    background: #059669;
+    border: 1px solid #10b981;
+    color: #ffffff;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .sw-drawer-btn-cms {
+    background: #27272a;
+    border: 1px solid #3f3f46;
+    color: #f4f4f5;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+</style>

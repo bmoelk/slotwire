@@ -1,10 +1,22 @@
-# SlotWire ⚡
-
-> **The 2-way schema contract, build-time validator, and visual in-situ inspector bridging modern web frameworks (Astro) with Headless CMSs.**
+<div align="center">
+  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="4" width="6" height="16" rx="2.5" fill="#0f172a" stroke="#10b981" stroke-width="1.8"/>
+    <rect x="16" y="4" width="6" height="16" rx="2.5" fill="#0f172a" stroke="#06b6d4" stroke-width="1.8"/>
+    <circle cx="5" cy="8.5" r="1.2" fill="#10b981"/>
+    <circle cx="5" cy="15.5" r="1.2" fill="#10b981"/>
+    <circle cx="19" cy="8.5" r="1.2" fill="#06b6d4"/>
+    <circle cx="19" cy="15.5" r="1.2" fill="#06b6d4"/>
+    <path d="M6.5 8.5H17.5" stroke="#10b981" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M6.5 15.5H17.5" stroke="#06b6d4" stroke-width="1.8" stroke-linecap="round"/>
+  </svg>
+  <h1>SlotWire</h1>
+  <p><strong>The 2-way schema contract, build-time validator, and visual in-situ inspector bridging modern web frameworks (Astro) with Headless CMSs.</strong></p>
+</div>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Astro](https://img.shields.io/badge/Astro-5.x%20%7C%207.x-FF5D01.svg)](https://astro.build)
 [![SonicJS](https://img.shields.io/badge/SonicJS-3.x-00D8FF.svg)](https://sonicjs.com)
+
 
 ---
 

@@ -8,6 +8,7 @@ export interface ScannedSlot {
   pageSlug?: string;
   sectionKey?: string;
   documentId?: string;
+  source: 'cms' | 'fallback' | 'ghost';
   isGhost: boolean;
   required: boolean;
   rawSnippet?: string;
@@ -18,7 +19,8 @@ export interface ScannedRoute {
   filePath: string;
   slots: ScannedSlot[];
   totalSlots: number;
-  populatedSlots: number;
+  cmsSlots: number;
+  fallbackSlots: number;
   ghostSlots: number;
   isComplete: boolean;
 }
@@ -26,9 +28,12 @@ export interface ScannedRoute {
 export interface ScanResult {
   timestamp: string;
   targetDir: string;
+  auditTarget: string;
+  cmsApiUrl?: string;
   totalRoutes: number;
   totalSlots: number;
-  populatedSlots: number;
+  cmsSlots: number;
+  fallbackSlots: number;
   ghostSlots: number;
   routes: ScannedRoute[];
   isClean: boolean;
@@ -62,10 +67,19 @@ export function extractSlotsFromHtml(html: string): ScannedSlot[] {
     const pageMatch = /data-slotwire-page=["']([^"']+)["']/i.exec(fullAttributes);
     const sectionMatch = /data-slotwire-section=["']([^"']+)["']/i.exec(fullAttributes);
     const idMatch = /data-slotwire-id=["']([^"']+)["']/i.exec(fullAttributes);
+    const sourceMatch = /data-slotwire-source=["']([^"']+)["']/i.exec(fullAttributes);
+
     const isGhost =
       /data-slotwire-ghost=["']true["']/i.test(fullAttributes) ||
       /class=["'][^"']*slotwire-ghost-slot[^"']*["']/i.test(fullAttributes);
     const isRequired = /data-slotwire-required=["']true["']/i.test(fullAttributes) || isGhost;
+
+    let source: 'cms' | 'fallback' | 'ghost' = 'cms';
+    if (isGhost) {
+      source = 'ghost';
+    } else if (sourceMatch && sourceMatch[1] === 'fallback') {
+      source = 'fallback';
+    }
 
     slots.push({
       slot: slotMatch[1],
@@ -74,6 +88,7 @@ export function extractSlotsFromHtml(html: string): ScannedSlot[] {
       pageSlug: pageMatch ? pageMatch[1] : undefined,
       sectionKey: sectionMatch ? sectionMatch[1] : undefined,
       documentId: idMatch ? idMatch[1] : undefined,
+      source,
       isGhost,
       required: isRequired,
     });
@@ -126,12 +141,19 @@ export async function scanHtmlDirectory(
 
         const totalSlots = slots.length;
         const ghostSlots = slots.filter((s) => s.isGhost).length;
-        const populatedSlots = totalSlots - ghostSlots;
-        const isComplete = ghostSlots === 0;
+        const fallbackSlots = slots.filter((s) => s.source === 'fallback').length;
+        const cmsSlots = slots.filter((s) => s.source === 'cms').length;
+        const isComplete = ghostSlots === 0 && fallbackSlots === 0;
 
         if (options.strict && ghostSlots > 0) {
           errors.push(
             `Route '${route}' has ${ghostSlots} unpopulated ghost slot(s): ${slots.filter((s) => s.isGhost).map((s) => s.slot).join(', ')}`
+          );
+        }
+
+        if (options.strict && fallbackSlots > 0) {
+          errors.push(
+            `Route '${route}' has ${fallbackSlots} slot(s) relying on static fallback data instead of live CMS records: ${slots.filter((s) => s.source === 'fallback').map((s) => s.slot).join(', ')}`
           );
         }
 
@@ -140,7 +162,8 @@ export async function scanHtmlDirectory(
           filePath: relativePath,
           slots,
           totalSlots,
-          populatedSlots,
+          cmsSlots,
+          fallbackSlots,
           ghostSlots,
           isComplete,
         });
@@ -152,16 +175,22 @@ export async function scanHtmlDirectory(
 
   const totalRoutes = routes.length;
   const totalSlots = routes.reduce((sum, r) => sum + r.totalSlots, 0);
-  const populatedSlots = routes.reduce((sum, r) => sum + r.populatedSlots, 0);
+  const cmsSlots = routes.reduce((sum, r) => sum + r.cmsSlots, 0);
+  const fallbackSlots = routes.reduce((sum, r) => sum + r.fallbackSlots, 0);
   const ghostSlots = routes.reduce((sum, r) => sum + r.ghostSlots, 0);
-  const isClean = errors.length === 0 && (!options.strict || ghostSlots === 0);
+  const isClean = errors.length === 0 && (!options.strict || (ghostSlots === 0 && fallbackSlots === 0));
 
   return {
     timestamp: new Date().toISOString(),
     targetDir: resolvedDir,
+    auditTarget: options.cmsUrl
+      ? `Live CMS (${options.cmsUrl}) + Static HTML Build (${resolvedDir})`
+      : `Static HTML Build (${resolvedDir})`,
+    cmsApiUrl: options.cmsUrl,
     totalRoutes,
     totalSlots,
-    populatedSlots,
+    cmsSlots,
+    fallbackSlots,
     ghostSlots,
     routes,
     isClean,

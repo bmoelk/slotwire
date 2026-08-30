@@ -37,69 +37,249 @@ const editUrl = buildCmsDeepLink({
   sectionKey,
   action: documentId ? 'edit' : 'create',
 });
+
+const hasFallback = Astro.slots.has('fallback') || Astro.slots.has('default');
 ---
 
+<!-- SlotWire Ghost Wireframe with Translucent Adaptive Overlay and Solid Contrast Chips -->
 <div
-  class={`slotwire-ghost-slot relative my-4 overflow-hidden rounded-2xl border-2 border-dashed border-amber-500/60 bg-amber-500/5 dark:bg-amber-950/25 p-6 text-amber-900 dark:text-amber-200 transition-all duration-200 hover:border-amber-500 hover:bg-amber-500/10 ${className}`}
+  class={`slotwire-ghost-card ${className}`}
   data-slotwire-ghost="true"
   data-slotwire-slot={slot}
   data-slotwire-archetype={archetype}
   data-slotwire-collection={collection}
   data-slotwire-page={pageSlug}
   data-slotwire-section={sectionKey}
+  data-slotwire-has-fallback={hasFallback ? "true" : "false"}
 >
-  <div class="flex flex-wrap items-center justify-between gap-4">
-    <div class="flex flex-wrap items-center gap-2.5">
-      <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-500/20 px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">
-        <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+  <!-- Top Bar: Official SlotWire Logo, Slot Key, Badges, and Action Button -->
+  <div class="sw-ghost-header">
+    <div class="sw-ghost-meta-group">
+      <!-- Official SlotWire Logo Badge -->
+      <span class="sw-logo-badge">
+        <svg class="sw-logo-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="2" y="4" width="6" height="16" rx="2.5" fill="#0f172a" stroke="#10b981" stroke-width="1.8"/>
+          <rect x="16" y="4" width="6" height="16" rx="2.5" fill="#0f172a" stroke="#06b6d4" stroke-width="1.8"/>
+          <circle cx="5" cy="8.5" r="1.2" fill="#10b981"/>
+          <circle cx="5" cy="15.5" r="1.2" fill="#10b981"/>
+          <circle cx="19" cy="8.5" r="1.2" fill="#06b6d4"/>
+          <circle cx="19" cy="15.5" r="1.2" fill="#06b6d4"/>
+          <path d="M6.5 8.5H17.5" stroke="#10b981" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M6.5 15.5H17.5" stroke="#06b6d4" stroke-width="1.8" stroke-linecap="round"/>
         </svg>
-        Ghost Slot
+        <span>Ghost Slot</span>
       </span>
 
-      <span class="font-mono text-xs font-bold text-amber-900 dark:text-amber-100">
-        Slot: <code class="rounded bg-amber-200/50 dark:bg-amber-900/60 px-1.5 py-0.5">{slot}</code>
+      <span class="sw-slot-chip">
+        Slot: <code class="sw-slot-code">{slot}</code>
+      </span>
+
+      <span class={`sw-pill ${hasFallback ? 'sw-pill-fallback' : 'sw-pill-blank'}`}>
+        {hasFallback ? '⚠️ Template Fallback Active' : '✖ Completely Blank'}
       </span>
 
       {archetype && (
-        <span class="inline-flex items-center rounded-md bg-zinc-200/80 dark:bg-zinc-800/80 px-2 py-0.5 font-mono text-[11px] text-zinc-700 dark:text-zinc-300">
+        <span class="sw-pill sw-pill-archetype">
           Archetype: {archetype}
         </span>
       )}
 
       {required && (
-        <span class="inline-flex items-center rounded-md bg-rose-500/15 px-2 py-0.5 text-[11px] font-extrabold uppercase text-rose-700 dark:text-rose-400 border border-rose-500/30">
+        <span class="sw-pill sw-pill-required">
           Required
         </span>
       )}
     </div>
 
+    <!-- Solid High-Contrast Action Button -->
     <a
       href={editUrl}
       target="_blank"
       rel="noopener noreferrer"
-      class="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3.5 py-1.5 font-sans text-xs font-semibold text-white shadow-sm transition-transform duration-150 hover:bg-amber-500 hover:scale-[1.02] active:scale-[0.98]"
+      class="sw-ghost-btn"
     >
       <span>+ Add Content in CMS</span>
-      <svg class="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+      <svg class="sw-btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
         <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
       </svg>
     </a>
   </div>
 
-  <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-amber-800/80 dark:text-amber-300/80 font-mono">
-    {collection && <span>Collection: <code>{collection}</code></span>}
-    {pageSlug && <span>Page: <code>{pageSlug}</code></span>}
-    {sectionKey && <span>Section: <code>{sectionKey}</code></span>}
+  <!-- Context Tags -->
+  <div class="sw-ghost-context-row">
+    {collection && <span class="sw-context-tag">Collection: <strong>{collection}</strong></span>}
+    {pageSlug && <span class="sw-context-tag">Page: <strong>{pageSlug}</strong></span>}
+    {sectionKey && <span class="sw-context-tag">Section: <strong>{sectionKey}</strong></span>}
   </div>
 
-  <p class="mt-2 text-xs text-amber-800/90 dark:text-amber-300/90">
-    This slot is currently empty in the CMS database. Live preview mode renders this wireframe to prevent layout collapse.
-  </p>
+  <div class="sw-ghost-explainer-box">
+    This slot is unpopulated in the CMS. Preview mode renders this wireframe so you can view layout structure and add content in-situ without layout collapse.
+  </div>
 
-  <div class="mt-4 pt-3 border-t border-amber-500/20 opacity-70">
+  <div class="sw-ghost-fallback">
     <slot name="fallback">
       <slot />
     </slot>
   </div>
 </div>
+
+<style>
+  .slotwire-ghost-card {
+    position: relative;
+    margin: 1.5rem 0;
+    padding: 1.25rem 1.5rem;
+    border-radius: 1rem;
+    border: 2px dashed rgba(245, 158, 11, 0.85);
+    background-color: rgba(245, 158, 11, 0.04);
+    box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.15);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    text-align: left;
+    box-sizing: border-box;
+  }
+  .sw-ghost-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+  .sw-ghost-meta-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .sw-logo-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: #09090b;
+    border: 1px solid rgba(245, 158, 11, 0.6);
+    color: #fcd34d;
+    border-radius: 9999px;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+  }
+  .sw-logo-svg {
+    width: 1.125rem;
+    height: 1.125rem;
+    flex-shrink: 0;
+  }
+  .sw-slot-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background-color: #09090b;
+    border: 1px solid #3f3f46;
+    color: #f4f4f5;
+    padding: 0.25rem 0.6rem;
+    border-radius: 0.5rem;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  }
+  .sw-slot-code {
+    color: #fbbf24;
+    font-weight: 700;
+  }
+  .sw-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  }
+  .sw-pill-fallback {
+    background-color: #09090b;
+    border: 1px solid #d97706;
+    color: #fbbf24;
+  }
+  .sw-pill-blank {
+    background-color: #09090b;
+    border: 1px solid #dc2626;
+    color: #fca5a5;
+  }
+  .sw-pill-archetype {
+    background-color: #09090b;
+    border: 1px solid #3f3f46;
+    color: #d4d4d8;
+  }
+  .sw-pill-required {
+    background-color: #450a0a;
+    border: 1px solid #ef4444;
+    color: #fca5a5;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  .sw-ghost-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: #059669 !important;
+    border: 1px solid #10b981 !important;
+    color: #ffffff !important;
+    border-radius: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 4px 8px -1px rgba(0, 0, 0, 0.3);
+    transition: all 0.15s ease-in-out;
+  }
+  .sw-ghost-btn:hover {
+    background-color: #10b981 !important;
+    color: #ffffff !important;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 12px -2px rgba(16, 185, 129, 0.4);
+  }
+  .sw-btn-icon {
+    width: 0.875rem;
+    height: 0.875rem;
+  }
+  .sw-ghost-context-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-size: 0.6875rem;
+  }
+  .sw-context-tag {
+    background-color: #09090b;
+    border: 1px solid #27272a;
+    color: #a1a1aa;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.375rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  }
+  .sw-context-tag strong {
+    color: #fafafa;
+  }
+  .sw-ghost-explainer-box {
+    margin-top: 0.625rem;
+    display: inline-block;
+    background-color: rgba(9, 9, 11, 0.85);
+    border: 1px solid #27272a;
+    border-radius: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: #d4d4d8;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  }
+  .sw-ghost-fallback {
+    margin-top: 0.875rem;
+    padding-top: 0.75rem;
+    border-top: 1px dashed rgba(245, 158, 11, 0.3);
+    opacity: 0.7;
+  }
+</style>

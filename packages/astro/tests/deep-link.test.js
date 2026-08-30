@@ -14,7 +14,7 @@ test('buildCmsDeepLink: SonicJS creation link with composite keys', () => {
 
   assert.equal(
     url,
-    'https://cms.brainendeavor.com/admin/collections/feature_cards/new?pageSlug=technology&sectionKey=stack'
+    'https://cms.brainendeavor.com/admin/content/documents/feature_cards/new?pageSlug=technology&sectionKey=stack'
   );
 });
 
@@ -30,7 +30,7 @@ test('buildCmsDeepLink: SonicJS edit link with documentId', () => {
 
   assert.equal(
     url,
-    'https://cms.brainendeavor.com/admin/content/edit/doc-stack-1?pageSlug=technology'
+    'https://cms.brainendeavor.com/admin/content/documents/feature_cards/doc-stack-1?pageSlug=technology'
   );
 });
 
