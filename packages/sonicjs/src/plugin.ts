@@ -22,10 +22,11 @@ export function createSlotWirePlugin(options: SlotWirePluginOptions) {
   const collections = scaffoldAllSonicCollections(config);
 
   return {
-    id: 'slotwire-plugin',
-    name: 'SlotWire Bridge & Control Center',
+    id: 'slotwire',
+    name: 'SlotWire',
     version: '0.2.0',
     description: 'Connects SonicJS with Astro frontend via SlotWire contracts, live preview bridge, and 1-click deployment triggers.',
+    author: 'BrainEndeavor',
     collections,
     routes: [
       {
@@ -85,20 +86,20 @@ export function createSlotWirePlugin(options: SlotWirePluginOptions) {
             }
           });
         },
-        description: 'SlotWire Control Center and Deployment routes',
+        description: 'SlotWire Deployment and Preview routes',
       }
     ],
     menuItems: [
       {
-        id: 'slotwire-control-center',
-        label: 'SlotWire Bridge',
+        id: 'slotwire',
+        label: 'SlotWire',
         path: '/admin/slotwire',
-        icon: 'lightning',
-        order: 90,
+        icon: 'bolt',
+        order: 40,
       }
     ],
     async onBoot() {
-      console.log(`⚡ [SlotWire Plugin] Control Center registered at /admin/slotwire with ${collections.length} slot schema(s).`);
+      console.log(`⚡ [SlotWire Plugin] Registered at /admin/slotwire with ${collections.length} slot schema(s).`);
     },
   };
 }
