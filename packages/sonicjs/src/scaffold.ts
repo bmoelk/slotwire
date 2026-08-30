@@ -109,3 +109,106 @@ export function scaffoldAllSonicCollections(config: SlotWireConfig): any[] {
 
   return collections;
 }
+
+export interface SonicScaffoldOptions {
+  cmsApiUrl?: string;
+  apiKey?: string;
+  d1?: any;
+  targetEnv?: string;
+}
+
+/**
+ * Atomically scaffolds all draft records defined by a ContentBlueprint
+ * into the SonicJS D1 database or via SonicJS REST API.
+ */
+export async function scaffoldBlueprint(
+  blueprint: any,
+  options: SonicScaffoldOptions = {}
+): Promise<any> {
+  const {
+    cmsApiUrl = 'https://cms.brainendeavor.com',
+    apiKey,
+    d1,
+  } = options;
+
+  const itemsToCreate = (blueprint.items || []).filter((i: any) => i.action === 'create');
+  const createdIds: string[] = [];
+  const errors: string[] = [];
+
+  for (const item of itemsToCreate) {
+    try {
+      if (d1) {
+        // Direct D1 Database execution on Cloudflare Worker
+        const recordId = item.id || `doc-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+        const now = new Date().toISOString();
+        const dataJson = JSON.stringify(item.data);
+
+        await d1
+          .prepare(
+            `INSERT INTO ${item.collection} (id, data, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`
+          )
+          .bind(recordId, dataJson, 'draft', now, now)
+          .run()
+          .catch(async () => {
+            // Fallback for custom column schema
+            await d1
+              .prepare(
+                `INSERT OR REPLACE INTO ${item.collection} (id, slug, page_slug, section_key, title, status)
+                 VALUES (?, ?, ?, ?, ?, ?)`
+              )
+              .bind(
+                recordId,
+                item.data.slug || item.pageSlug,
+                item.pageSlug,
+                item.sectionKey || 'default',
+                item.data.title || 'Draft',
+                'draft'
+              )
+              .run();
+          });
+
+        createdIds.push(recordId);
+      } else {
+        // Remote REST API execution
+        const endpoint = `${cmsApiUrl.replace(/\/+$/, '')}/api/collections/${encodeURIComponent(item.collection)}/content`;
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            data: item.data,
+            status: 'draft',
+          }),
+        }).catch((err) => {
+          throw new Error(`Failed to POST to ${endpoint}: ${err.message}`);
+        });
+
+        if (res.ok) {
+          const resJson: any = await res.json().catch(() => ({}));
+          createdIds.push(resJson.id || resJson.data?.id || item.id);
+        } else {
+          const errText = await res.text();
+          errors.push(`Collection '${item.collection}': HTTP ${res.status} - ${errText}`);
+        }
+      }
+    } catch (e: any) {
+      errors.push(`Error creating item in '${item.collection}': ${e.message}`);
+    }
+  }
+
+  return {
+    success: errors.length === 0,
+    targetSlug: blueprint.targetSlug,
+    createdCount: createdIds.length,
+    createdIds,
+    reusedCount: blueprint.totalToReuse || 0,
+    errors: errors.length > 0 ? errors : undefined,
+    targetUrl: `/${blueprint.targetSlug}?slotwire_preview=true`,
+  };
+}
+

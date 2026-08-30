@@ -1,0 +1,137 @@
+---
+import type { SlotMetadata } from '@slotwire/core';
+import { buildCmsDeepLink } from './deep-link.js';
+
+export interface Props {
+  pageSlug?: string;
+  slots?: SlotMetadata[];
+  adminUrl?: string;
+  provider?: string;
+  class?: string;
+}
+
+const {
+  pageSlug = '',
+  slots = [],
+  adminUrl = 'https://cms.brainendeavor.com/admin',
+  provider = 'sonicjs',
+  class: className = '',
+} = Astro.props;
+
+// Dynamic Preview Detection
+const isPreview =
+  Astro.cookies.get('slotwire_preview')?.value === 'true' ||
+  Astro.url.searchParams.get('slotwire_preview') === 'true' ||
+  Boolean(import.meta.env.DEV);
+---
+
+{isPreview && (
+  <aside
+    id="slotwire-checklist-hud"
+    class={`fixed bottom-4 right-4 z-[9999] font-sans antialiased ${className}`}
+    data-slotwire-hud="true"
+    data-page-slug={pageSlug}
+    data-admin-url={adminUrl}
+    data-provider={provider}
+  >
+    <!-- Collapsed Toggle Pill -->
+    <div
+      id="slotwire-hud-pill"
+      class="flex items-center gap-3 rounded-full border border-emerald-500/40 bg-zinc-950/90 px-4 py-2.5 text-xs text-zinc-100 shadow-2xl backdrop-blur-md transition-all duration-200 hover:border-emerald-400 hover:scale-[1.02] cursor-pointer"
+    >
+      <div class="flex items-center gap-2">
+        <span class="relative flex size-2.5">
+          <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex size-2.5 rounded-full bg-emerald-500"></span>
+        </span>
+        <span class="font-bold tracking-wide text-emerald-400 uppercase text-[11px]">⚡ SlotWire Live</span>
+      </div>
+
+      <div class="h-3.5 w-px bg-zinc-800"></div>
+
+      <span id="slotwire-hud-summary-text" class="font-mono text-zinc-300">
+        Auditing slots...
+      </span>
+
+      <button
+        id="slotwire-hud-toggle-btn"
+        class="ml-1 rounded bg-zinc-800/80 px-2 py-0.5 text-[11px] font-semibold text-zinc-300 hover:bg-zinc-700 hover:text-white"
+        aria-label="Toggle Blueprint Checklist"
+      >
+        Checklist ▾
+      </button>
+    </div>
+
+    <!-- Expanded Checklist Drawer -->
+    <div
+      id="slotwire-hud-drawer"
+      class="hidden mt-3 w-96 max-h-[560px] overflow-hidden flex-col rounded-2xl border border-zinc-800 bg-zinc-950/95 text-zinc-200 shadow-2xl backdrop-blur-xl transition-all duration-200"
+    >
+      <!-- Header -->
+      <div class="flex items-center justify-between border-b border-zinc-800/80 px-4 py-3 bg-zinc-900/60">
+        <div>
+          <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-400">Blueprint Checklist</h3>
+          <p id="slotwire-hud-route-label" class="font-mono text-[11px] text-zinc-400 mt-0.5">Route: {pageSlug || '/'}</p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button
+            id="slotwire-hud-rescan-btn"
+            title="Recompile / Rescan Page Slots"
+            class="rounded-lg bg-zinc-800 px-2.5 py-1 text-[11px] font-semibold text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors"
+          >
+            ↻ Rescan
+          </button>
+          <button
+            id="slotwire-hud-close-btn"
+            class="rounded-lg p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+            aria-label="Close Drawer"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+
+      <!-- Completeness Progress Bar -->
+      <div class="border-b border-zinc-800/60 px-4 py-3 bg-zinc-900/30">
+        <div class="flex items-center justify-between text-xs mb-1.5 font-mono">
+          <span class="text-zinc-400">Completeness:</span>
+          <span id="slotwire-hud-progress-label" class="font-bold text-emerald-400">0%</span>
+        </div>
+        <div class="h-2 w-full overflow-hidden rounded-full bg-zinc-800">
+          <div
+            id="slotwire-hud-progress-bar"
+            class="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300"
+            style="width: 0%"
+          ></div>
+        </div>
+      </div>
+
+      <!-- Checklist Items List (Populated via in-situ DOM client introspection) -->
+      <div id="slotwire-hud-slot-list" class="flex-1 overflow-y-auto p-3 space-y-2 text-xs">
+        <div class="py-6 text-center text-zinc-500 font-mono text-xs">
+          Scanning DOM for active slots...
+        </div>
+      </div>
+
+      <!-- Action Footer -->
+      <div class="border-t border-zinc-800/80 px-4 py-3 bg-zinc-900/60 flex items-center justify-between gap-3">
+        <button
+          id="slotwire-precreate-trigger-btn"
+          class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-transform active:scale-[0.98]"
+        >
+          <span>🚀 Pre-Create Page</span>
+        </button>
+
+        <a
+          href={`${adminUrl.replace(/\/+$/, '')}/collections`}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center justify-center rounded-lg bg-zinc-800 hover:bg-zinc-700 px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white transition-colors"
+        >
+          CMS Admin ↗
+        </a>
+      </div>
+    </div>
+  </aside>
+)}

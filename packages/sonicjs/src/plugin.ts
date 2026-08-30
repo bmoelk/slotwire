@@ -1,5 +1,5 @@
 import type { SlotWireConfig } from '@slotwire/core';
-import { scaffoldAllSonicCollections } from './scaffold.js';
+import { scaffoldAllSonicCollections, scaffoldBlueprint } from './scaffold.js';
 import { renderSlotWireDashboard } from './dashboard.js';
 
 export interface SlotWirePluginOptions {
@@ -40,6 +40,23 @@ export function createSlotWirePlugin(options: SlotWirePluginOptions) {
               currentHost: new URL(c.req.url).host,
             });
             return c.html(html);
+          });
+
+          app.post('/api/slotwire/scaffold-blueprint', async (c: any) => {
+            try {
+              const body = await c.req.json();
+              const blueprint = body.blueprint || body;
+              const env = c.env as any;
+
+              const result = await scaffoldBlueprint(blueprint, {
+                d1: env?.DB || env?.D1,
+                cmsApiUrl: new URL(c.req.url).origin,
+              });
+
+              return c.json(result, result.success ? 200 : 400);
+            } catch (err: any) {
+              return c.json({ success: false, error: err.message }, 500);
+            }
           });
 
           app.post('/api/slotwire/deploy', async (c: any) => {

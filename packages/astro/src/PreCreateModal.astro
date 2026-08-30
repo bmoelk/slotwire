@@ -1,0 +1,111 @@
+---
+export interface Props {
+  adminUrl?: string;
+}
+
+const { adminUrl = 'https://cms.brainendeavor.com/admin' } = Astro.props;
+
+const isPreview =
+  Astro.cookies.get('slotwire_preview')?.value === 'true' ||
+  Astro.url.searchParams.get('slotwire_preview') === 'true' ||
+  Boolean(import.meta.env.DEV);
+---
+
+{isPreview && (
+  <dialog
+    id="slotwire-precreate-modal"
+    class="fixed inset-0 z-[10000] m-auto hidden max-w-lg w-full rounded-2xl border border-zinc-700 bg-zinc-950 p-0 text-zinc-100 shadow-2xl backdrop:bg-black/75 backdrop:backdrop-blur-sm"
+  >
+    <div class="p-6">
+      <!-- Header -->
+      <div class="flex items-center justify-between border-b border-zinc-800 pb-4">
+        <div class="flex items-center gap-2.5">
+          <span class="inline-flex size-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+            ⚡
+          </span>
+          <div>
+            <h2 class="text-sm font-bold text-white">Visual Archetype Cloner (Pre-Create)</h2>
+            <p id="slotwire-modal-source-label" class="text-xs text-zinc-400">Clone structural blueprint into CMS drafts</p>
+          </div>
+        </div>
+        <button
+          id="slotwire-modal-close-btn"
+          class="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-white"
+          aria-label="Close modal"
+        >
+          ✕
+        </button>
+      </div>
+
+      <!-- Form Inputs -->
+      <form id="slotwire-precreate-form" class="mt-5 space-y-4 text-xs">
+        <div>
+          <label for="slotwire-target-title" class="block font-semibold text-zinc-300 mb-1">
+            New Page Title
+          </label>
+          <input
+            type="text"
+            id="slotwire-target-title"
+            name="targetTitle"
+            required
+            placeholder="e.g. Technology & Architecture"
+            class="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3.5 py-2.5 text-xs text-white placeholder:text-zinc-500 focus:border-emerald-500 focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label for="slotwire-target-slug" class="block font-semibold text-zinc-300 mb-1">
+            New Page Route Slug
+          </label>
+          <div class="flex items-center rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs">
+            <span class="text-zinc-500 mr-1 font-mono">/</span>
+            <input
+              type="text"
+              id="slotwire-target-slug"
+              name="targetSlug"
+              required
+              placeholder="technology"
+              class="w-full bg-transparent font-mono text-white placeholder:text-zinc-500 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <!-- Blueprint Checklist Preview -->
+        <div>
+          <span class="block font-semibold text-zinc-300 mb-1.5">
+            Blueprint Scaffolding Checklist
+          </span>
+          <div
+            id="slotwire-modal-blueprint-list"
+            class="max-h-40 overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-900/60 p-3 space-y-1.5 font-mono text-[11px] text-zinc-400"
+          >
+            <!-- Injected dynamically based on active page slots -->
+            <div>Auditing active slots on template...</div>
+          </div>
+        </div>
+
+        <!-- Error Banner -->
+        <div id="slotwire-modal-error" class="hidden rounded-lg bg-rose-500/10 border border-rose-500/30 p-2.5 text-xs text-rose-400"></div>
+
+        <!-- Actions -->
+        <div class="flex items-center justify-end gap-3 pt-4 border-t border-zinc-800">
+          <button
+            type="button"
+            id="slotwire-modal-cancel-btn"
+            class="rounded-lg bg-zinc-800 px-4 py-2 text-xs font-semibold text-zinc-300 hover:bg-zinc-700 hover:text-white"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            id="slotwire-modal-submit-btn"
+            class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500 transition-transform active:scale-[0.98]"
+          >
+            <span>🚀 Scaffold & Edit Live</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+)}

@@ -106,6 +106,52 @@ export const s = {
     };
     return def;
   },
+
+  // Archetype Builders for Blueprint Resolution
+  page: (options: {
+    collection?: string;
+    slots: Record<string, any>;
+    description?: string;
+  }) => ({
+    name: 'page',
+    collection: options.collection || 'pages',
+    slots: options.slots,
+    description: options.description || 'Standard Page Archetype',
+  }),
+
+  section: (options: {
+    key?: string;
+    collection?: string;
+    strategy?: 'cascade' | 'reference';
+    children?: Record<string, any> | any;
+    defaultData?: Record<string, any>;
+  }) => ({
+    kind: 'section' as const,
+    collection: options.collection || 'page_sections',
+    key: options.key,
+    strategy: options.strategy || 'cascade',
+    children: options.children && !options.children.collection
+      ? options.children
+      : (options.children ? { items: options.children } : undefined),
+    defaultData: options.defaultData,
+  }),
+
+  singleton: (collectionName: string, options: { strategy?: 'reference' } = {}) => ({
+    kind: 'singleton' as const,
+    collection: collectionName,
+    strategy: options.strategy || 'reference',
+  }),
+
+  archetype: (
+    name: string,
+    slots: Record<string, any>,
+    options: { collection?: string; description?: string } = {}
+  ) => ({
+    name,
+    collection: options.collection || 'pages',
+    slots,
+    description: options.description,
+  }),
 };
 
 function normalizeKey(str: string): string {

@@ -78,14 +78,69 @@ export interface CmsDeepLinkOptions {
   action?: 'create' | 'edit';
 }
 
+export type ArchetypeSlotStrategy = 'cascade' | 'reference' | 'reuse_shared';
+
+export interface ArchetypeSlotDefinition {
+  kind: 'page' | 'section' | 'collection' | 'reference' | 'singleton';
+  collection: string;
+  key?: string;
+  strategy?: ArchetypeSlotStrategy;
+  children?: Record<string, ArchetypeSlotDefinition>;
+  minItems?: number;
+  defaultCount?: number;
+  defaultData?: Record<string, any>;
+  defaultFilter?: Record<string, any>;
+}
+
+export interface ArchetypeDefinition {
+  name: string;
+  collection: string;
+  slots: Record<string, ArchetypeSlotDefinition>;
+  description?: string;
+}
+
+export interface BlueprintItem {
+  id: string;
+  collection: string;
+  action: 'create' | 'reference';
+  pageSlug: string;
+  sectionKey?: string;
+  data: Record<string, any>;
+  depth: number;
+  parentKey?: string;
+  slotKey: string;
+  description: string;
+}
+
+export interface ContentBlueprint {
+  archetypeKey: string;
+  targetSlug: string;
+  targetTitle: string;
+  items: BlueprintItem[];
+  totalToCreate: number;
+  totalToReuse: number;
+  generatedAt: string;
+}
+
+export interface ScaffoldResult {
+  success: boolean;
+  targetSlug: string;
+  createdCount: number;
+  createdIds: string[];
+  reusedCount?: number;
+  errors?: string[];
+  targetUrl?: string;
+}
+
 export interface SlotWireConfig {
   cms: {
-    provider: 'sonicjs' | 'custom';
+    provider: 'sonicjs' | 'custom' | string;
     apiUrl: string;
     apiKey?: string;
     previewSecret?: string;
   };
   slots: Record<string, SlotDefinition>;
+  archetypes?: Record<string, ArchetypeDefinition>;
 }
 
 export interface SlotValidationResult {
