@@ -45,6 +45,7 @@ export interface IntrospectedSlot {
   collection?: string;
   pageSlug?: string;
   sectionKey?: string;
+  documentId?: string;
   isGhost: boolean;
   element: HTMLElement;
 }
@@ -63,6 +64,7 @@ export function introspectPageSlots(): IntrospectedSlot[] {
       collection: el.getAttribute('data-slotwire-collection') || undefined,
       pageSlug: el.getAttribute('data-slotwire-page') || undefined,
       sectionKey: el.getAttribute('data-slotwire-section') || undefined,
+      documentId: el.getAttribute('data-slotwire-id') || undefined,
       isGhost: el.hasAttribute('data-slotwire-ghost') || el.classList.contains('slotwire-ghost-slot'),
       element: el,
     });
@@ -122,9 +124,11 @@ export function initSlotWirePreview(options: { adminUrl?: string; provider?: str
             adminUrl,
             provider,
             collection: s.collection || s.slot,
+            documentId: s.documentId,
             pageSlug: s.pageSlug,
             sectionKey: s.sectionKey,
-            action: s.isGhost ? 'create' : 'edit',
+            action: s.isGhost ? 'create' : s.documentId ? 'edit' : 'list',
+            archetype: s.archetype,
           });
 
           return `

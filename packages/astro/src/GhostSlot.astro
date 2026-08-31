@@ -28,14 +28,17 @@ const {
   class: className = '',
 } = Astro.props;
 
+const resolvedCollection = collection || archetype || slot;
+
 const editUrl = buildCmsDeepLink({
   provider,
   adminUrl,
-  collection,
+  collection: resolvedCollection,
   documentId,
   pageSlug,
   sectionKey,
   action: documentId ? 'edit' : 'create',
+  archetype,
 });
 
 const hasFallback = Astro.slots.has('fallback') || Astro.slots.has('default');
@@ -50,6 +53,7 @@ const hasFallback = Astro.slots.has('fallback') || Astro.slots.has('default');
   data-slotwire-collection={collection}
   data-slotwire-page={pageSlug}
   data-slotwire-section={sectionKey}
+  data-slotwire-id={documentId}
   data-slotwire-has-fallback={hasFallback ? "true" : "false"}
 >
   <!-- Top Bar: Official SlotWire Logo, Slot Key, Badges, and Action Button -->

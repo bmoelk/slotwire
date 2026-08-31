@@ -57,15 +57,32 @@ const isMissing =
   (Array.isArray(data) && data.length === 0) ||
   (typeof data === 'object' && Object.keys(data).length === 0);
 
+// Determine cardinality and resolve document ID
+const isArray = Array.isArray(data);
+const resolvedDocId = documentId || (!isArray ? (data?.id || data?.rootId || data?.root_id) : undefined);
+const resolvedCollection = collection || archetype || slot;
+
 const editUrl = buildCmsDeepLink({
   provider,
   adminUrl,
-  collection,
-  documentId,
+  collection: resolvedCollection,
+  documentId: resolvedDocId,
   pageSlug,
   sectionKey,
-  action: documentId ? 'edit' : 'edit',
+  action: isMissing ? 'create' : resolvedDocId ? 'edit' : 'list',
+  archetype,
 });
+const isCollectionSlot =
+  archetype === 'cards' ||
+  archetype === 'gallery' ||
+  archetype === 'testimonials' ||
+  archetype === 'endorsements' ||
+  archetype === 'qa' ||
+  archetype === 'faq' ||
+  archetype === 'table' ||
+  isArray;
+
+const actionLabel = isCollectionSlot ? '📋 View List in CMS ↗' : '📝 Edit in CMS ↗';
 ---
 
 {isMissing ? (
@@ -73,10 +90,10 @@ const editUrl = buildCmsDeepLink({
     <GhostSlot
       slot={slot}
       archetype={archetype}
-      collection={collection}
+      collection={resolvedCollection}
       pageSlug={pageSlug}
       sectionKey={sectionKey}
-      documentId={documentId}
+      documentId={resolvedDocId}
       required={required}
       adminUrl={adminUrl}
       provider={provider}
@@ -95,10 +112,10 @@ const editUrl = buildCmsDeepLink({
       <Tag
         data-slotwire-slot={slot}
         data-slotwire-archetype={archetype}
-        data-slotwire-collection={collection}
+        data-slotwire-collection={resolvedCollection}
         data-slotwire-page={pageSlug}
         data-slotwire-section={sectionKey}
-        data-slotwire-id={documentId}
+        data-slotwire-id={resolvedDocId}
         data-slotwire-source={isFallback ? 'fallback' : 'cms'}
         class={className}
       >
@@ -131,12 +148,13 @@ const editUrl = buildCmsDeepLink({
           </svg>
           <span>✓ Populated: <strong>{slot}</strong></span>
           <span class="slotwire-sep">•</span>
-          <span>📝 Edit in CMS ↗</span>
+          <span>{actionLabel}</span>
         </a>
       </div>
     )}
   </div>
 )}
+
 
 <style>
   .slotwire-slot-container {

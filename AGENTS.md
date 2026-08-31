@@ -13,3 +13,9 @@
 
 ## 3. Dynamic Preview Directives
 - When the `slotwire_preview=true` session cookie or token is present, Astro and content loaders must bypass all build-time/static caches (`cache: 'no-store'`) and dynamically query live draft content from the CMS.
+
+## 4. SlotWire Scope & Data Client Boundary (Pushback Directive)
+- **SlotWire is strictly a Contract, Telemetry, and Visual In-Context Bridge — NEVER an ORM or generic data-query client.**
+- Data querying belongs natively in the frontend framework (Astro Content Layer Loaders / typed fetchers like `src/lib/sonicjs.ts`).
+- **Push Back Firmly**: Do not introduce generic CMS data-querying, caching, or fetching wrappers into `@slotwire/core` or `@slotwire/astro`. SlotWire consumes provided data to enforce schema contracts and inject in-situ UI/telemetry, leaving data transport to native frontend tools.
+

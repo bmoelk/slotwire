@@ -6,7 +6,7 @@ test('buildCmsDeepLink: SonicJS creation link with composite keys', () => {
   const url = buildCmsDeepLink({
     provider: 'sonicjs',
     adminUrl: 'https://cms.brainendeavor.com/admin',
-    collection: 'feature_cards',
+    collection: 'page_sections',
     pageSlug: 'technology',
     sectionKey: 'stack',
     action: 'create',
@@ -14,7 +14,21 @@ test('buildCmsDeepLink: SonicJS creation link with composite keys', () => {
 
   assert.equal(
     url,
-    'https://cms.brainendeavor.com/admin/content/documents/feature_cards/new?pageSlug=technology&sectionKey=stack'
+    'https://cms.brainendeavor.com/admin/content/new?collection=page_sections&pageSlug=technology&sectionKey=stack'
+  );
+});
+
+test('buildCmsDeepLink: SonicJS collection archetype routes to model list', () => {
+  const url = buildCmsDeepLink({
+    provider: 'sonicjs',
+    adminUrl: 'https://cms.brainendeavor.com/admin',
+    collection: 'services',
+    archetype: 'cards',
+  });
+
+  assert.equal(
+    url,
+    'https://cms.brainendeavor.com/admin/content?model=services'
   );
 });
 
@@ -30,7 +44,7 @@ test('buildCmsDeepLink: SonicJS edit link with documentId', () => {
 
   assert.equal(
     url,
-    'https://cms.brainendeavor.com/admin/content/documents/feature_cards/doc-stack-1?pageSlug=technology'
+    'https://cms.brainendeavor.com/admin/content/doc-stack-1/edit?pageSlug=technology'
   );
 });
 

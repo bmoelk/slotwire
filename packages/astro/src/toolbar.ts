@@ -1,5 +1,18 @@
 import { defineToolbarApp } from 'astro/toolbar';
-import { SLOT_ARCHETYPES } from '@slotwire/core';
+
+const SLOT_ARCHETYPES = [
+  { id: 'page', name: 'page (Full Page Archetype)' },
+  { id: 'section', name: 'section (Layout Container)' },
+  { id: 'cards', name: 'cards (Multi-Column Grid)' },
+  { id: 'gallery', name: 'gallery (Media & Image Array)' },
+  { id: 'endorsements', name: 'endorsements (Quotes & Social Proof)' },
+  { id: 'testimonials', name: 'testimonials (Customer Reviews)' },
+  { id: 'qa', name: 'qa (Questions & Answers / FAQ)' },
+  { id: 'table', name: 'table (Tabular Data)' },
+  { id: 'timeline', name: 'timeline (Sequential Events)' },
+  { id: 'stats', name: 'stats (Numeric Counters)' },
+  { id: 'singleton', name: 'singleton (Global Settings)' },
+];
 
 let isHighlightActive = false;
 let areWireframesVisible = true;
