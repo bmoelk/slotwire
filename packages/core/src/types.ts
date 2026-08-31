@@ -103,7 +103,8 @@ export interface CmsDeepLinkOptions {
   documentId?: string;
   pageSlug?: string;
   sectionKey?: string;
-  action?: 'create' | 'edit';
+  action?: 'create' | 'edit' | 'list';
+  archetype?: string;
 }
 
 export type ArchetypeSlotStrategy = 'cascade' | 'reference' | 'reuse_shared';

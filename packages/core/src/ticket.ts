@@ -8,6 +8,7 @@ import type {
   BookmarkletOptions,
   SlotMetadata,
 } from './types.js';
+import { buildCmsDeepLink } from './adapters.js';
 
 export interface CreateTicketOptions {
   title?: string;
@@ -47,9 +48,16 @@ export function createContentTicket(options: CreateTicketOptions): ContentTicket
   const cleanAdmin = adminUrl.replace(/\/+$/, '');
 
   const stagingUrl = `${cleanStaging}${context.route.startsWith('/') ? '' : '/'}${context.route}?slotwire_preview=true#slotwire-highlight=${encodeURIComponent(slotKey)}`;
-  const cmsEditUrl = docId
-    ? `${cleanAdmin}/content/edit/${encodeURIComponent(docId)}?pageSlug=${encodeURIComponent(pageSlug)}&sectionKey=${encodeURIComponent(sectionKey)}`
-    : `${cleanAdmin}/collections/${encodeURIComponent(collection)}/new?pageSlug=${encodeURIComponent(pageSlug)}&sectionKey=${encodeURIComponent(sectionKey)}`;
+  const cmsEditUrl = buildCmsDeepLink({
+    provider: 'sonicjs',
+    adminUrl,
+    collection,
+    documentId: docId,
+    pageSlug,
+    sectionKey,
+    action: docId ? 'edit' : 'create',
+    archetype: context.archetype,
+  });
 
   return {
     ticketId,

@@ -37,7 +37,7 @@ test('ticket: creates canonical ContentTicket and formats markdown', () => {
   );
   assert.equal(
     ticket.deepLinks.cmsEditUrl,
-    'https://cms.brainendeavor.com/admin/content/edit/doc-stack-1?pageSlug=ai&sectionKey=stack'
+    'https://cms.brainendeavor.com/admin/content/doc-stack-1/edit?pageSlug=ai&sectionKey=stack'
   );
 
   const markdown = formatTicketMarkdown(ticket);
