@@ -36,26 +36,37 @@ export async function scanOrphanedContent(
           totalChecked++;
           const docId = item.id || `${collectionName}-${item.slug || totalChecked}`;
           const docSlug = item.slug || item.id || '';
-          const docTitle = item.title || item.name || item.authorName || docSlug;
-          const dataPayload = item.data || item;
+          let dataPayload = item.data || item;
+          if (typeof dataPayload === 'string') {
+            try {
+              dataPayload = JSON.parse(dataPayload);
+            } catch {}
+          }
+          const docTitle = item.title || item.name || item.authorName || (typeof dataPayload === 'object' && dataPayload ? (dataPayload.title || dataPayload.name || dataPayload.authorName) : '') || docSlug;
+          const mergedDoc = {
+            ...item,
+            ...(typeof dataPayload === 'object' && dataPayload ? dataPayload : {}),
+            slug: item.slug || dataPayload?.slug || docSlug,
+            title: docTitle,
+          };
 
           allPublishedDocs.push({
             id: docId,
             collection: collectionName,
             slug: docSlug,
             title: docTitle,
-            data: dataPayload,
+            data: mergedDoc,
           });
 
           // Inspect media / author references in payload
-          const rawString = JSON.stringify(dataPayload);
+          const rawString = JSON.stringify(mergedDoc);
           const mediaMatches = rawString.match(/[a-zA-Z0-9_-]+\.(?:jpg|jpeg|png|webp|svg|gif)/gi) || [];
           for (const m of mediaMatches) {
             referencedMediaKeys.add(m);
           }
 
-          if (dataPayload.author) {
-            referencedAuthorIds.add(String(dataPayload.author));
+          if (mergedDoc.author) {
+            referencedAuthorIds.add(String(mergedDoc.author));
           }
         }
       } catch {

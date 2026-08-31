@@ -28,7 +28,7 @@ export async function validateContract(
         }
       }
 
-      const res = await fetchFn(endpoint);
+      const res = await fetchFn(endpoint, { signal: AbortSignal.timeout(3000) } as any);
       if (!res.ok) {
         results.push({
           slotKey,

@@ -160,8 +160,10 @@ function normalizeKey(str: string): string {
 
 export function interpolateRouteTemplate(template: string, doc: Record<string, any> = {}): string {
   let result = template;
-  const slugVal = doc.slug || doc.id || '';
+  const data = doc.data || doc;
+  const slugVal = data.slug || doc.slug || data.id || doc.id || '';
 
+  // 1. Handle {slug}
   if (result.includes('{slug}')) {
     if (slugVal) {
       result = result.replace(/{slug}/g, encodeURIComponent(slugVal));
@@ -170,15 +172,34 @@ export function interpolateRouteTemplate(template: string, doc: Record<string, a
     }
   }
 
+  // 2. Handle {id}
   if (result.includes('{id}')) {
-    if (doc.id) {
-      result = result.replace(/{id}/g, encodeURIComponent(doc.id));
+    const idVal = data.id || doc.id;
+    if (idVal) {
+      result = result.replace(/{id}/g, encodeURIComponent(idVal));
     } else {
       throw new Error(`[SlotWire] Route template '${template}' requires an id, but none was provided in document context.`);
     }
   }
 
-  return result;
+  // 3. Handle generic {field} tokens (e.g. {pageSlug})
+  result = result.replace(/{([a-zA-Z0-9_-]+)}/g, (_, key) => {
+    const val = data[key] ?? doc[key];
+    if (val === undefined || val === null) {
+      return '';
+    }
+    if (key === 'pageSlug' && val === 'home') {
+      return '';
+    }
+    return encodeURIComponent(String(val));
+  });
+
+  // Clean up double slashes or trailing slash formatting
+  result = result.replace(/\/+/g, '/');
+  if (result.length > 1 && result.endsWith('/')) {
+    result = result.slice(0, -1);
+  }
+  return result || '/';
 }
 
 export function resolvePreviewRoute(config: SlotWireConfig, slotKeyOrCollection: string, doc: Record<string, any> = {}): string | null {
@@ -188,7 +209,7 @@ export function resolvePreviewRoute(config: SlotWireConfig, slotKeyOrCollection:
   for (const [slotKey, slotDef] of Object.entries(config.slots)) {
     const collName = slotDef.kind === 'collection' ? slotDef.collectionName : slotKey;
     if (slotKey === slotKeyOrCollection || collName === slotKeyOrCollection) {
-      const pattern = (slotDef as any).previewRoutePattern || (slotDef as any).previewRoute;
+      const pattern = (slotDef as any).previewRoutePattern ?? (typeof (slotDef as any).previewRoute === 'string' ? (slotDef as any).previewRoute : undefined);
       if (typeof pattern === 'function') {
         return pattern(doc);
       }
@@ -204,7 +225,7 @@ export function resolvePreviewRoute(config: SlotWireConfig, slotKeyOrCollection:
   for (const [slotKey, slotDef] of Object.entries(config.slots)) {
     const collName = slotDef.kind === 'collection' ? slotDef.collectionName : slotKey;
     if (normalizeKey(slotKey) === targetNorm || normalizeKey(collName) === targetNorm) {
-      const pattern = (slotDef as any).previewRoutePattern || (slotDef as any).previewRoute;
+      const pattern = (slotDef as any).previewRoutePattern ?? (typeof (slotDef as any).previewRoute === 'string' ? (slotDef as any).previewRoute : undefined);
       if (typeof pattern === 'function') {
         return pattern(doc);
       }
