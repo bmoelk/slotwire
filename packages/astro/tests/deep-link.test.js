@@ -121,4 +121,41 @@ test('buildCmsDeepLink: Directus item edit link', () => {
   );
 });
 
+test('buildCmsDeepLink: Composite slot child item edit link', () => {
+  const childItem = { id: 'card-srv-consulting', title: 'Strategic Technical Consulting' };
+  const url = buildCmsDeepLink({
+    provider: 'sonicjs',
+    adminUrl: 'https://cms.brainendeavor.com/admin',
+    collection: 'feature_cards',
+    documentId: childItem.id,
+    pageSlug: 'home',
+    sectionKey: 'services',
+    action: 'edit',
+    archetype: 'cards',
+  });
+
+  assert.equal(
+    url,
+    'https://cms.brainendeavor.com/admin/content/card-srv-consulting/edit?pageSlug=home&sectionKey=services'
+  );
+});
+
+test('buildCmsDeepLink: Composite slot create new item with query context', () => {
+  const url = buildCmsDeepLink({
+    provider: 'sonicjs',
+    adminUrl: 'https://cms.brainendeavor.com/admin',
+    collection: 'feature_cards',
+    pageSlug: 'home',
+    sectionKey: 'services',
+    action: 'create',
+    archetype: 'cards',
+  });
+
+  assert.equal(
+    url,
+    'https://cms.brainendeavor.com/admin/content/new?collection=feature_cards&pageSlug=home&sectionKey=services'
+  );
+});
+
+
 

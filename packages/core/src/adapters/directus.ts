@@ -15,12 +15,8 @@ export class DirectusAdapter extends BaseCmsAdapter {
       documentId,
       pageSlug,
       sectionKey,
-      action = documentId ? 'edit' : 'create',
       archetype,
     } = options;
-
-    const base = this.cleanBaseUrl(adminUrl);
-    const queryStr = this.buildQueryParams(pageSlug, sectionKey);
 
     const isCollectionArchetype =
       archetype === 'cards' ||
@@ -29,22 +25,26 @@ export class DirectusAdapter extends BaseCmsAdapter {
       archetype === 'endorsements' ||
       archetype === 'qa' ||
       archetype === 'faq' ||
-      archetype === 'table' ||
-      action === 'list';
+      archetype === 'table';
+
+    const action = options.action || (documentId ? 'edit' : isCollectionArchetype ? 'list' : 'create');
+
+    const base = this.cleanBaseUrl(adminUrl);
+    const queryStr = this.buildQueryParams(pageSlug, sectionKey);
 
     // 1. Single Document Edit
     if (action === 'edit' && documentId && collection) {
       return `${base}/content/${encodeURIComponent(collection)}/${encodeURIComponent(documentId)}${queryStr}`;
     }
 
-    // 2. Collection Model List View
-    if (collection && isCollectionArchetype) {
-      return `${base}/content/${encodeURIComponent(collection)}`;
-    }
-
-    // 3. New Record Creation (Directus uses /+ for new item)
+    // 2. New Record Creation (Directus uses /+ for new item)
     if (action === 'create' && collection) {
       return `${base}/content/${encodeURIComponent(collection)}/+${queryStr}`;
+    }
+
+    // 3. Collection Model List View
+    if (collection && (action === 'list' || isCollectionArchetype)) {
+      return `${base}/content/${encodeURIComponent(collection)}`;
     }
 
     if (collection) {

@@ -62,7 +62,48 @@ const isArray = Array.isArray(data);
 const resolvedDocId = documentId || (!isArray ? (data?.id || data?.rootId || data?.root_id) : undefined);
 const resolvedCollection = collection || archetype || slot;
 
-const editUrl = buildCmsDeepLink({
+// Introspect Child Documents for Composite Slots
+const childItems = isArray
+  ? (data as any[]).map((item: any, idx: number) => {
+      const id = item?.id || item?.rootId || item?.slug || item?._id || `item-${idx + 1}`;
+      const label = item?.title || item?.name || item?.heading || item?.badgeText || item?.slug || `Item #${idx + 1}`;
+      const thumbnail = item?.imageUrl || item?.image || item?.avatarUrl || item?.src || item?.url || item?.coverImage || (item?.localImg?.src) || undefined;
+      const order = item?.order !== undefined ? item.order : idx + 1;
+      const editUrl = buildCmsDeepLink({
+        provider,
+        adminUrl,
+        collection: resolvedCollection,
+        documentId: item?.id || item?.rootId || item?.slug || item?._id,
+        action: 'edit',
+        archetype,
+        pageSlug,
+        sectionKey,
+      });
+      return { id, label, thumbnail, order, editUrl };
+    })
+  : [];
+
+const createItemUrl = buildCmsDeepLink({
+  provider,
+  adminUrl,
+  collection: resolvedCollection,
+  action: 'create',
+  archetype,
+  pageSlug,
+  sectionKey,
+});
+
+const listUrl = buildCmsDeepLink({
+  provider,
+  adminUrl,
+  collection: resolvedCollection,
+  action: 'list',
+  archetype,
+  pageSlug,
+  sectionKey,
+});
+
+const singleEditUrl = buildCmsDeepLink({
   provider,
   adminUrl,
   collection: resolvedCollection,
@@ -72,6 +113,7 @@ const editUrl = buildCmsDeepLink({
   action: isMissing ? 'create' : resolvedDocId ? 'edit' : 'list',
   archetype,
 });
+
 const isCollectionSlot =
   archetype === 'cards' ||
   archetype === 'gallery' ||
@@ -83,6 +125,7 @@ const isCollectionSlot =
   isArray;
 
 const actionLabel = isCollectionSlot ? '📋 View List in CMS ↗' : '📝 Edit in CMS ↗';
+const serializedItems = childItems.length > 0 ? JSON.stringify(childItems.map(c => ({ id: c.id, label: c.label, thumbnail: c.thumbnail }))) : undefined;
 ---
 
 {isMissing ? (
@@ -106,7 +149,7 @@ const actionLabel = isCollectionSlot ? '📋 View List in CMS ↗' : '📝 Edit 
   ) : (
     <slot name="fallback" />
   )
-) : (
+) : isPreview ? (
   <div class="slotwire-slot-container">
     {isTaggingEnabled ? (
       <Tag
@@ -116,6 +159,7 @@ const actionLabel = isCollectionSlot ? '📋 View List in CMS ↗' : '📝 Edit 
         data-slotwire-page={pageSlug}
         data-slotwire-section={sectionKey}
         data-slotwire-id={resolvedDocId}
+        data-slotwire-items={serializedItems}
         data-slotwire-source={isFallback ? 'fallback' : 'cms'}
         class={className}
       >
@@ -127,11 +171,83 @@ const actionLabel = isCollectionSlot ? '📋 View List in CMS ↗' : '📝 Edit 
       </Tag>
     )}
 
-    <!-- In-Situ "Modify Content" Hover Badge for Populated Slots in Dev / Preview Mode -->
-    {isPreview && (
-      <div class="slotwire-in-situ-badge">
+    <!-- In-Situ Hover Gateway for Populated Slots in Dev / Preview Mode -->
+    <div class="slotwire-in-situ-badge">
+      {childItems.length > 0 ? (
+        <div class="slotwire-composite-gateway">
+          <div class="slotwire-edit-btn slotwire-composite-trigger">
+            <svg class="slotwire-logo-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="2" y="4" width="6" height="16" rx="2.5" fill="#0f172a" stroke="#10b981" stroke-width="1.8"/>
+              <rect x="16" y="4" width="6" height="16" rx="2.5" fill="#0f172a" stroke="#06b6d4" stroke-width="1.8"/>
+              <circle cx="5" cy="8.5" r="1.2" fill="#10b981"/>
+              <circle cx="5" cy="15.5" r="1.2" fill="#10b981"/>
+              <circle cx="19" cy="8.5" r="1.2" fill="#06b6d4"/>
+              <circle cx="19" cy="15.5" r="1.2" fill="#06b6d4"/>
+              <path d="M6.5 8.5H17.5" stroke="#10b981" stroke-width="1.8" stroke-linecap="round"/>
+              <path d="M6.5 15.5H17.5" stroke="#06b6d4" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+            <span>✓ Populated: <strong>{slot}</strong></span>
+            <span class="slotwire-badge-archetype">🏷️ {archetype || 'cards'} ({childItems.length}) ▾</span>
+          </div>
+
+          <!-- In-Situ Multi-Target Popover Menu (Directly connected to trigger) -->
+          <div class="slotwire-composite-popover">
+            <div class="slotwire-popover-header">
+              <span class="slotwire-popover-title">📦 {resolvedCollection}</span>
+              <span class="slotwire-popover-badge">{childItems.length} items</span>
+            </div>
+
+            <div class="slotwire-popover-list">
+              {childItems.map((child, idx) => (
+                <a
+                  href={child.editUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="slotwire-popover-item"
+                  title={`Edit ${child.label} (${child.id}) in CMS`}
+                >
+                  {child.thumbnail ? (
+                    <img
+                      src={child.thumbnail}
+                      alt=""
+                      class="slotwire-popover-thumb"
+                      onerror="this.style.display='none'"
+                    />
+                  ) : (
+                    <span class="slotwire-popover-item-idx">#{idx + 1}</span>
+                  )}
+                  <div class="slotwire-popover-item-info">
+                    <span class="slotwire-popover-item-label">{child.label}</span>
+                    <span class="slotwire-popover-item-id">{child.id}</span>
+                  </div>
+                  <span class="slotwire-popover-item-action">📝 Edit ↗</span>
+                </a>
+              ))}
+            </div>
+
+            <div class="slotwire-popover-footer">
+              <a
+                href={createItemUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="slotwire-popover-btn slotwire-popover-btn-create"
+              >
+                ➕ Add New {archetype === 'cards' ? 'Card' : archetype === 'gallery' ? 'Image' : 'Item'} ↗
+              </a>
+              <a
+                href={listUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="slotwire-popover-btn slotwire-popover-btn-list"
+              >
+                📋 View Full Table ↗
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : (
         <a
-          href={editUrl}
+          href={singleEditUrl}
           target="_blank"
           rel="noopener noreferrer"
           class="slotwire-edit-btn"
@@ -147,14 +263,33 @@ const actionLabel = isCollectionSlot ? '📋 View List in CMS ↗' : '📝 Edit 
             <path d="M6.5 15.5H17.5" stroke="#06b6d4" stroke-width="1.8" stroke-linecap="round"/>
           </svg>
           <span>✓ Populated: <strong>{slot}</strong></span>
+          {archetype && <span class="slotwire-badge-archetype">🏷️ {archetype}</span>}
           <span class="slotwire-sep">•</span>
           <span>{actionLabel}</span>
         </a>
-      </div>
-    )}
+      )}
+    </div>
   </div>
+) : (
+  isTaggingEnabled ? (
+    <Tag
+      data-slotwire-slot={slot}
+      data-slotwire-archetype={archetype}
+      data-slotwire-collection={resolvedCollection}
+      data-slotwire-page={pageSlug}
+      data-slotwire-section={sectionKey}
+      data-slotwire-id={resolvedDocId}
+      data-slotwire-source={isFallback ? 'fallback' : 'cms'}
+      class={className}
+    >
+      <slot />
+    </Tag>
+  ) : (
+    <Tag class={className}>
+      <slot />
+    </Tag>
+  )
 )}
-
 
 <style>
   .slotwire-slot-container {
@@ -197,6 +332,7 @@ const actionLabel = isCollectionSlot ? '📋 View List in CMS ↗' : '📝 Edit 
     text-decoration: none;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.6);
     backdrop-filter: blur(8px);
+    cursor: pointer;
   }
   .slotwire-edit-btn:hover {
     background-color: #059669 !important;
@@ -209,7 +345,173 @@ const actionLabel = isCollectionSlot ? '📋 View List in CMS ↗' : '📝 Edit 
     flex-shrink: 0;
     display: inline-block;
   }
+  .slotwire-badge-archetype {
+    background-color: rgba(16, 185, 129, 0.15);
+    color: #6ee7b7;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 11px;
+  }
   .slotwire-sep {
     color: #71717a;
+  }
+
+  /* Composite Popover Styles with Seamless Mouse Bridge */
+  .slotwire-composite-gateway {
+    position: relative;
+    display: inline-block;
+    padding-bottom: 8px; /* Seamless hover connection bridge */
+  }
+  .slotwire-composite-popover {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    width: 350px;
+    max-width: 90vw;
+    background-color: #09090b;
+    border: 1px solid rgba(16, 185, 129, 0.5);
+    border-radius: 10px;
+    padding: 8px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.8), 0 8px 10px -6px rgba(0, 0, 0, 0.8);
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 10000;
+  }
+  /* Invisible bridge to prevent mouse leave events when travelling to popover */
+  .slotwire-composite-popover::before {
+    content: '';
+    position: absolute;
+    top: -12px;
+    left: 0;
+    right: 0;
+    height: 12px;
+    background: transparent;
+  }
+  .slotwire-composite-gateway:hover .slotwire-composite-popover,
+  .slotwire-composite-gateway:focus-within .slotwire-composite-popover {
+    display: flex;
+  }
+  .slotwire-popover-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 8px;
+    border-bottom: 1px solid #27272a;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+  .slotwire-popover-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #e4e4e7;
+  }
+  .slotwire-popover-badge {
+    font-size: 10px;
+    background-color: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+  .slotwire-popover-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .slotwire-popover-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background-color: #18181b;
+    border: 1px solid #27272a;
+    text-decoration: none;
+    transition: all 0.15s ease-in-out;
+  }
+  .slotwire-popover-item:hover {
+    background-color: #27272a;
+    border-color: #10b981;
+  }
+  .slotwire-popover-thumb {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    object-fit: cover;
+    background-color: #27272a;
+    border: 1px solid #3f3f46;
+    flex-shrink: 0;
+  }
+  .slotwire-popover-item-idx {
+    font-size: 10px;
+    color: #71717a;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .slotwire-popover-item-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+  }
+  .slotwire-popover-item-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #f4f4f5;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .slotwire-popover-item-id {
+    font-size: 10px;
+    color: #71717a;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .slotwire-popover-item-action {
+    font-size: 11px;
+    font-weight: 600;
+    color: #34d399;
+    white-space: nowrap;
+  }
+  .slotwire-popover-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border-top: 1px solid #27272a;
+    padding-top: 6px;
+  }
+  .slotwire-popover-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-size: 11px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.15s;
+  }
+  .slotwire-popover-btn-create {
+    background-color: #059669;
+    color: #ffffff;
+  }
+  .slotwire-popover-btn-create:hover {
+    background-color: #10b981;
+  }
+  .slotwire-popover-btn-list {
+    background-color: #27272a;
+    color: #a1a1aa;
+  }
+  .slotwire-popover-btn-list:hover {
+    background-color: #3f3f46;
+    color: #ffffff;
   }
 </style>

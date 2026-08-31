@@ -39,6 +39,12 @@ export function createSlotWireClient(config: SlotWireConfig) {
   return new SlotWireClient(config);
 }
 
+export interface IntrospectedSlotChildItem {
+  id: string;
+  label: string;
+  editUrl?: string;
+}
+
 export interface IntrospectedSlot {
   slot: string;
   archetype?: string;
@@ -46,6 +52,7 @@ export interface IntrospectedSlot {
   pageSlug?: string;
   sectionKey?: string;
   documentId?: string;
+  items?: IntrospectedSlotChildItem[];
   isGhost: boolean;
   element: HTMLElement;
 }
@@ -58,6 +65,14 @@ export function introspectPageSlots(): IntrospectedSlot[] {
   const slots: IntrospectedSlot[] = [];
 
   elements.forEach((el) => {
+    let items: IntrospectedSlotChildItem[] | undefined;
+    const rawItems = el.getAttribute('data-slotwire-items');
+    if (rawItems) {
+      try {
+        items = JSON.parse(rawItems);
+      } catch (e) {}
+    }
+
     slots.push({
       slot: el.getAttribute('data-slotwire-slot') || '',
       archetype: el.getAttribute('data-slotwire-archetype') || undefined,
@@ -65,6 +80,7 @@ export function introspectPageSlots(): IntrospectedSlot[] {
       pageSlug: el.getAttribute('data-slotwire-page') || undefined,
       sectionKey: el.getAttribute('data-slotwire-section') || undefined,
       documentId: el.getAttribute('data-slotwire-id') || undefined,
+      items,
       isGhost: el.hasAttribute('data-slotwire-ghost') || el.classList.contains('slotwire-ghost-slot'),
       element: el,
     });
@@ -128,8 +144,20 @@ export function initSlotWirePreview(options: { adminUrl?: string; provider?: str
             pageSlug: s.pageSlug,
             sectionKey: s.sectionKey,
             action: s.isGhost ? 'create' : s.documentId ? 'edit' : 'list',
-            archetype: s.archetype,
+            archetype: s.archetype as any,
           });
+
+          const createLink = buildCmsDeepLink({
+            adminUrl,
+            provider,
+            collection: s.collection || s.slot,
+            pageSlug: s.pageSlug,
+            sectionKey: s.sectionKey,
+            action: 'create',
+            archetype: s.archetype as any,
+          });
+
+          const hasChildItems = Boolean(s.items && s.items.length > 0);
 
           return `
           <div class="rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-2.5 transition-all hover:border-zinc-700">
@@ -137,7 +165,7 @@ export function initSlotWirePreview(options: { adminUrl?: string; provider?: str
               <div class="flex items-center gap-1.5 overflow-hidden">
                 ${statusIcon}
                 <span class="font-mono font-semibold text-zinc-200 truncate">${s.slot}</span>
-                ${s.archetype ? `<span class="rounded px-1.5 py-0.2 font-mono text-[10px] ${badgeClass}">${s.archetype}</span>` : ''}
+                ${s.archetype ? `<span class="rounded px-1.5 py-0.2 font-mono text-[10px] ${badgeClass}">🏷️ ${s.archetype}${hasChildItems ? ` (${s.items!.length})` : ''}</span>` : ''}
               </div>
               <div class="flex items-center gap-1.5 shrink-0">
                 <button
@@ -147,20 +175,73 @@ export function initSlotWirePreview(options: { adminUrl?: string; provider?: str
                 >
                   📍 Scroll
                 </button>
-                <a
-                  href="${editLink}"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="rounded bg-amber-600/80 hover:bg-amber-500 px-2 py-0.5 text-[11px] font-semibold text-white"
-                >
-                  ${s.isGhost ? '+ Add' : 'Edit'} ↗
-                </a>
+                ${hasChildItems ? `
+                  <a
+                    href="${createLink}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="rounded bg-emerald-600/80 hover:bg-emerald-500 px-2 py-0.5 text-[11px] font-semibold text-white"
+                    title="Add new ${s.archetype || 'item'} in CMS"
+                  >
+                    + Add
+                  </a>
+                  <a
+                    href="${editLink}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="rounded bg-zinc-800 hover:bg-zinc-700 px-2 py-0.5 text-[11px] font-semibold text-zinc-300"
+                    title="View collection table"
+                  >
+                    List ↗
+                  </a>
+                ` : `
+                  <a
+                    href="${editLink}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="rounded bg-amber-600/80 hover:bg-amber-500 px-2 py-0.5 text-[11px] font-semibold text-white"
+                  >
+                    ${s.isGhost ? '+ Add' : 'Edit'} ↗
+                  </a>
+                `}
               </div>
             </div>
+
+            <!-- Expandable Sub-Items List for Composite Slots -->
+            ${hasChildItems ? `
+              <div class="mt-2 space-y-1 border-t border-zinc-800/80 pt-2 pl-2">
+                ${s.items!.map((item, itemIdx) => {
+                  const itemEditUrl = buildCmsDeepLink({
+                    adminUrl,
+                    provider,
+                    collection: s.collection || s.slot,
+                    documentId: item.id,
+                    action: 'edit',
+                    archetype: s.archetype as any,
+                    pageSlug: s.pageSlug,
+                    sectionKey: s.sectionKey,
+                  });
+                  return `
+                  <div class="flex items-center justify-between gap-1 text-[11px]">
+                    <span class="text-zinc-400 truncate flex-1">• <strong class="text-zinc-300">${item.label}</strong></span>
+                    <a
+                      href="${itemEditUrl}"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-emerald-400 hover:text-emerald-300 font-mono text-[10px] font-semibold ml-2 shrink-0"
+                    >
+                      📝 Edit ↗
+                    </a>
+                  </div>`;
+                }).join('')}
+              </div>
+            ` : ''}
+
             ${s.sectionKey ? `<div class="mt-1 font-mono text-[10px] text-zinc-500">Section: ${s.sectionKey}</div>` : ''}
           </div>`;
         })
         .join('');
+
 
       // Attach Scroll Handlers
       listEl.querySelectorAll<HTMLButtonElement>('[data-scroll-slot]').forEach((btn) => {
