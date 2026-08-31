@@ -78,3 +78,47 @@ test('buildCmsDeepLink: Payload CMS edit link', () => {
     'https://payload.example.com/admin/collections/posts/65f123abc'
   );
 });
+
+test('buildCmsDeepLink: Keystatic item edit link', () => {
+  const url = buildCmsDeepLink({
+    provider: 'keystatic',
+    adminUrl: '/keystatic',
+    collection: 'posts',
+    documentId: 'my-first-post',
+  });
+
+  assert.equal(
+    url,
+    '/keystatic/collection/posts/item/my-first-post'
+  );
+});
+
+test('buildCmsDeepLink: Decap CMS entry edit link', () => {
+  const url = buildCmsDeepLink({
+    provider: 'decap',
+    adminUrl: '/admin',
+    collection: 'services',
+    documentId: 'technical-consulting',
+  });
+
+  assert.equal(
+    url,
+    '/admin/#/collections/services/entries/technical-consulting'
+  );
+});
+
+test('buildCmsDeepLink: Directus item edit link', () => {
+  const url = buildCmsDeepLink({
+    provider: 'directus',
+    adminUrl: 'https://directus.example.com/admin',
+    collection: 'projects',
+    documentId: 'splitphase',
+  });
+
+  assert.equal(
+    url,
+    'https://directus.example.com/admin/content/projects/splitphase'
+  );
+});
+
+
