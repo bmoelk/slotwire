@@ -92,9 +92,33 @@ Represents discrete question-and-answer pairs for topic-specific search, accordi
 * **Group Key**: `pageSlug` + `category` (e.g. `pageSlug="technology"`, `category="architecture"`)
 * **Standard Fields**: `question`, `slug`, `answer`, `category`, `pageSlug`, `featured`, `order`.
 
+### 7. `site_navigation` (Hierarchical Menus & Link Structures)
+Represents structured navigation menus for headers, dropdowns, and footers.
+* **Standard Fields**: `title` (menu label), `slug`, `link` (target route URL), `menuKey` (`header_main`, `header_dropdown`, `footer_primary`), `parentSlug`, `order`, `enabled`.
+
 ---
 
-## 4. Why This Accelerates AI Coding Agents
+## 4. Design-First Distillation vs. Model-First Database Design
+
+```
+┌───────────────────────────────────────┬───────────────────────────────────────┐
+│ Model-First (Traditional Headless)    │ Design-First (Astro + SlotWire)       │
+├───────────────────────────────────────┼───────────────────────────────────────┤
+│ • Start in database / schema builder  │ • Start in Astro visual theme/layout  │
+│ • Build isolated, abstract models     │ • Assemble UI components & slots      │
+│ • Hope frontend aligns with schemas   │ • Distill schemas directly from design│
+│ • Editors create unlinked "dark pages"│ • Auto-cascade slots & link menus     │
+└───────────────────────────────────────┴───────────────────────────────────────┘
+```
+
+When creating pages, SlotWire allows editors to choose from **Design-First Layout Templates**:
+* `bento`: Hero + Multi-Column Feature Cards Grid + Shared Social Proof.
+* `narrative`: Hero + Media Gallery + Client Endorsement.
+* `standard`: Hero + Structured Markdown / Rich-Text Narrative.
+
+---
+
+## 5. Why This Accelerates AI Coding Agents
 
 In AI-assisted software engineering:
 1. **Zero Schema Guesswork**: When an agent builds a new page (e.g. `/services` or `/technology`), it does not invent new bespoke database tables. It immediately uses `feature_cards` with `sectionKey="services"` and `page_sections`.

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { scaffoldBlueprint } from '../dist/scaffold.js';
+import { scaffoldBlueprint, generateSonicNavigationCollectionConfig, scaffoldAllSonicCollections } from '../dist/scaffold.js';
 
 test('scaffoldBlueprint: mock D1 database execution', async () => {
   const mockInserted = [];
@@ -55,3 +55,19 @@ test('scaffoldBlueprint: mock D1 database execution', async () => {
   assert.equal(result.reusedCount, 1);
   assert.equal(mockInserted.length, 2);
 });
+
+test('sonicjs: generates site_navigation schema config', () => {
+  const navConfig = generateSonicNavigationCollectionConfig();
+  assert.equal(navConfig.name, 'site_navigation');
+  assert.ok(navConfig.schema.properties.menuKey);
+  assert.ok(navConfig.schema.properties.link);
+  assert.ok(navConfig.schema.properties.title);
+
+  const all = scaffoldAllSonicCollections({
+    cms: { provider: 'sonicjs', apiUrl: 'http://localhost' },
+    slots: {},
+  });
+  const hasNav = all.some((c) => c.name === 'site_navigation');
+  assert.ok(hasNav, 'Expected site_navigation collection in scaffoldAllSonicCollections');
+});
+

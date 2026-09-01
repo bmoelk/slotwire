@@ -27,11 +27,13 @@ When building modern websites with Astro and a Headless CMS (SonicJS, Strapi, Sa
 
 ## Features
 
-* **Fluent Schema Contracts**: Declare typed visual slots and collections in a single `slotwire.config.ts` using Zod-backed builders.
-* **Build-Time Verification (`slotwire:check`)**: Verify that 100% of your required visual slots are populated in the CMS before deploying.
-* **Visual In-Situ Inspector (`<SlotWire />`)**: In development and preview modes, unpopulated CMS slots render distinct, helpful visual badges with direct links to edit the document in your CMS admin panel.
-* **Automated CMS Scaffolding**: Sync contracts directly to your CMS database (e.g. Cloudflare D1 tables & collections).
-* **Zero Runtime Overhead**: In production, SlotWire compiles away to lightweight native rendering with graceful fallbacks.
+* **Design-First Visual Archetypes**: Distill page layouts (`bento`, `narrative`, `standard`) and slot hierarchies directly from UI components, with automatic cascade and shared reference resolution.
+* **Navigation Contracts (`s.navigation`)**: Formally model and manage site menus (Header, Dropdowns, Footer) in CMS collections and automatically link newly created pages.
+* **Visual In-Situ Pre-Create Cloner**: 1-click clone existing page layouts or distilled archetypes into live CMS draft records directly from the preview workbench.
+* **Fluent Schema Contracts**: Declare typed visual slots, singletons, and collections in a single `slotwire.config.ts` using Zod-backed builders.
+* **Build-Time Verification (`@slotwire/cli scan`)**: Verify that 100% of required visual slots are populated in the CMS before deploying.
+* **Universal Multi-CMS Adapters**: Out-of-the-box deep-linking support for SonicJS, Strapi, Payload CMS, Directus, Keystatic, and Decap CMS.
+* **Zero Runtime Overhead**: In production, SlotWire ships 0 KB of client JavaScript with inert semantic `data-slotwire-*` tags.
 
 ---
 
@@ -40,9 +42,10 @@ When building modern websites with Astro and a Headless CMS (SonicJS, Strapi, Sa
 ```
 slotwire/
 ├── packages/
-│   ├── core/           # @slotwire/core: Schema contract builders, validator engine & drift detector
-│   ├── astro/          # astro-slotwire: Astro integration, <SlotWire /> component & Dev Toolbar app
-│   └── sonicjs/        # @slotwire/sonicjs: SonicJS plugin for automated D1 collection scaffolding
+│   ├── core/           # @slotwire/core: Schema contracts, archetypes, navigation, blueprint generator & validators
+│   ├── astro/          # astro-slotwire: Astro integration, <SlotWire />, Ghost slots, HUD & Pre-Create Cloner
+│   ├── sonicjs/        # @slotwire/sonicjs: SonicJS plugin for automated D1 collections & draft scaffolding
+│   └── cli/            # @slotwire/cli: Terminal auditor, gap matrix scanner, and pre-deploy validation
 ```
 
 ---
@@ -56,7 +59,7 @@ slotwire/
 npm install @slotwire/core astro-slotwire
 ```
 
-### 2. Define Your Content Contract
+### 2. Define Your Content Contract & Archetypes
 
 Create `slotwire.config.ts` in your project root:
 
@@ -68,6 +71,30 @@ export default defineContract({
     provider: 'sonicjs',
     apiUrl: 'https://cms.yourdomain.com',
   },
+
+  // ── Navigation Architecture Contract ───────────────────────────────────────
+  navigation: s.navigation({
+    collection: 'site_navigation',
+    menus: ['header_main', 'header_dropdown', 'footer_primary', 'footer_legal'],
+  }),
+
+  // ── Design-First Layout Archetypes ─────────────────────────────────────────
+  archetypes: {
+    bento: s.page({
+      template: 'bento',
+      description: 'Bento Grid marketing layout with hero and feature cards',
+      slots: {
+        hero: s.section({ key: 'hero', strategy: 'cascade' }),
+        features: s.section({
+          key: 'features',
+          strategy: 'cascade',
+          children: s.collection('feature_cards', { defaultCount: 4 }),
+        }),
+        social_proof: s.singleton('endorsements', { strategy: 'reference' }),
+      },
+    }),
+  },
+
   slots: {
     // ── Single Section Slot ──────────────────────────────────────────────────
     hero: s.object({
@@ -115,7 +142,7 @@ import { getProjects } from "@/lib/cms";
 const projects = await getProjects();
 ---
 
-<SlotWire slot="projects_matrix" data={projects} required={true}>
+<SlotWire slot="projects_matrix" archetype="cards" collection="projects" data={projects} required={true}>
   <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
     {projects.map((proj) => (
       <div class="card">
@@ -136,36 +163,10 @@ const projects = await getProjects();
 
 ## Build-Time Validation CLI
 
-Add the check command to your `package.json`:
+Run `@slotwire/cli scan` to verify schema completeness across all pages before deploying:
 
-```json
-{
-  "scripts": {
-    "slotwire:check": "tsx scripts/validate-slotwire.ts"
-  }
-}
-```
-
-Running `npm run slotwire:check` outputs:
-
-```
-======================================================
-⚡ SlotWire Contract & Schema Completeness Validator
-======================================================
-🌐 Target CMS: https://cms.brainendeavor.com
-
-✅ Slot: 'hero' [object]
-   Fields populated: 7/7
-   CMS documents: 1
-
-✅ Slot: 'projects_matrix' [collection]
-   Fields populated: 7/8
-   CMS documents: 4
-
-------------------------------------------------------
-Summary: 2/2 Slots Fully Covered
-Status: ✅ ALL CONTRACTS SATISFIED
-======================================================
+```bash
+npx slotwire scan
 ```
 
 ---
@@ -173,11 +174,15 @@ Status: ✅ ALL CONTRACTS SATISFIED
 ## Roadmap
 
 - [x] `@slotwire/core` Contract Builder & Zod Schema Engine
+- [x] **Design-First Page Creation & Template Archetypes** (`bento`, `narrative`, `standard`)
+- [x] **Navigation Contracts & Auto-Menu Placement** (`s.navigation`)
+- [x] **Visual In-Situ Pre-Create Cloner** (1-click draft scaffolding from preview)
+- [x] **Universal Pluggable CMS Adapters** (SonicJS, Strapi, Payload, Directus, Keystatic, Decap)
+- [x] **Zero-JS Semantic Production Tagging & Ticketing Bridge**
 - [x] `@slotwire/sonicjs` Cloudflare D1 Scaffolding Plugin
-- [x] `astro-slotwire` Integration & `<SlotWire />` Visual Inspector
+- [x] `astro-slotwire` Integration, Ghost Slots & Interactive Checklist HUD
 - [ ] **Astro Content Layer Native Loaders** (`slotwireLoader()`)
-- [ ] **Pluggable CMS Adapters** (Sanity, Strapi, Contentful, Keystatic, Ghost)
-- [ ] **Astro Dev Toolbar Interactive App** (Highlight & 1-click deep link to CMS documents)
+- [ ] **Astro Dev Toolbar Interactive App Extension**
 
 ---
 

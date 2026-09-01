@@ -9,28 +9,46 @@ import type {
 export interface GenerateBlueprintOptions {
   targetSlug: string;
   targetTitle?: string;
+  template?: string;
+  addToMenu?: boolean;
+  menuKey?: string;
+  menuLabel?: string;
+  menuOrder?: number;
+  parentSlug?: string;
   customData?: Record<string, any>;
 }
 
 /**
  * Deterministically generates a ContentBlueprint from an Archetype definition,
- * calculating all cascade creations and shared content references.
+ * calculating all cascade creations, navigation placement, and shared content references.
  */
 export function generateBlueprint(
   config: SlotWireConfig,
   archetypeKey: string,
   options: GenerateBlueprintOptions
 ): ContentBlueprint {
-  const { targetSlug, targetTitle = targetSlug.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()), customData = {} } = options;
+  const {
+    targetSlug,
+    targetTitle = targetSlug.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+    template,
+    addToMenu,
+    menuKey = 'header_main',
+    menuLabel,
+    menuOrder = 20,
+    parentSlug,
+    customData = {},
+  } = options;
 
   const archetype: ArchetypeDefinition = config.archetypes?.[archetypeKey] || {
     name: archetypeKey,
     collection: 'pages',
+    template: template || 'standard',
     slots: {},
     description: `Default archetype for ${archetypeKey}`,
   };
 
   const items: BlueprintItem[] = [];
+  const selectedTemplate = template || archetype.template || 'standard';
 
   // 1. Root Master Page Record
   const rootCollection = archetype.collection || 'pages';
@@ -45,12 +63,38 @@ export function generateBlueprint(
     data: {
       slug: targetSlug,
       title: targetTitle,
+      template: selectedTemplate,
       status: 'draft',
       ...customData,
     },
   });
 
-  // 2. Process Slots & Nested Hierarchies
+  // 2. Navigation Menu Record (if addToMenu is requested)
+  if (addToMenu) {
+    const navCollection = config.navigation?.collection || 'site_navigation';
+    const label = menuLabel || targetTitle;
+    items.push({
+      id: `draft-nav-${targetSlug}`,
+      collection: navCollection,
+      action: 'create',
+      pageSlug: targetSlug,
+      slotKey: 'site_navigation',
+      depth: 0,
+      description: `Navigation Menu Item (${navCollection}: '${label}' -> '/${targetSlug}')`,
+      data: {
+        title: label,
+        slug: `nav-${targetSlug}`,
+        link: `/${targetSlug}`,
+        menuKey,
+        parentSlug,
+        order: menuOrder,
+        enabled: true,
+        status: 'draft',
+      },
+    });
+  }
+
+  // 3. Process Slots & Nested Hierarchies
   for (const [slotKey, slotDef] of Object.entries(archetype.slots)) {
     processSlotDefinition(slotDef, slotKey, targetSlug, targetTitle, items, 1, 'root_page');
   }

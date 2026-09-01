@@ -18,6 +18,12 @@ An interactive placeholder rendered in preview mode (`slotwire_preview=true`) wh
 ### Semantic Structural Archetype
 A standardized, high-level content composition pattern (e.g., `Page`, `Section`, `Feature Cards Bento`, `Gallery`, `Endorsements`, `Q&A Accordion`). Archetypes replace ad-hoc schemas with predictable, composable content structures.
 
+### Design-First Template Distillation
+The architectural approach of deriving content schemas, slot requirements, and archetypes directly from the visual component hierarchy and page layout designs in Astro, rather than designing abstract database models in isolation.
+
+### Navigation Contract (`s.navigation`)
+The declarative schema binding that defines and manages site navigation structures (Top Header, Nested Dropdowns, Footer Links) as CMS collections, enabling automatic linking of newly scaffolded pages.
+
 ### Content Blueprint
 The resolved dependency tree of all CMS collections, singletons, and relational foreign keys required to assemble a specific page layout or archetype. Blueprints are calculated deterministically from the declared `<SlotWire />` slots on a route.
 

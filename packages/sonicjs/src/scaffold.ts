@@ -132,6 +132,41 @@ export function generateSonicTicketCollectionConfig(): any {
   };
 }
 
+export function generateSonicNavigationCollectionConfig(config?: SlotWireConfig): any {
+  const collectionName = config?.navigation?.collection || 'site_navigation';
+  const displayName = collectionName.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+  const menus = config?.navigation?.menus || ['header_main', 'header_dropdown', 'footer_primary', 'footer_legal'];
+
+  return {
+    name: collectionName,
+    displayName,
+    slug: collectionName.replace(/_/g, '-'),
+    description: 'Site Navigation Menus & Links managed by SlotWire',
+    schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', title: 'Navigation Link Label' },
+        slug: { type: 'slug', title: 'Unique Key' },
+        link: { type: 'string', title: 'Target Route URL (e.g. /about)' },
+        menuKey: { type: 'select', title: 'Menu Placement', options: menus },
+        parentSlug: { type: 'string', title: 'Parent Menu Item (optional for dropdowns)' },
+        order: { type: 'number', title: 'Display Order' },
+        enabled: { type: 'boolean', title: 'Enabled / Visible' },
+      },
+      required: ['title', 'link', 'menuKey'],
+    },
+    managed: true,
+    isActive: true,
+    access: {
+      public: ['read'],
+    },
+    cache: {
+      enabled: true,
+      ttl: 5,
+    },
+  };
+}
+
 export function scaffoldAllSonicCollections(config: SlotWireConfig): any[] {
   const collections: any[] = [];
   const processedNames = new Set<string>();
@@ -142,6 +177,13 @@ export function scaffoldAllSonicCollections(config: SlotWireConfig): any[] {
       processedNames.add(name);
       collections.push(generateSonicCollectionConfig(slotKey, slotDef));
     }
+  }
+
+  // Include navigation collection if configured or default site_navigation
+  const navColl = config.navigation?.collection || 'site_navigation';
+  if (!processedNames.has(navColl)) {
+    processedNames.add(navColl);
+    collections.push(generateSonicNavigationCollectionConfig(config));
   }
 
   // Include internal ticket queue collection if enabled (default: true)

@@ -61,3 +61,50 @@ test('generateBlueprint: resolves cascade and reference strategies for nested ar
   assert.ok(refItem);
   assert.equal(refItem.collection, 'testimonials');
 });
+
+test('generateBlueprint: supports template selection and automatic navigation menu item generation', () => {
+  const contract = defineContract({
+    cms: {
+      provider: 'sonicjs',
+      apiUrl: 'https://cms.brainendeavor.com',
+    },
+    navigation: s.navigation({
+      collection: 'site_navigation',
+      menus: ['header_main', 'footer_primary'],
+    }),
+    slots: {},
+    archetypes: {
+      bento_page: s.page({
+        template: 'bento',
+        slots: {
+          hero: s.section({ key: 'hero', strategy: 'cascade' }),
+        },
+      }),
+    },
+  });
+
+  const blueprint = generateBlueprint(contract, 'bento_page', {
+    targetSlug: 'ai-agents',
+    targetTitle: 'AI Agents & Automation',
+    template: 'bento',
+    addToMenu: true,
+    menuKey: 'header_main',
+    menuLabel: 'AI Agents',
+    menuOrder: 15,
+  });
+
+  assert.equal(blueprint.targetSlug, 'ai-agents');
+  const rootItem = blueprint.items.find((i) => i.slotKey === 'root_page');
+  assert.ok(rootItem);
+  assert.equal(rootItem.data.template, 'bento');
+  assert.equal(rootItem.data.title, 'AI Agents & Automation');
+
+  const navItem = blueprint.items.find((i) => i.slotKey === 'site_navigation');
+  assert.ok(navItem, 'Expected navigation item to be generated');
+  assert.equal(navItem.collection, 'site_navigation');
+  assert.equal(navItem.data.title, 'AI Agents');
+  assert.equal(navItem.data.link, '/ai-agents');
+  assert.equal(navItem.data.menuKey, 'header_main');
+  assert.equal(navItem.data.order, 15);
+});
+

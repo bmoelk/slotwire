@@ -110,14 +110,34 @@ export const s = {
   // Archetype Builders for Blueprint Resolution
   page: (options: {
     collection?: string;
+    template?: string;
     slots: Record<string, any>;
     description?: string;
   }) => ({
     name: 'page',
     collection: options.collection || 'pages',
+    template: options.template || 'standard',
     slots: options.slots,
     description: options.description || 'Standard Page Archetype',
   }),
+
+  navigation: (options: {
+    collection?: string;
+    menus?: string[];
+    schema?: Record<string, FieldBuilder | any>;
+  }) => {
+    const properties: Record<string, FieldDefinition> = {};
+    if (options.schema) {
+      for (const [k, builder] of Object.entries(options.schema)) {
+        properties[k] = (builder && typeof builder.build === 'function') ? builder.build() : builder;
+      }
+    }
+    return {
+      collection: options.collection || 'site_navigation',
+      menus: options.menus || ['header_main', 'header_dropdown', 'footer_primary', 'footer_legal'],
+      schema: properties,
+    };
+  },
 
   section: (options: {
     key?: string;
@@ -145,10 +165,11 @@ export const s = {
   archetype: (
     name: string,
     slots: Record<string, any>,
-    options: { collection?: string; description?: string } = {}
+    options: { collection?: string; template?: string; description?: string } = {}
   ) => ({
     name,
     collection: options.collection || 'pages',
+    template: options.template || 'standard',
     slots,
     description: options.description,
   }),

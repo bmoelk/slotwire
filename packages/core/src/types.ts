@@ -123,9 +123,16 @@ export interface ArchetypeSlotDefinition {
 
 export interface ArchetypeDefinition {
   name: string;
-  collection: string;
+  collection?: string;
+  template?: string;
   slots: Record<string, ArchetypeSlotDefinition>;
   description?: string;
+}
+
+export interface NavigationConfig {
+  collection?: string;
+  menus?: string[];
+  schema?: Record<string, FieldDefinition>;
 }
 
 export interface BlueprintItem {
@@ -248,6 +255,7 @@ export interface SlotWireConfig {
   };
   staticTagging?: boolean;
   ticketing?: TicketingConfig;
+  navigation?: NavigationConfig;
   slots: Record<string, SlotDefinition>;
   archetypes?: Record<string, ArchetypeDefinition>;
 }

@@ -450,14 +450,15 @@ flowchart TD
 │ • Implement interactive <SlotWireGhost /> component for empty collections in preview.  │
 │ • Build CMS deep-link resolver for 1-click navigation from ghost slot to CMS editor.   │
 ├────────────────────────────────────────────────────────────────────────────────────────┤
-│ Phase 2: Live Compiler Loop, Interactive Checklist & Per-Component Slot Morphing       │
+│ Phase 2: Live Compiler Loop, Design-First Archetypes & Menu Integration                │
 │ • Implement Interactive Blueprint Checklist HUD (Text + GUI Hybrid) in preview.       │
-│ • Add smart compilation triggers: Route Mount + Debounced CMS SSE events + [ ↻ Rescan ]│
-│ • Implement `/api/slotwire/render-slot` Astro SSR fragment endpoint for zero-reload.   │
-│ • Implement `document.startViewTransition()` live morphing from Ghost Slot to markup.  │
+│ • Implement Design-First layout archetypes (`bento`, `narrative`, `standard`) in core. │
+│ • Implement Navigation Contracts (`s.navigation`) & automatic site menu scaffolding.   │
+│ • Build in-situ Pre-Create modal with layout template picker and menu placement.       │
 │ • Implement nested archetype dependency tree resolver (cascade vs. reuse) in core.    │
 │ • Implement `scaffoldBlueprint()` in `SlotWireCmsAdapter` (@slotwire/sonicjs).         │
-│ • Build in-situ Pre-Create modal (`astro-slotwire/client.ts`) for 1-click cloning.     │
+│ • Implement `/api/slotwire/render-slot` Astro SSR fragment endpoint for zero-reload.   │
+│ • Implement `document.startViewTransition()` live morphing from Ghost Slot to markup.  │
 ├────────────────────────────────────────────────────────────────────────────────────────┤
 │ Phase 3: Automated CLI Scanner & CI Backstop Quality Gate                             │
 │ • Implement `@slotwire/cli scan` & `slotwire watch` compiler commands.                 │
