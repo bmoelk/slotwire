@@ -18,11 +18,10 @@ const {
   class: className = '',
 } = Astro.props;
 
-// Dynamic Preview Detection (Cookie, URL Query Param, or Dev Mode)
+// Dynamic Preview Detection (Local Dev or URL Query Param)
 const isPreview =
-  Astro.cookies.get('slotwire_preview')?.value === 'true' ||
-  Astro.url.searchParams.get('slotwire_preview') === 'true' ||
-  Boolean(import.meta.env.DEV);
+  Boolean(import.meta.env.DEV) ||
+  Astro.url.searchParams.get('slotwire_preview') === 'true';
 ---
 
 {isPreview && (
@@ -71,6 +70,7 @@ const isPreview =
         </div>
 
         <div class="sw-drawer-actions">
+          <button id="slotwire-hud-toggle-overlays-btn" class="sw-drawer-btn" title="Toggle wireframes and badges">👁️ Overlays</button>
           <button id="slotwire-hud-rescan-btn" class="sw-drawer-btn">↻ Rescan</button>
           <button id="slotwire-hud-close-btn" class="sw-drawer-close" aria-label="Close">✕</button>
         </div>
@@ -322,3 +322,9 @@ const isPreview =
     text-decoration: none;
   }
 </style>
+
+<script>
+  import { initSlotWirePreview } from './client.js';
+  initSlotWirePreview();
+</script>
+

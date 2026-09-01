@@ -260,12 +260,68 @@ export function initSlotWirePreview(options: { adminUrl?: string; provider?: str
     }
   }
 
+  // Overlays Persistence & Toggling
+  function getOverlayHiddenState(): boolean {
+    return sessionStorage.getItem('slotwire_hide_overlays') === 'true';
+  }
+
+  function applyOverlayVisibility(hide: boolean) {
+    const overlaysBtn = document.getElementById('slotwire-hud-toggle-overlays-btn');
+    if (hide) {
+      document.documentElement.classList.add('slotwire-hide-overlays');
+      if (!document.getElementById('sw-hide-style')) {
+        const style = document.createElement('style');
+        style.id = 'sw-hide-style';
+        style.textContent = `
+          .slotwire-hide-overlays .slotwire-ghost-card {
+            border: none !important;
+            background: transparent !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+          }
+          .slotwire-hide-overlays .sw-ghost-header,
+          .slotwire-hide-overlays .sw-ghost-context-row,
+          .slotwire-hide-overlays .sw-ghost-explainer-box,
+          .slotwire-hide-overlays .slotwire-in-situ-badge,
+          .slotwire-hide-overlays .slotwire-composite-popover {
+            display: none !important;
+          }
+          .slotwire-hide-overlays .sw-ghost-fallback {
+            border-top: none !important;
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+            opacity: 1 !important;
+          }
+          .slotwire-hide-overlays .slotwire-slot-container {
+            outline: none !important;
+          }
+          .slotwire-hide-overlays .slotwire-ghost-card[data-slotwire-has-fallback="false"] {
+            display: none !important;
+          }
+        `;
+        document.head.appendChild(style);
+      }
+      sessionStorage.setItem('slotwire_hide_overlays', 'true');
+      if (overlaysBtn) overlaysBtn.textContent = '🙈 Overlays: OFF';
+    } else {
+      document.documentElement.classList.remove('slotwire-hide-overlays');
+      document.getElementById('sw-hide-style')?.remove();
+      sessionStorage.setItem('slotwire_hide_overlays', 'false');
+      if (overlaysBtn) overlaysBtn.textContent = '👁️ Overlays: ON';
+    }
+  }
+
+  // Apply initial overlay state on load
+  applyOverlayVisibility(getOverlayHiddenState());
+
   // Toggle Drawer
   const toggleBtn = document.getElementById('slotwire-hud-toggle-btn');
   const pill = document.getElementById('slotwire-hud-pill');
   const drawer = document.getElementById('slotwire-hud-drawer');
   const closeBtn = document.getElementById('slotwire-hud-close-btn');
   const rescanBtn = document.getElementById('slotwire-hud-rescan-btn');
+  const overlaysToggleBtn = document.getElementById('slotwire-hud-toggle-overlays-btn');
 
   function openDrawer() {
     drawer?.classList.remove('hidden');
@@ -290,6 +346,108 @@ export function initSlotWirePreview(options: { adminUrl?: string; provider?: str
 
   closeBtn?.addEventListener('click', closeDrawer);
   rescanBtn?.addEventListener('click', () => {
+    updateHud();
+  });
+
+  overlaysToggleBtn?.addEventListener('click', () => {
+    const isCurrentlyHidden = getOverlayHiddenState();
+    applyOverlayVisibility(!isCurrentlyHidden);
+  });
+
+  // In-Situ Badges Dragging, Corner Flipping & Minimizing
+  function initInSituBadges() {
+    const cornerClasses = ['sw-pos-tr', 'sw-pos-br', 'sw-pos-bl', 'sw-pos-tl'];
+
+    document.querySelectorAll<HTMLElement>('.slotwire-in-situ-badge').forEach((badge) => {
+      if (badge.dataset.slotwireBound === 'true') return;
+      badge.dataset.slotwireBound = 'true';
+
+      const slotKey = badge.dataset.slotKey || '';
+
+      // 1. Minimize / Collapse Handler
+      const minBtn = badge.querySelector<HTMLButtonElement>('.slotwire-badge-minimize-btn');
+      const expandPill = badge.querySelector<HTMLButtonElement>('.slotwire-badge-minimized-pill');
+
+      minBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        badge.classList.add('is-minimized');
+        if (slotKey) sessionStorage.setItem(`sw_min_${slotKey}`, 'true');
+      });
+
+      expandPill?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        badge.classList.remove('is-minimized');
+        if (slotKey) sessionStorage.setItem(`sw_min_${slotKey}`, 'false');
+      });
+
+      // Restore minimized state
+      if (slotKey && sessionStorage.getItem(`sw_min_${slotKey}`) === 'true') {
+        badge.classList.add('is-minimized');
+      }
+
+      // 2. Free Drag Handler
+      const dragHandle = badge.querySelector<HTMLElement>('.slotwire-badge-drag');
+      if (dragHandle) {
+        let isDragging = false;
+        let startX = 0;
+        let startY = 0;
+        let initialLeft = 0;
+        let initialTop = 0;
+
+        dragHandle.addEventListener('mousedown', (e: MouseEvent) => {
+          e.preventDefault();
+          e.stopPropagation();
+          isDragging = true;
+          startX = e.clientX;
+          startY = e.clientY;
+
+          const rect = badge.getBoundingClientRect();
+          const containerRect = badge.parentElement?.getBoundingClientRect() || { left: 0, top: 0 };
+
+          initialLeft = rect.left - containerRect.left;
+          initialTop = rect.top - containerRect.top;
+
+          badge.classList.remove(...cornerClasses);
+          badge.style.right = 'auto';
+          badge.style.bottom = 'auto';
+          badge.style.left = `${initialLeft}px`;
+          badge.style.top = `${initialTop}px`;
+
+          const onMouseMove = (moveEvent: MouseEvent) => {
+            if (!isDragging) return;
+            const dx = moveEvent.clientX - startX;
+            const dy = moveEvent.clientY - startY;
+            badge.style.left = `${initialLeft + dx}px`;
+            badge.style.top = `${initialTop + dy}px`;
+          };
+
+          const onMouseUp = () => {
+            isDragging = false;
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+          };
+
+          window.addEventListener('mousemove', onMouseMove);
+          window.addEventListener('mouseup', onMouseUp);
+        });
+      }
+    });
+  }
+
+  // Initial Run
+  initInSituBadges();
+
+  // Keep overlays and badges synced across Astro View Transitions client router navigation
+  document.addEventListener('astro:page-load', () => {
+    applyOverlayVisibility(getOverlayHiddenState());
+    initInSituBadges();
+    updateHud();
+  });
+  document.addEventListener('astro:after-swap', () => {
+    applyOverlayVisibility(getOverlayHiddenState());
+    initInSituBadges();
     updateHud();
   });
 
@@ -336,6 +494,10 @@ export function initSlotWirePreview(options: { adminUrl?: string; provider?: str
     const targetSlug = String(formData.get('targetSlug') || '')
       .toLowerCase()
       .replace(/[^a-z0-9-_]/g, '-');
+    const template = String(formData.get('template') || 'standard');
+    const addToMenu = formData.get('addToMenu') === 'true' || Boolean(formData.get('addToMenu'));
+    const menuKey = String(formData.get('menuKey') || 'header_main');
+    const menuLabel = String(formData.get('menuLabel') || '') || targetTitle;
 
     const submitBtn = document.getElementById('slotwire-modal-submit-btn');
     if (submitBtn) {
@@ -346,9 +508,13 @@ export function initSlotWirePreview(options: { adminUrl?: string; provider?: str
     try {
       const activeSlots = introspectPageSlots();
       const payload = {
-        archetypeKey: 'page',
+        archetypeKey: template !== 'active_page' ? template : 'page',
         targetSlug,
         targetTitle,
+        template: template !== 'active_page' ? template : 'standard',
+        addToMenu,
+        menuKey,
+        menuLabel,
         slots: activeSlots.map((s) => ({
           slot: s.slot,
           collection: s.collection || 'page_sections',

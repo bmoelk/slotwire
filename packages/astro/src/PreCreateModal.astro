@@ -6,9 +6,8 @@ export interface Props {
 const { adminUrl = 'https://cms.brainendeavor.com/admin' } = Astro.props;
 
 const isPreview =
-  Astro.cookies.get('slotwire_preview')?.value === 'true' ||
-  Astro.url.searchParams.get('slotwire_preview') === 'true' ||
-  Boolean(import.meta.env.DEV);
+  Boolean(import.meta.env.DEV) ||
+  Astro.url.searchParams.get('slotwire_preview') === 'true';
 ---
 
 {isPreview && (
@@ -74,6 +73,65 @@ const isPreview =
           </div>
         </div>
 
+        <!-- Design Template / Archetype Selection -->
+        <div>
+          <label for="slotwire-target-template" class="block font-semibold text-zinc-300 mb-1">
+            Design Template / Layout Archetype
+          </label>
+          <select
+            id="slotwire-target-template"
+            name="template"
+            class="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs text-zinc-200 focus:border-emerald-500 focus:outline-none"
+          >
+            <option value="active_page">✨ Active Page Design (Clone Active Slots)</option>
+            <option value="bento">🍱 Bento Feature Grid (Hero + Feature Cards + Testimonials)</option>
+            <option value="narrative">📖 Long-Form Narrative / Case Study</option>
+            <option value="standard">📄 Standard Content Page</option>
+          </select>
+        </div>
+
+        <!-- Navigation Menu Placement -->
+        <div class="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
+          <label class="flex items-center gap-2 font-semibold text-zinc-200 cursor-pointer">
+            <input
+              type="checkbox"
+              id="slotwire-add-to-menu"
+              name="addToMenu"
+              value="true"
+              checked
+              class="size-3.5 rounded border-zinc-700 bg-zinc-900 text-emerald-500 focus:ring-0"
+            />
+            <span>Add to Site Navigation Menu</span>
+          </label>
+          
+          <div id="slotwire-menu-options" class="mt-2.5 pl-5.5 space-y-2">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <span class="block text-[11px] text-zinc-400 mb-1">Placement</span>
+                <select
+                  name="menuKey"
+                  id="slotwire-menu-key"
+                  class="w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-[11px] text-zinc-200 focus:outline-none"
+                >
+                  <option value="header_main">Top Header Menu</option>
+                  <option value="header_dropdown">Header Dropdown</option>
+                  <option value="footer_primary">Footer Links</option>
+                </select>
+              </div>
+              <div>
+                <span class="block text-[11px] text-zinc-400 mb-1">Menu Label</span>
+                <input
+                  type="text"
+                  name="menuLabel"
+                  id="slotwire-menu-label"
+                  placeholder="Auto (matches title)"
+                  class="w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-[11px] text-zinc-200 placeholder:text-zinc-500 focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Blueprint Checklist Preview -->
         <div>
           <span class="block font-semibold text-zinc-300 mb-1.5">
@@ -81,7 +139,7 @@ const isPreview =
           </span>
           <div
             id="slotwire-modal-blueprint-list"
-            class="max-h-40 overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-900/60 p-3 space-y-1.5 font-mono text-[11px] text-zinc-400"
+            class="max-h-36 overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-900/60 p-3 space-y-1.5 font-mono text-[11px] text-zinc-400"
           >
             <!-- Injected dynamically based on active page slots -->
             <div>Auditing active slots on template...</div>
