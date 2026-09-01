@@ -1,5 +1,3 @@
-import { defineToolbarApp } from 'astro/toolbar';
-
 const SLOT_ARCHETYPES = [
   { id: 'page', name: 'page (Full Page Archetype)' },
   { id: 'section', name: 'section (Layout Container)' },
@@ -15,9 +13,9 @@ const SLOT_ARCHETYPES = [
 ];
 
 let isHighlightActive = false;
-let areWireframesVisible = true;
+let areWireframesVisible = typeof window !== 'undefined' ? sessionStorage.getItem('slotwire_hide_overlays') !== 'true' : true;
 
-const toolbarApp: any = defineToolbarApp({
+const toolbarApp: any = {
   init(canvas: any, app: any, server: any) {
     function renderApp() {
       canvas.innerHTML = '';
@@ -338,7 +336,8 @@ const toolbarApp: any = defineToolbarApp({
               .slotwire-hide-overlays .sw-ghost-header,
               .slotwire-hide-overlays .sw-ghost-context-row,
               .slotwire-hide-overlays .sw-ghost-explainer-box,
-              .slotwire-hide-overlays .slotwire-in-situ-badge {
+              .slotwire-hide-overlays .slotwire-in-situ-badge,
+              .slotwire-hide-overlays .slotwire-composite-popover {
                 display: none !important;
               }
               .slotwire-hide-overlays .sw-ghost-fallback {
@@ -347,14 +346,20 @@ const toolbarApp: any = defineToolbarApp({
                 padding-top: 0 !important;
                 opacity: 1 !important;
               }
+              .slotwire-hide-overlays .slotwire-slot-container {
+                outline: none !important;
+              }
               .slotwire-hide-overlays .slotwire-ghost-card[data-slotwire-has-fallback="false"] {
                 display: none !important;
               }
             `;
             document.head.appendChild(style);
           }
+          sessionStorage.setItem('slotwire_hide_overlays', 'true');
         } else {
           document.documentElement.classList.remove('slotwire-hide-overlays');
+          document.getElementById('sw-hide-style')?.remove();
+          sessionStorage.setItem('slotwire_hide_overlays', 'false');
         }
         renderApp();
       });
@@ -799,11 +804,16 @@ const toolbarApp: any = defineToolbarApp({
     }
 
     // Initial render
+    areWireframesVisible = typeof window !== 'undefined' ? sessionStorage.getItem('slotwire_hide_overlays') !== 'true' : true;
     renderApp();
 
-    // Re-render on Astro View Transitions client navigation
-    document.addEventListener('astro:page-load', () => renderApp());
-    document.addEventListener('astro:after-swap', () => renderApp());
+    // Re-render and sync on Astro View Transitions client navigation
+    const syncAndRender = () => {
+      areWireframesVisible = typeof window !== 'undefined' ? sessionStorage.getItem('slotwire_hide_overlays') !== 'true' : true;
+      renderApp();
+    };
+    document.addEventListener('astro:page-load', syncAndRender);
+    document.addEventListener('astro:after-swap', syncAndRender);
 
     // Re-render when toolbar is toggled open
     if (app && app.onToggled) {
@@ -814,6 +824,6 @@ const toolbarApp: any = defineToolbarApp({
       });
     }
   },
-});
+};
 
 export default toolbarApp;

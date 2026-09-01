@@ -14,6 +14,11 @@
     "./GhostSlot.astro": "./src/GhostSlot.astro",
     "./ChecklistHUD.astro": "./src/ChecklistHUD.astro",
     "./PreCreateModal.astro": "./src/PreCreateModal.astro",
+    "./toolbar": {
+      "types": "./dist/toolbar.d.ts",
+      "import": "./dist/toolbar.js"
+    },
+    "./dist/toolbar.js": "./dist/toolbar.js",
     "./deep-link": {
       "types": "./dist/deep-link.d.ts",
       "import": "./dist/deep-link.js"

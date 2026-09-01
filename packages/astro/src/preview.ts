@@ -584,6 +584,12 @@ export function createScaffoldHandler(config: SlotWireConfig) {
       const archetypeKey = body.archetypeKey || 'page';
       const targetSlug = body.targetSlug;
       const targetTitle = body.targetTitle;
+      const template = body.template;
+      const addToMenu = Boolean(body.addToMenu);
+      const menuKey = body.menuKey;
+      const menuLabel = body.menuLabel;
+      const menuOrder = body.menuOrder !== undefined ? Number(body.menuOrder) : undefined;
+      const parentSlug = body.parentSlug;
 
       if (!targetSlug) {
         return new Response(JSON.stringify({ success: false, error: 'targetSlug is required' }), {
@@ -596,6 +602,12 @@ export function createScaffoldHandler(config: SlotWireConfig) {
       const blueprint = generateBlueprint(config, archetypeKey, {
         targetSlug,
         targetTitle,
+        template,
+        addToMenu,
+        menuKey,
+        menuLabel,
+        menuOrder,
+        parentSlug,
       });
 
       // 2. Dispatch to CMS Scaffolder endpoint
