@@ -10,13 +10,35 @@ export interface Props {
   class?: string;
 }
 
-const {
   pageSlug = '',
   slots = [],
-  adminUrl = 'https://cms.brainendeavor.com/admin',
-  provider = 'sonicjs',
+  adminUrl: propAdminUrl,
+  provider: propProvider,
   class: className = '',
 } = Astro.props;
+
+const resolvedProvider =
+  propProvider ||
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.CMS_PROVIDER) ||
+  (typeof process !== 'undefined' && process.env?.CMS_PROVIDER) ||
+  'slottd';
+
+const resolvedApiUrl =
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.CMS_API_URL) ||
+  (typeof process !== 'undefined' && process.env?.CMS_API_URL);
+
+const defaultAdminUrl =
+  resolvedProvider === 'slottd' || resolvedProvider === 'directus'
+    ? (resolvedApiUrl ? `${resolvedApiUrl.replace(/\/+$/, '')}/admin` : 'https://slottd.brainendeavor.com/admin')
+    : (resolvedApiUrl ? `${resolvedApiUrl.replace(/\/+$/, '')}/admin` : 'https://cms.brainendeavor.com/admin');
+
+const adminUrl =
+  propAdminUrl ||
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.CMS_ADMIN_URL) ||
+  (typeof process !== 'undefined' && process.env?.CMS_ADMIN_URL) ||
+  defaultAdminUrl;
+
+const provider = resolvedProvider;
 
 // Dynamic Preview Detection (Local Dev or URL Query Param)
 const isPreview =

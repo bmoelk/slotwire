@@ -24,6 +24,7 @@ const adapterRegistry = new Map<string, SlotWireCmsAdapter>([
   ['strapi', new StrapiAdapter()],
   ['payload', new PayloadAdapter()],
   ['directus', new DirectusAdapter()],
+  ['slottd', new DirectusAdapter()],
   ['default', new DefaultAdapter()],
 ]);
 
