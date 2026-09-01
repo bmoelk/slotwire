@@ -489,7 +489,7 @@ const toolbarApp: any = {
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
                   <div>
                     <label style="display:block; font-weight:600; color:#d4d4d8; margin-bottom:4px;">Target CMS Collection:</label>
-                    <input id="sw-input-collection" type="text" value="${currentItem.suggestedKey.replace(/_slot$/, '')}" style="width:100%; background:#18181b; border:1px solid #3f3f46; border-radius:6px; padding:8px 10px; color:#ffffff; font-family:monospace; box-sizing:border-box;" />
+                    <input id="sw-input-collection" type="text" value="${currentItem.suggestedKey.includes('section') ? 'page_sections' : currentItem.suggestedKey.includes('card') ? 'feature_cards' : 'page_sections'}" style="width:100%; background:#18181b; border:1px solid #3f3f46; border-radius:6px; padding:8px 10px; color:#ffffff; font-family:monospace; box-sizing:border-box;" />
                   </div>
                   <div>
                     <label style="display:block; font-weight:600; color:#d4d4d8; margin-bottom:4px;">
@@ -499,7 +499,7 @@ const toolbarApp: any = {
                       <select id="sw-input-archetype" style="width:100%; background:#18181b; border:1px solid #10b981; border-radius:6px; padding:8px 30px 8px 10px; color:#ffffff; font-weight:600; font-size:12px; appearance:none; -webkit-appearance:none; cursor:pointer; box-sizing:border-box;">
                         ${SLOT_ARCHETYPES.map(
                           (arch) => `
-                          <option value="${arch.id}" ${arch.id === 'cards' ? 'selected' : ''}>
+                          <option value="${arch.id}" ${arch.id === 'section' ? 'selected' : ''}>
                             ${arch.name}
                           </option>
                         `
@@ -536,6 +536,28 @@ const toolbarApp: any = {
             </div>
           </div>
         `;
+
+        // Archetype change sync with collection input
+        const archetypeSelect = modalRoot.querySelector('#sw-input-archetype') as HTMLSelectElement;
+        const collectionInput = modalRoot.querySelector('#sw-input-collection') as HTMLInputElement;
+        const archetypeToCollectionMap: Record<string, string> = {
+          section: 'page_sections',
+          cards: 'feature_cards',
+          gallery: 'gallery',
+          endorsements: 'endorsements',
+          testimonials: 'endorsements',
+          page: 'pages',
+          qa: 'faq_items',
+          table: 'page_sections',
+          singleton: 'site_settings',
+        };
+
+        archetypeSelect?.addEventListener('change', () => {
+          const selectedArch = archetypeSelect.value;
+          if (archetypeToCollectionMap[selectedArch]) {
+            collectionInput.value = archetypeToCollectionMap[selectedArch];
+          }
+        });
 
         // Helper: Flash element visually
         function flashElement(el: HTMLElement) {
@@ -623,7 +645,7 @@ const toolbarApp: any = {
           }
 
           const slotKey = slotInput.toLowerCase().replace(/[^a-z0-9_]/g, '_');
-          const collection = (modalRoot.querySelector('#sw-input-collection') as HTMLInputElement)?.value.trim() || slotKey;
+          const collection = (modalRoot.querySelector('#sw-input-collection') as HTMLInputElement)?.value.trim() || 'page_sections';
           const archetype = (modalRoot.querySelector('#sw-input-archetype') as HTMLSelectElement)?.value || 'section';
           const notes = (modalRoot.querySelector('#sw-input-notes') as HTMLTextAreaElement)?.value.trim() || '';
           const shouldDispatch = (modalRoot.querySelector('#sw-input-dispatch') as HTMLInputElement)?.checked;
@@ -644,15 +666,22 @@ const toolbarApp: any = {
 
           const markdown = `### ⚡ SlotWire Architecture Ticket: Request New Slot (${ticketPayload.ticketId})\n- **Route**: \`${ticketPayload.route}\`\n- **Proposed Slot Key**: \`${ticketPayload.proposedSlot}\`\n- **Target Collection**: \`${ticketPayload.collection}\`\n- **Archetype**: \`${ticketPayload.archetype}\`\n- **DOM Selector**: \`${ticketPayload.selector}\`\n- **Notes**: ${ticketPayload.notes}\n\n\`\`\`astro\n${ticketPayload.suggestedCodeSnippet}\n\`\`\``;
 
+          let dispatchStatus = 'copied';
           if (shouldDispatch) {
             try {
-              await fetch('/api/slotwire/tickets', {
+              const res = await fetch('/api/slotwire/tickets', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(ticketPayload),
               });
-            } catch {
-              // Non-blocking
+              if (res.ok) {
+                dispatchStatus = 'dispatched';
+              } else {
+                const errJson = await res.json().catch(() => ({}));
+                dispatchStatus = `warning: ${errJson.error || 'HTTP ' + res.status}`;
+              }
+            } catch (err: any) {
+              dispatchStatus = `warning: ${err.message}`;
             }
           }
 
@@ -662,7 +691,14 @@ const toolbarApp: any = {
 
           modalRoot.remove();
           restoreToolbarCanvas();
-          showToast(`✅ Ticket ${ticketPayload.ticketId} created & Astro snippet copied to clipboard!`);
+
+          if (dispatchStatus === 'dispatched') {
+            showToast(`✅ Ticket ${ticketPayload.ticketId} saved to queue & snippet copied to clipboard!`);
+          } else if (dispatchStatus.startsWith('warning:')) {
+            showToast(`📋 Snippet copied! (CMS Queue notice: ${dispatchStatus.replace('warning: ', '')})`);
+          } else {
+            showToast(`✅ Ticket ${ticketPayload.ticketId} created & Astro snippet copied to clipboard!`);
+          }
         });
       }
 
