@@ -29,7 +29,7 @@ const resolvedApiUrl =
 
 const defaultAdminUrl =
   resolvedProvider === 'slottd' || resolvedProvider === 'directus'
-    ? (resolvedApiUrl ? `${resolvedApiUrl.replace(/\/+$/, '')}/admin` : 'https://slottd.brainendeavor.com/admin')
+    ? (resolvedApiUrl ? `${resolvedApiUrl.replace(/\/+$/, '')}/admin` : 'https://slottd-cms.brainendeavor.com/admin')
     : (resolvedApiUrl ? `${resolvedApiUrl.replace(/\/+$/, '')}/admin` : 'https://cms.brainendeavor.com/admin');
 
 const adminUrl =
