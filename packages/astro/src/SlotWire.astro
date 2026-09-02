@@ -89,7 +89,11 @@ const childItems = isArray
   ? (data as any[]).map((item: any, idx: number) => {
       const id = item?.id || item?.rootId || item?.slug || item?._id || `item-${idx + 1}`;
       const label = item?.title || item?.name || item?.heading || item?.badgeText || item?.slug || `Item #${idx + 1}`;
-      const thumbnail = item?.imageUrl || item?.image || item?.avatarUrl || item?.src || item?.url || item?.coverImage || (item?.localImg?.src) || undefined;
+      const rawThumb = item?.imageUrl || item?.image || item?.avatarUrl || item?.src || item?.url || item?.coverImage || (item?.localImg?.src) || undefined;
+      let thumbnail = rawThumb;
+      if (typeof rawThumb === 'string' && rawThumb.startsWith('/') && resolvedApiUrl) {
+        thumbnail = `${resolvedApiUrl.replace(/\/+$/, '')}${rawThumb}`;
+      }
       const order = item?.order !== undefined ? item.order : idx + 1;
       const editUrl = buildCmsDeepLink({
         provider,
@@ -277,7 +281,7 @@ const serializedItems = childItems.length > 0 ? JSON.stringify(childItems.map(c 
           </div>
         ) : (
           <a
-            href={singleEditUrl}
+            href={isCollectionSlot ? listUrl : singleEditUrl}
             target="_blank"
             rel="noopener noreferrer"
             class="slotwire-edit-btn"

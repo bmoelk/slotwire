@@ -41,13 +41,9 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
     if (viewMode === 'live') {
       try {
         const primaryApi = config.cms.apiUrl || 'https://cms.brainendeavor.com';
-        const fallbackApi = 'https://brainendeavor-cms.bmoelk.workers.dev';
-        const queryPath = `/api/collections/${encodeURIComponent(slot || 'blog_post')}/content?filter[data.slug][equals]=${encodeURIComponent(slug || 'data-migration-strategies')}&_t=${Date.now()}`;
+        const queryPath = `/api/collections/${encodeURIComponent(slot || 'pages')}/content?filter[data.slug][equals]=${encodeURIComponent(slug || '')}&_t=${Date.now()}`;
         
         let apiRes = await fetch(`${primaryApi}${queryPath}`, { cache: 'no-store' }).catch(() => null);
-        if (!apiRes || !apiRes.ok) {
-          apiRes = await fetch(`${fallbackApi}${queryPath}`, { cache: 'no-store' }).catch(() => null);
-        }
 
         let postData: any = null;
         if (apiRes && apiRes.ok) {

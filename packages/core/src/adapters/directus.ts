@@ -37,18 +37,18 @@ export class DirectusAdapter extends BaseCmsAdapter {
       return `${base}/content/${encodeURIComponent(collection)}/${encodeURIComponent(documentId)}${queryStr}`;
     }
 
-    // 2. New Record Creation (Directus uses /+ for new item)
+    // 2. Collection Model List View (Takes precedence when action is 'list' or archetype is a collection without specific ID)
+    if (collection && (action === 'list' || (!documentId && isCollectionArchetype && action !== 'create'))) {
+      return `${base}/content/${encodeURIComponent(collection)}${queryStr}`;
+    }
+
+    // 3. New Record Creation (Directus uses /+ for new item)
     if (action === 'create' && collection) {
       return `${base}/content/${encodeURIComponent(collection)}/+${queryStr}`;
     }
 
-    // 3. Collection Model List View
-    if (collection && (action === 'list' || isCollectionArchetype)) {
-      return `${base}/content/${encodeURIComponent(collection)}`;
-    }
-
     if (collection) {
-      return `${base}/content/${encodeURIComponent(collection)}`;
+      return `${base}/content/${encodeURIComponent(collection)}${queryStr}`;
     }
 
     return `${base}/content`;

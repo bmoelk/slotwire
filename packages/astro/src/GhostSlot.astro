@@ -22,6 +22,7 @@ const {
   pageSlug,
   sectionKey,
   documentId,
+  required = false,
   adminUrl: propAdminUrl,
   provider: propProvider,
   class: className = '',
@@ -52,6 +53,15 @@ const provider = resolvedProvider;
 
 const resolvedCollection = collection || archetype || slot;
 
+const isCollectionArchetype =
+  archetype === 'cards' ||
+  archetype === 'gallery' ||
+  archetype === 'testimonials' ||
+  archetype === 'endorsements' ||
+  archetype === 'qa' ||
+  archetype === 'faq' ||
+  archetype === 'table';
+
 const editUrl = buildCmsDeepLink({
   provider,
   adminUrl,
@@ -59,7 +69,7 @@ const editUrl = buildCmsDeepLink({
   documentId,
   pageSlug,
   sectionKey,
-  action: documentId ? 'edit' : 'create',
+  action: documentId ? 'edit' : isCollectionArchetype ? 'list' : 'create',
   archetype,
 });
 
