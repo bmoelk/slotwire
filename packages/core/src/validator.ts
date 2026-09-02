@@ -15,16 +15,31 @@ export async function validateContract(
     const totalFields = Object.keys(slotDef.properties).length;
 
     try {
+      const isDirectus = config.cms.provider === 'directus' || config.cms.provider === 'slottd';
       let endpoint = '';
-      if (slotDef.kind === 'collection') {
-        endpoint = `${apiUrl}/api/collections/${slotDef.collectionName}/content`;
-      } else {
-        const targetCollection = (slotDef as any).collectionName || slotKey;
-        // First try dedicated collection, or fallback to homepage_sections with slug filter
-        if (targetCollection === 'hero') {
-          endpoint = `${apiUrl}/api/collections/homepage_sections/content?filter[slug][equals]=hero`;
+
+      if (isDirectus) {
+        if (slotDef.kind === 'collection') {
+          const col = slotDef.collectionName === 'blog_post' ? 'blog_posts' : slotDef.collectionName;
+          endpoint = `${apiUrl}/items/${col}`;
         } else {
-          endpoint = `${apiUrl}/api/collections/${targetCollection}/content`;
+          const targetCollection = (slotDef as any).collectionName || slotKey;
+          if (targetCollection === 'hero') {
+            endpoint = `${apiUrl}/items/homepage_sections?filter[slug][_eq]=hero`;
+          } else {
+            endpoint = `${apiUrl}/items/${targetCollection}`;
+          }
+        }
+      } else {
+        if (slotDef.kind === 'collection') {
+          endpoint = `${apiUrl}/api/collections/${slotDef.collectionName}/content`;
+        } else {
+          const targetCollection = (slotDef as any).collectionName || slotKey;
+          if (targetCollection === 'hero') {
+            endpoint = `${apiUrl}/api/collections/homepage_sections/content?filter[slug][equals]=hero`;
+          } else {
+            endpoint = `${apiUrl}/api/collections/${targetCollection}/content`;
+          }
         }
       }
 
