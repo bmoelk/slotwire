@@ -6,7 +6,7 @@ export class SonicJsAdapter extends BaseCmsAdapter {
 
   buildAdminLink(options: CmsDeepLinkOptions): string {
     const {
-      adminUrl = 'https://cms.brainendeavor.com/admin',
+      adminUrl = '/admin',
       collection = '',
       documentId,
       pageSlug,

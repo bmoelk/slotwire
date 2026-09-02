@@ -179,7 +179,7 @@ const toolbarApp: any = {
 
           <div class="sw-cms-info">
             <span>Configured CMS:</span>
-            <a href="https://cms.brainendeavor.com/admin/content" target="_blank" style="color:#34d399; text-decoration:none; font-weight:600;">SonicJS (cms.brainendeavor.com) ↗</a>
+            <a href="/admin" target="_blank" style="color:#34d399; text-decoration:none; font-weight:600;">CMS Studio ↗</a>
           </div>
 
           <div class="sw-progress-wrap">
@@ -203,8 +203,8 @@ const toolbarApp: any = {
             <button id="sw-tb-request-slot" class="sw-btn" title="Visually select an element on the page and create a slot ticket">
               🎯 Request Slot
             </button>
-            <a href="https://cms.brainendeavor.com/admin/content" target="_blank" class="sw-btn sw-btn-cms" style="text-decoration:none;">
-              CMS Content ↗
+            <a href="/admin" target="_blank" class="sw-btn sw-btn-cms" style="text-decoration:none;">
+              CMS Studio ↗
             </a>
           </div>
         </div>

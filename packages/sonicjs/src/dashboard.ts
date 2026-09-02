@@ -12,8 +12,8 @@ export interface DashboardOptions {
 export function renderSlotWireDashboard(options: DashboardOptions): string {
   const {
     config,
-    stagingUrl = 'https://brainendeavor-staging.pages.dev',
-    productionUrl = 'https://brainendeavor.com',
+    stagingUrl = 'https://staging.example.com',
+    productionUrl = 'https://example.com',
     embedded = true,
   } = options;
   const jsonContract = exportContractToJson(config);
@@ -379,7 +379,7 @@ ${JSON.stringify(jsonContract, null, 2)}
     }
 
     function confirmProductionDeploy() {
-      if (confirm("Are you sure you want to trigger a full PRODUCTION rebuild on brainendeavor.com?")) {
+      if (confirm("Are you sure you want to trigger a full PRODUCTION rebuild?")) {
         triggerDeploy('production');
       }
     }

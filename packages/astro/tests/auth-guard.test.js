@@ -8,7 +8,7 @@ test('authGuard: validates HMAC tokens and sets preview session cookie', async (
   const config = {
     cms: {
       provider: 'sonicjs',
-      apiUrl: 'https://cms.brainendeavor.com',
+      apiUrl: 'https://cms.example.com',
       previewSecret: secret,
     },
     slots: {},
@@ -46,7 +46,7 @@ test('authGuard: enforces CSRF action header on POST mutation endpoints', async 
   const config = {
     cms: {
       provider: 'sonicjs',
-      apiUrl: 'https://cms.brainendeavor.com',
+      apiUrl: 'https://cms.example.com',
       previewSecret: 'secret',
     },
     slots: {},

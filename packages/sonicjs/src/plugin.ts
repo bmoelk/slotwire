@@ -15,8 +15,8 @@ export function createSlotWirePlugin(options: SlotWirePluginOptions) {
     config,
     stagingDeployHook,
     productionDeployHook,
-    stagingUrl = 'https://brainendeavor-staging.pages.dev',
-    productionUrl = 'https://brainendeavor.com',
+    stagingUrl = 'https://staging.example.com',
+    productionUrl = 'https://example.com',
   } = options;
 
   const collections = scaffoldAllSonicCollections(config);

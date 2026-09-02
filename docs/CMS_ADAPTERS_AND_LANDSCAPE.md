@@ -65,7 +65,7 @@ packages/core/src/adapters/
 ### Strategic Rationale:
 
 1. **Active (Tier 1) — Edge & Self-Hosted SQL**:
-   - **SonicJS AI (Cloudflare D1)**: Primary production reference target on `brainendeavor.com`. Sub-second live previews (`slotwire_preview=true`), instant 0ms edge publishing, and direct `/content/:id/edit` deep-linking.
+   - **SonicJS AI / SlottD (Cloudflare D1)**: Primary edge SQL reference target. Sub-second live previews (`slotwire_preview=true`), instant 0ms edge publishing, and direct `/content/:id/edit` deep-linking.
    - **Strapi, Payload & Directus**: The dominant open-source self-hosted Node/TypeScript data engines with pre-built `@slotwire/core` adapter modules.
 2. **Planned (Tier 2 — The Unified Git Core Engine)**:
    - **Decap / Sveltia CMS & Keystatic**: Both store content as Markdown/MDX/JSON files in Astro's native `src/content/:collection/:slug` directory structure.

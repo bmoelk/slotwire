@@ -129,7 +129,7 @@ OPTIONS:
 EXAMPLES:
   slotwire scan ./dist
   slotwire scan ./dist --strict
-  slotwire scan ./dist --cms https://cms.brainendeavor.com --strict
+  slotwire scan ./dist --cms https://cms.example.com --strict
   slotwire scan ./dist --json --output report.json
 `);
 }

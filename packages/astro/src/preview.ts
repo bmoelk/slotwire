@@ -40,7 +40,7 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
     const viewMode = url.searchParams.get('view');
     if (viewMode === 'live') {
       try {
-        const primaryApi = config.cms.apiUrl || 'https://cms.brainendeavor.com';
+        const primaryApi = config.cms.apiUrl || 'http://localhost:8787';
         const queryPath = `/api/collections/${encodeURIComponent(slot || 'pages')}/content?filter[data.slug][equals]=${encodeURIComponent(slug || '')}&_t=${Date.now()}`;
         
         let apiRes = await fetch(`${primaryApi}${queryPath}`, { cache: 'no-store' }).catch(() => null);
@@ -187,14 +187,14 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
       </div>
 
       <!-- Hero Image -->
-      <div class="rounded-2xl overflow-hidden mb-12 border border-zinc-200 dark:border-white/10 shadow-lg dark:shadow-2xl bg-zinc-100 dark:bg-zinc-900">
-        <img 
-          src="${postData.data.heroImage || 'https://cms.brainendeavor.com/media/data-migration-hero.jpg'}" 
-          alt="${postData.data.title || postData.title}" 
-          class="w-full max-h-[460px] object-cover"
-          onerror="this.style.display='none'"
-        />
-      </div>
+        ${postData.data.heroImage ? `
+          <img 
+            src="${postData.data.heroImage}" 
+            alt="${postData.data.title || postData.title}" 
+            class="w-full max-h-[460px] object-cover"
+            onerror="this.style.display='none'"
+          />
+        ` : ''}
 
       <!-- Article Body -->
       <div class="prose prose-zinc dark:prose-invert prose-lg max-w-none text-zinc-700 dark:text-zinc-300 leading-relaxed prose-headings:font-serif prose-headings:text-zinc-900 dark:prose-headings:text-white prose-a:text-[#9f2020] dark:prose-a:text-emerald-400 prose-code:text-emerald-700 dark:prose-code:text-emerald-300">

@@ -13,7 +13,7 @@ test('ticket: creates canonical ContentTicket and formats markdown', () => {
     description: 'The latency numbers should be updated from 5ms to 2ms.',
     severity: 'medium',
     context: {
-      sourceUrl: 'https://brainendeavor.com/services/ai',
+      sourceUrl: 'https://example.com/services/ai',
       route: '/services/ai',
       slotKey: 'feature_cards',
       archetype: 'cards',
@@ -22,9 +22,9 @@ test('ticket: creates canonical ContentTicket and formats markdown', () => {
       documentId: 'doc-stack-1',
       pageSlug: 'ai',
     },
-    stagingBaseUrl: 'https://staging.brainendeavor.com',
-    adminUrl: 'https://cms.brainendeavor.com/admin',
-    reporterEmail: 'brian@brainendeavor.com',
+    stagingBaseUrl: 'https://staging.example.com',
+    adminUrl: 'https://cms.example.com/admin',
+    reporterEmail: 'editor@example.com',
   });
 
   assert.ok(ticket.ticketId.startsWith('tkt-ai-feature_cards-'));
@@ -33,16 +33,16 @@ test('ticket: creates canonical ContentTicket and formats markdown', () => {
   assert.equal(ticket.context.slotKey, 'feature_cards');
   assert.equal(
     ticket.deepLinks.stagingUrl,
-    'https://staging.brainendeavor.com/services/ai?slotwire_preview=true#slotwire-highlight=feature_cards'
+    'https://staging.example.com/services/ai?slotwire_preview=true#slotwire-highlight=feature_cards'
   );
   assert.equal(
     ticket.deepLinks.cmsEditUrl,
-    'https://cms.brainendeavor.com/admin/content/doc-stack-1/edit?pageSlug=ai&sectionKey=stack'
+    'https://cms.example.com/admin/content/doc-stack-1/edit?pageSlug=ai&sectionKey=stack'
   );
 
   const markdown = formatTicketMarkdown(ticket);
   assert.ok(markdown.includes('SlotWire Content Ticket: `feature_cards`'));
-  assert.ok(markdown.includes('https://staging.brainendeavor.com/services/ai?slotwire_preview=true#slotwire-highlight=feature_cards'));
+  assert.ok(markdown.includes('https://staging.example.com/services/ai?slotwire_preview=true#slotwire-highlight=feature_cards'));
 });
 
 test('ticket: generates executable bookmarklet code string', () => {

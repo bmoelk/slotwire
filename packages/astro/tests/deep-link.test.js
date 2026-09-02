@@ -5,7 +5,7 @@ import { buildCmsDeepLink } from '../dist/deep-link.js';
 test('buildCmsDeepLink: SonicJS creation link with composite keys', () => {
   const url = buildCmsDeepLink({
     provider: 'sonicjs',
-    adminUrl: 'https://cms.brainendeavor.com/admin',
+    adminUrl: 'https://cms.example.com/admin',
     collection: 'page_sections',
     pageSlug: 'technology',
     sectionKey: 'stack',
@@ -14,28 +14,28 @@ test('buildCmsDeepLink: SonicJS creation link with composite keys', () => {
 
   assert.equal(
     url,
-    'https://cms.brainendeavor.com/admin/content/new?collection=page_sections&pageSlug=technology&sectionKey=stack'
+    'https://cms.example.com/admin/content/new?collection=page_sections&pageSlug=technology&sectionKey=stack'
   );
 });
 
 test('buildCmsDeepLink: SonicJS collection archetype routes to model list', () => {
   const url = buildCmsDeepLink({
     provider: 'sonicjs',
-    adminUrl: 'https://cms.brainendeavor.com/admin',
+    adminUrl: 'https://cms.example.com/admin',
     collection: 'services',
     archetype: 'cards',
   });
 
   assert.equal(
     url,
-    'https://cms.brainendeavor.com/admin/content?model=services'
+    'https://cms.example.com/admin/content?model=services'
   );
 });
 
 test('buildCmsDeepLink: SonicJS edit link with documentId', () => {
   const url = buildCmsDeepLink({
     provider: 'sonicjs',
-    adminUrl: 'https://cms.brainendeavor.com/admin',
+    adminUrl: 'https://cms.example.com/admin',
     collection: 'feature_cards',
     documentId: 'doc-stack-1',
     pageSlug: 'technology',
@@ -44,7 +44,7 @@ test('buildCmsDeepLink: SonicJS edit link with documentId', () => {
 
   assert.equal(
     url,
-    'https://cms.brainendeavor.com/admin/content/doc-stack-1/edit?pageSlug=technology'
+    'https://cms.example.com/admin/content/doc-stack-1/edit?pageSlug=technology'
   );
 });
 
@@ -125,7 +125,7 @@ test('buildCmsDeepLink: Composite slot child item edit link', () => {
   const childItem = { id: 'card-srv-consulting', title: 'Strategic Technical Consulting' };
   const url = buildCmsDeepLink({
     provider: 'sonicjs',
-    adminUrl: 'https://cms.brainendeavor.com/admin',
+    adminUrl: 'https://cms.example.com/admin',
     collection: 'feature_cards',
     documentId: childItem.id,
     pageSlug: 'home',
@@ -136,14 +136,14 @@ test('buildCmsDeepLink: Composite slot child item edit link', () => {
 
   assert.equal(
     url,
-    'https://cms.brainendeavor.com/admin/content/card-srv-consulting/edit?pageSlug=home&sectionKey=services'
+    'https://cms.example.com/admin/content/card-srv-consulting/edit?pageSlug=home&sectionKey=services'
   );
 });
 
 test('buildCmsDeepLink: Composite slot create new item with query context', () => {
   const url = buildCmsDeepLink({
     provider: 'sonicjs',
-    adminUrl: 'https://cms.brainendeavor.com/admin',
+    adminUrl: 'https://cms.example.com/admin',
     collection: 'feature_cards',
     pageSlug: 'home',
     sectionKey: 'services',
@@ -153,7 +153,7 @@ test('buildCmsDeepLink: Composite slot create new item with query context', () =
 
   assert.equal(
     url,
-    'https://cms.brainendeavor.com/admin/content/new?collection=feature_cards&pageSlug=home&sectionKey=services'
+    'https://cms.example.com/admin/content/new?collection=feature_cards&pageSlug=home&sectionKey=services'
   );
 });
 

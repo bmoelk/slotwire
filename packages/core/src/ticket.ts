@@ -31,7 +31,7 @@ export function createContentTicket(options: CreateTicketOptions): ContentTicket
     status = 'open',
     context,
     stagingBaseUrl = 'https://staging.example.com',
-    adminUrl = 'https://cms.brainendeavor.com/admin',
+    adminUrl = 'https://cms.example.com/admin',
     reporterEmail,
   } = options;
 
@@ -213,7 +213,7 @@ export async function dispatchTicket(
  */
 export function generateBookmarkletCode(options: BookmarkletOptions = {}): string {
   const {
-    adminUrl = 'https://cms.brainendeavor.com/admin',
+    adminUrl = 'https://cms.example.com/admin',
     stagingUrl = 'https://staging.example.com',
   } = options;
 

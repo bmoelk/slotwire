@@ -99,7 +99,7 @@ export function introspectPageSlots(): IntrospectedSlot[] {
 export function initSlotWirePreview(options: { adminUrl?: string; provider?: string } = {}) {
   if (typeof window === 'undefined') return;
 
-  const { adminUrl = 'https://cms.brainendeavor.com/admin', provider = 'sonicjs' } = options;
+  const { adminUrl = '/admin', provider = 'slottd' } = options;
 
   function updateHud() {
     const slots = introspectPageSlots();

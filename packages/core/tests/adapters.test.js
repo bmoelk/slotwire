@@ -14,7 +14,7 @@ import {
 test('SonicJsAdapter: generates direct document edit links', () => {
   const url = buildCmsDeepLink({
     provider: 'sonicjs',
-    adminUrl: 'https://cms.brainendeavor.com/admin',
+    adminUrl: 'https://cms.example.com/admin',
     collection: 'feature_cards',
     documentId: 'card-srv-consulting',
     pageSlug: 'home',
@@ -23,25 +23,25 @@ test('SonicJsAdapter: generates direct document edit links', () => {
 
   assert.equal(
     url,
-    'https://cms.brainendeavor.com/admin/content/card-srv-consulting/edit?pageSlug=home&sectionKey=services'
+    'https://cms.example.com/admin/content/card-srv-consulting/edit?pageSlug=home&sectionKey=services'
   );
 });
 
 test('SonicJsAdapter: generates model list links for collection archetypes', () => {
   const url = buildCmsDeepLink({
     provider: 'sonicjs',
-    adminUrl: 'https://cms.brainendeavor.com/admin',
+    adminUrl: 'https://cms.example.com/admin',
     collection: 'services',
     archetype: 'cards',
   });
 
-  assert.equal(url, 'https://cms.brainendeavor.com/admin/content?model=services');
+  assert.equal(url, 'https://cms.example.com/admin/content?model=services');
 });
 
 test('SonicJsAdapter: generates new document creation link with composite query parameters', () => {
   const url = buildCmsDeepLink({
     provider: 'sonicjs',
-    adminUrl: 'https://cms.brainendeavor.com/admin',
+    adminUrl: 'https://cms.example.com/admin',
     collection: 'page_sections',
     pageSlug: 'technology',
     sectionKey: 'stack',
@@ -50,7 +50,7 @@ test('SonicJsAdapter: generates new document creation link with composite query 
 
   assert.equal(
     url,
-    'https://cms.brainendeavor.com/admin/content/new?collection=page_sections&pageSlug=technology&sectionKey=stack'
+    'https://cms.example.com/admin/content/new?collection=page_sections&pageSlug=technology&sectionKey=stack'
   );
 });
 

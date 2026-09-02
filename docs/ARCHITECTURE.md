@@ -81,7 +81,7 @@ Contracts are 100% JSON-serializable, allowing dynamic edge updates without code
   "version": "1.0.0",
   "cms": {
     "provider": "sonicjs",
-    "apiUrl": "https://cms.brainendeavor.com"
+    "apiUrl": "https://cms.example.com"
   },
   "slots": {
     "blog_post": {

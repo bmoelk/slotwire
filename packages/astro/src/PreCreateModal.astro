@@ -3,7 +3,7 @@ export interface Props {
   adminUrl?: string;
 }
 
-const { adminUrl = 'https://cms.brainendeavor.com/admin' } = Astro.props;
+const { adminUrl = '/admin' } = Astro.props;
 
 const isPreview =
   Boolean(import.meta.env.DEV) ||

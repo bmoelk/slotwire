@@ -6,7 +6,7 @@ test('generateBlueprint: resolves cascade and reference strategies for nested ar
   const contract = defineContract({
     cms: {
       provider: 'sonicjs',
-      apiUrl: 'https://cms.brainendeavor.com',
+      apiUrl: 'https://cms.example.com',
     },
     slots: {
       home_hero: s.object({
@@ -66,7 +66,7 @@ test('generateBlueprint: supports template selection and automatic navigation me
   const contract = defineContract({
     cms: {
       provider: 'sonicjs',
-      apiUrl: 'https://cms.brainendeavor.com',
+      apiUrl: 'https://cms.example.com',
     },
     navigation: s.navigation({
       collection: 'site_navigation',

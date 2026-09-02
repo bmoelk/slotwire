@@ -211,7 +211,7 @@ export async function scaffoldBlueprint(
   options: SonicScaffoldOptions = {}
 ): Promise<any> {
   const {
-    cmsApiUrl = 'https://cms.brainendeavor.com',
+    cmsApiUrl = 'https://cms.example.com',
     apiKey,
     d1,
   } = options;

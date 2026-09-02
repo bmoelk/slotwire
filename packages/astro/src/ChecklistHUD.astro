@@ -28,9 +28,7 @@ const resolvedApiUrl =
   (typeof process !== 'undefined' && process.env?.CMS_API_URL);
 
 const defaultAdminUrl =
-  resolvedProvider === 'slottd' || resolvedProvider === 'directus'
-    ? (resolvedApiUrl ? `${resolvedApiUrl.replace(/\/+$/, '')}/admin` : 'https://slottd-cms.brainendeavor.com/admin')
-    : (resolvedApiUrl ? `${resolvedApiUrl.replace(/\/+$/, '')}/admin` : 'https://cms.brainendeavor.com/admin');
+  resolvedApiUrl ? `${resolvedApiUrl.replace(/\/+$/, '')}/admin` : '/admin';
 
 const adminUrl =
   propAdminUrl ||
@@ -101,8 +99,8 @@ const isPreview =
       <!-- CMS Info Banner -->
       <div class="sw-drawer-cms-info">
         <span>Target CMS:</span>
-        <a href={`${adminUrl.replace(/\/+$/, '')}/content`} target="_blank" rel="noopener noreferrer" class="sw-drawer-cms-link">
-          SonicJS (cms.brainendeavor.com) ↗
+        <a href={adminUrl} target="_blank" rel="noopener noreferrer" class="sw-drawer-cms-link">
+          {provider.toUpperCase()} Admin ↗
         </a>
       </div>
 
