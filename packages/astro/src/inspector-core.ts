@@ -155,6 +155,44 @@ export const INSPECTOR_CSS = `
     transition: width 0.3s ease;
   }
 
+  .sw-telemetry-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    background: #141417;
+    border: 1px solid #27272a;
+    border-radius: 7px;
+    padding: 6px 8px;
+    margin-top: 6px;
+  }
+
+  .sw-telemetry-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1px;
+  }
+
+  .sw-telemetry-icon {
+    font-size: 11px;
+    line-height: 1;
+  }
+
+  .sw-telemetry-val {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: #34d399;
+  }
+
+  .sw-telemetry-label {
+    font-size: 9px;
+    color: #a1a1aa;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
   .sw-filter-bar {
     display: flex;
     flex-direction: column;
@@ -372,6 +410,30 @@ export function renderInspectorHtml(options: InspectorOptions = {}) {
         </div>
       </div>
 
+      <!-- Live Page Performance & Telemetry Strip -->
+      <div class="sw-telemetry-strip" id="sw-telemetry-strip">
+        <div class="sw-telemetry-item">
+          <span class="sw-telemetry-icon">⏱️</span>
+          <span class="sw-telemetry-val" id="sw-tel-load">--</span>
+          <span class="sw-telemetry-label">Load Time</span>
+        </div>
+        <div class="sw-telemetry-item">
+          <span class="sw-telemetry-icon">⚡</span>
+          <span class="sw-telemetry-val" id="sw-tel-dom">--</span>
+          <span class="sw-telemetry-label">DOM Ready</span>
+        </div>
+        <div class="sw-telemetry-item">
+          <span class="sw-telemetry-icon">📦</span>
+          <span class="sw-telemetry-val" id="sw-tel-requests">--</span>
+          <span class="sw-telemetry-label">Requests</span>
+        </div>
+        <div class="sw-telemetry-item">
+          <span class="sw-telemetry-icon">🧩</span>
+          <span class="sw-telemetry-val" id="sw-tel-slots">--</span>
+          <span class="sw-telemetry-label">Slots</span>
+        </div>
+      </div>
+
       <!-- Search & Filters -->
       <div class="sw-filter-bar">
         <input
@@ -543,6 +605,48 @@ export function initInspector(containerEl: HTMLElement, options: InspectorOption
     const fillEl = containerEl.querySelector<HTMLElement>('#sw-progress-fill');
     if (pctEl) pctEl.textContent = `${pct}% (${populatedSlots}/${totalSlots})`;
     if (fillEl) fillEl.style.width = `${pct}%`;
+
+    // Collect & update live page loading telemetry
+    function updateTelemetry() {
+      if (typeof window === 'undefined') return;
+
+      let loadMs = 0;
+      let domMs = 0;
+      let reqCount = 0;
+
+      if (window.performance) {
+        const navEntries = window.performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
+        if (navEntries && navEntries.length > 0) {
+          const nav = navEntries[0];
+          loadMs = Math.round(nav.duration || (nav.loadEventEnd ? nav.loadEventEnd - nav.startTime : 0));
+          domMs = Math.round(nav.domInteractive ? nav.domInteractive - nav.startTime : 0);
+        } else if (window.performance.timing) {
+          const t = window.performance.timing;
+          loadMs = t.loadEventEnd ? t.loadEventEnd - t.navigationStart : Math.max(0, Date.now() - t.navigationStart);
+          domMs = t.domInteractive ? t.domInteractive - t.navigationStart : 0;
+        }
+        reqCount = window.performance.getEntriesByType('resource').length;
+      }
+
+      const telLoad = containerEl.querySelector('#sw-tel-load');
+      const telDom = containerEl.querySelector('#sw-tel-dom');
+      const telReqs = containerEl.querySelector('#sw-tel-requests');
+      const telSlots = containerEl.querySelector('#sw-tel-slots');
+
+      if (telLoad) telLoad.textContent = loadMs > 0 ? (loadMs >= 1000 ? `${(loadMs / 1000).toFixed(2)}s` : `${loadMs}ms`) : 'measuring';
+      if (telDom) telDom.textContent = domMs > 0 ? (domMs >= 1000 ? `${(domMs / 1000).toFixed(2)}s` : `${domMs}ms`) : 'ready';
+      if (telReqs) telReqs.textContent = `${reqCount}`;
+      if (telSlots) telSlots.textContent = `${totalSlots}`;
+
+      if (loadMs > 0 || reqCount > 0) {
+        console.log(`⚡ [SlotWire Telemetry] Page load: ${loadMs}ms (DOM: ${domMs}ms) | ${reqCount} network requests | ${totalSlots} slots audited (${populatedSlots} populated, ${missingSlots} missing)`);
+      }
+    }
+
+    updateTelemetry();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('load', () => setTimeout(updateTelemetry, 100), { once: true });
+    }
 
     // Render list items
     const listEl = containerEl.querySelector('#sw-slot-list-container');

@@ -18,6 +18,7 @@ export interface Props {
   staticTagging?: boolean;
   as?: string;
   class?: string;
+  badgePosition?: 'top-right' | 'bottom-right' | 'bottom-left' | 'top-left';
 }
 
 const {
@@ -35,6 +36,7 @@ const {
   staticTagging = true,
   as: Tag = 'div',
   class: className = '',
+  badgePosition: propBadgePosition,
 } = Astro.props;
 
 const resolvedProvider =
@@ -86,6 +88,27 @@ const isMissing =
   data === '' ||
   (Array.isArray(data) && data.length === 0) ||
   (typeof data === 'object' && Object.keys(data).length === 0);
+
+// ── Server-Side Page Boundary Tracking ─────────────────────────────────────────
+if (typeof globalThis !== 'undefined') {
+  const currentPath = Astro.url.pathname;
+  const g = globalThis as any;
+  if (!g.__slotwire_session || g.__slotwire_session.route !== currentPath) {
+    g.__slotwire_session = {
+      route: currentPath,
+      startTime: performance.now(),
+      slots: new Set<string>(),
+      populatedSlots: new Set<string>(),
+      missingSlots: new Set<string>(),
+    };
+  }
+  g.__slotwire_session.slots.add(slot);
+  if (isMissing) {
+    g.__slotwire_session.missingSlots.add(slot);
+  } else {
+    g.__slotwire_session.populatedSlots.add(slot);
+  }
+}
 
 // Determine cardinality and resolve document ID
 const isArray = Array.isArray(data);
@@ -177,6 +200,25 @@ const statusBadgeClass = isDraftNew
   : isDraftModified
   ? 'sw-status-modified'
   : 'sw-status-published';
+
+// Auto-position navigation/header badges to bottom-left to prevent covering menu buttons/CTA
+const isNavSlot =
+  archetype === 'navigation' ||
+  archetype === 'navbar' ||
+  slot.toLowerCase().includes('nav') ||
+  slot.toLowerCase().includes('header') ||
+  slot.toLowerCase().includes('menu');
+
+const defaultBadgeCorner = isNavSlot ? 'sw-pos-bl' : 'sw-pos-tr';
+const resolvedBadgeCorner = propBadgePosition
+  ? (propBadgePosition === 'top-right'
+      ? 'sw-pos-tr'
+      : propBadgePosition === 'bottom-right'
+      ? 'sw-pos-br'
+      : propBadgePosition === 'bottom-left'
+      ? 'sw-pos-bl'
+      : 'sw-pos-tl')
+  : defaultBadgeCorner;
 ---
 
 {isMissing ? (
@@ -234,7 +276,7 @@ const statusBadgeClass = isDraftNew
     )}
 
     <!-- In-Situ Hover Gateway for Populated Slots in Dev / Preview Mode -->
-    <div class="slotwire-in-situ-badge sw-pos-tr" data-slot-key={slot}>
+    <div class={`slotwire-in-situ-badge ${resolvedBadgeCorner}`} data-slot-key={slot}>
       <!-- Full Expanded Badge Card -->
       <div class="slotwire-badge-card">
         <!-- Drag Handle -->

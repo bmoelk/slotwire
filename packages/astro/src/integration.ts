@@ -1,10 +1,10 @@
 import { fileURLToPath } from 'node:url';
 import type { SlotWireConfig } from '@slotwire/core';
-import { validateContract } from '@slotwire/core';
 
 export interface SlotWireIntegrationOptions {
   config: SlotWireConfig;
   strict?: boolean;
+  devToolbar?: boolean;
 }
 
 export function slotwire(options: SlotWireIntegrationOptions) {
@@ -26,7 +26,7 @@ export function slotwire(options: SlotWireIntegrationOptions) {
           });
         }
 
-        if (addDevToolbarApp) {
+        if (addDevToolbarApp && options.devToolbar === true) {
           addDevToolbarApp({
             id: 'slotwire',
             name: 'SlotWire',
@@ -37,6 +37,7 @@ export function slotwire(options: SlotWireIntegrationOptions) {
       },
       'astro:build:start': async () => {
         console.log('\n🔍 [SlotWire] Validating build-time schema contracts vs CMS...');
+        const { validateContract } = await import('@slotwire/core');
         const report = await validateContract(options.config);
         
         console.log(`⚡ [SlotWire] Validation Report: ${report.validSlots}/${report.totalSlots} slots fully covered.`);

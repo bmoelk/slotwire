@@ -27,16 +27,59 @@ const isAssistMode =
     Boolean(import.meta.env.DEV));
 
 const envTag = isStaging ? 'STAGING' : 'DEV';
+
+// ── Server-Side Page Boundary Finalizer ────────────────────────────────────────
+const g = typeof globalThis !== 'undefined' ? (globalThis as any) : null;
+const session = g?.__slotwire_session;
+let ssrSlotCount = 0;
+let ssrRenderMs = 0;
+let ssrSlots: string[] = [];
+
+if (session && session.route === Astro.url.pathname) {
+  ssrRenderMs = Number((performance.now() - session.startTime).toFixed(1));
+  ssrSlots = Array.from(session.slots);
+  ssrSlotCount = ssrSlots.length;
+
+  const resolvedApiUrl =
+    (typeof import.meta !== 'undefined' && (import.meta as any).env?.CMS_API_URL) ||
+    (typeof process !== 'undefined' && process.env?.CMS_API_URL) ||
+    'http://localhost:8787';
+
+  // Inform SlottD CMS in background of completed page render boundary (fire & forget)
+  fetch(`${resolvedApiUrl.replace(/\/+$/, '')}/ext/telemetry/page-boundary`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      route: session.route,
+      slotCount: ssrSlotCount,
+      slots: ssrSlots,
+      populatedCount: session.populatedSlots.size,
+      missingCount: session.missingSlots.size,
+      renderMs: ssrRenderMs,
+    }),
+  }).catch(() => {});
+
+  g.__slotwire_session = undefined;
+}
 ---
 
 {isAssistMode && (
-  <div id="slotwire-assist-container" class="slotwire-assist-container" data-admin-url={adminUrl} data-env-tag={envTag}>
+  <div
+    id="slotwire-assist-container"
+    class="slotwire-assist-container"
+    data-admin-url={adminUrl}
+    data-env-tag={envTag}
+    data-ssr-slot-count={ssrSlotCount}
+    data-ssr-render-ms={ssrRenderMs}
+    data-ssr-slots={JSON.stringify(ssrSlots)}
+  >
     <!-- Compact Draggable Assist Pill -->
     <div id="slotwire-assist-bubble" class="slotwire-assist-bubble" title="SlotWire Assist (Hover or click to inspect)">
       <span id="sw-pill-drag" class="sw-pill-drag" title="Drag to reposition">⋮⋮</span>
       <span class="sw-pulse-dot"></span>
       <span class="sw-assist-label">SlotWire</span>
       <span id="sw-slot-count" class="sw-slot-count">0</span>
+      <span id="sw-bubble-latency" class="sw-bubble-latency" style="font-family:ui-monospace,monospace; font-size:10px; color:#34d399; margin-left:2px; font-weight:700;"></span>
     </div>
 
     <!-- Unified Inspector Drawer / Popup -->
@@ -353,6 +396,25 @@ const envTag = isStaging ? 'STAGING' : 'DEV';
         if (countBadge) countBadge.textContent = String(count);
       },
     });
+
+    const latencyBadge = bubble.querySelector('#sw-bubble-latency');
+    function updateBubbleSpeed() {
+      if (typeof window === 'undefined' || !window.performance) return;
+      let loadMs = 0;
+      const navEntries = window.performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
+      if (navEntries && navEntries.length > 0) {
+        const nav = navEntries[0];
+        loadMs = Math.round(nav.duration || (nav.loadEventEnd ? nav.loadEventEnd - nav.startTime : 0));
+      } else if (window.performance.timing) {
+        const t = window.performance.timing;
+        loadMs = t.loadEventEnd ? t.loadEventEnd - t.navigationStart : Math.max(0, Date.now() - t.navigationStart);
+      }
+      if (latencyBadge && loadMs > 0) {
+        latencyBadge.textContent = `⚡ ${loadMs >= 1000 ? `${(loadMs / 1000).toFixed(1)}s` : `${loadMs}ms`}`;
+      }
+    }
+    updateBubbleSpeed();
+    window.addEventListener('load', () => setTimeout(updateBubbleSpeed, 100), { once: true });
 
     // Close on Escape key
     document.addEventListener('keydown', (e) => {
