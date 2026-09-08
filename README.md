@@ -32,6 +32,8 @@ When building modern websites with Astro and a Headless CMS (SonicJS, Strapi, Sa
 * **Visual In-Situ Pre-Create Cloner**: 1-click clone existing page layouts or distilled archetypes into live CMS draft records directly from the preview workbench.
 * **Fluent Schema Contracts**: Declare typed visual slots, singletons, and collections in a single `slotwire.config.ts` using Zod-backed builders.
 * **Build-Time Verification (`@slotwire/cli scan`)**: Verify that 100% of required visual slots are populated in the CMS before deploying.
+* **SlotWire Assist Mode & Floating Assist Bubble (`<AssistBubble />`)**: Dedicated staging authoring environment with live draft telemetry (`Published`, `Draft Modified`, `New`), overlay toggling, and instant deep-linking to SlottD Studio (`/admin`).
+* **Pre-Publish Verification Hook (`/api/slotwire/validate`)**: Expose focused contract validation endpoints that plug directly into CMS pre-publish pipelines (`onBeforePublish`), preventing broken schemas from reaching production.
 * **Universal Multi-CMS Adapters**: Out-of-the-box deep-linking support for SonicJS, Strapi, Payload CMS, Directus, Keystatic, and Decap CMS.
 * **Zero Runtime Overhead**: In production, SlotWire ships 0 KB of client JavaScript with inert semantic `data-slotwire-*` tags.
 
@@ -122,17 +124,41 @@ export default defineContract({
 
 ```javascript
 import { defineConfig } from 'astro/config';
+import cloudflare from '@astrojs/cloudflare';
 import { slotwire } from 'astro-slotwire';
 import slotwireConfig from './slotwire.config.js';
 
+// Staging compiles to dynamic SSR Worker; Production compiles to 100% static SSG
+const isStaging = process.env.ENVIRONMENT === 'staging';
+
 export default defineConfig({
+  output: isStaging ? 'server' : 'static',
+  adapter: cloudflare(),
   integrations: [
     slotwire({ config: slotwireConfig }),
   ],
 });
 ```
 
-### 4. Wrap Components with `<SlotWire />`
+### 4. Mount the Floating Assist Bubble in Your Layout
+
+```astro
+---
+// src/layouts/BaseLayout.astro
+import AssistBubble from "astro-slotwire/AssistBubble.astro";
+---
+
+<!doctype html>
+<html>
+  <body>
+    <slot />
+    <!-- Automatically active in staging or when ?slotwire_assist=true is present -->
+    <AssistBubble />
+  </body>
+</html>
+```
+
+### 5. Wrap Components with `<SlotWire />`
 
 ```astro
 ---

@@ -64,10 +64,20 @@ const isTaggingEnabled =
   import.meta.env.SLOTWIRE_DISABLE_TAGS !== 'true' &&
   (globalThis as any).process?.env?.SLOTWIRE_DISABLE_TAGS !== 'true';
 
-// Dynamic Preview Detection (Local Dev or URL Query Param)
+const envVar =
+  (typeof process !== 'undefined' && process.env?.ENVIRONMENT) ||
+  (import.meta as any).env?.ENVIRONMENT ||
+  (typeof process !== 'undefined' && process.env?.ASTRO_STAGING);
+const isStaging = envVar === 'staging' || envVar === 'true';
+
+// Dynamic Preview / Assist Mode Detection (Local Dev, Staging, or Query Params)
 const isPreview =
   Boolean(import.meta.env.DEV) ||
-  Astro.url.searchParams.get('slotwire_preview') === 'true';
+  isStaging ||
+  Astro.url.searchParams.get('slotwire_assist') === 'true' ||
+  Astro.url.searchParams.get('slotwire_preview') === 'true' ||
+  Astro.url.hostname.startsWith('edit.') ||
+  Astro.url.hostname.includes('staging');
 
 // Determine if data payload is missing or empty
 const isMissing =
@@ -148,8 +158,25 @@ const isCollectionSlot =
   archetype === 'table' ||
   isArray;
 
-const actionLabel = isCollectionSlot ? '📋 List ↗' : '📝 Edit ↗';
+const actionLabel = isCollectionSlot ? '✏️ List ↗' : '✏️ Edit ↗';
 const serializedItems = childItems.length > 0 ? JSON.stringify(childItems.map(c => ({ id: c.id, label: c.label, thumbnail: c.thumbnail }))) : undefined;
+
+const rawDraftStatus = (data as any)?.draft_status;
+const rawStatus = (data as any)?.status;
+const isDraftModified = rawDraftStatus === 'modified' || (rawStatus === 'draft' && rawDraftStatus !== 'new');
+const isDraftNew = rawDraftStatus === 'new';
+
+const statusBadgeLabel = isDraftNew
+  ? 'New'
+  : isDraftModified
+  ? 'Draft Modified'
+  : 'Published';
+
+const statusBadgeClass = isDraftNew
+  ? 'sw-status-new'
+  : isDraftModified
+  ? 'sw-status-modified'
+  : 'sw-status-published';
 ---
 
 {isMissing ? (
@@ -178,6 +205,14 @@ const serializedItems = childItems.length > 0 ? JSON.stringify(childItems.map(c 
     class={`slotwire-slot-container ${className || ''}`}
     data-slotwire-archetype={archetype}
     data-slotwire-slot={slot}
+    data-slotwire-collection={resolvedCollection}
+    data-slotwire-page={pageSlug}
+    data-slotwire-section={sectionKey}
+    data-slotwire-id={resolvedDocId}
+    data-slotwire-status={statusBadgeLabel}
+    data-slotwire-edit-url={isCollectionSlot ? listUrl : singleEditUrl}
+    data-slotwire-items={serializedItems}
+    data-slotwire-source={isFallback ? 'fallback' : 'cms'}
   >
     {isTaggingEnabled ? (
       <Tag
@@ -219,6 +254,7 @@ const serializedItems = childItems.length > 0 ? JSON.stringify(childItems.map(c 
                 <path d="M6.5 15.5H17.5" stroke="#06b6d4" stroke-width="1.8" stroke-linecap="round"/>
               </svg>
               <span>✓ <strong>{slot}</strong></span>
+              <span class={`slotwire-status-tag ${statusBadgeClass}`}>{statusBadgeLabel}</span>
               <span class="slotwire-badge-archetype">🏷️ {archetype || 'cards'} ({childItems.length}) ▾</span>
             </div>
 
@@ -252,7 +288,7 @@ const serializedItems = childItems.length > 0 ? JSON.stringify(childItems.map(c 
                       <span class="slotwire-popover-item-label">{child.label}</span>
                       <span class="slotwire-popover-item-id">{child.id}</span>
                     </div>
-                    <span class="slotwire-popover-item-action">📝 Edit ↗</span>
+                    <span class="slotwire-popover-item-action">✏️ Edit ↗</span>
                   </a>
                 ))}
               </div>
@@ -295,9 +331,10 @@ const serializedItems = childItems.length > 0 ? JSON.stringify(childItems.map(c 
               <path d="M6.5 15.5H17.5" stroke="#06b6d4" stroke-width="1.8" stroke-linecap="round"/>
             </svg>
             <span>✓ <strong>{slot}</strong></span>
+            <span class={`slotwire-status-tag ${statusBadgeClass}`}>{statusBadgeLabel}</span>
             {archetype && <span class="slotwire-badge-archetype">🏷️ {archetype}</span>}
             <span class="slotwire-sep">•</span>
-            <span>{actionLabel}</span>
+            <span class="slotwire-badge-edit-action">{actionLabel}</span>
           </a>
         )}
 
@@ -412,6 +449,47 @@ const serializedItems = childItems.length > 0 ? JSON.stringify(childItems.map(c 
     border-radius: 8px;
   }
 
+  /* Pinned / Force-Visible Overlays (Triggered via Assist Bubble / Inspector) */
+  .slotwire-in-situ-badge.sw-force-visible {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: translateY(0) !important;
+  }
+  .slotwire-in-situ-badge.sw-force-visible .slotwire-badge-card,
+  .slotwire-in-situ-badge.sw-force-visible .slotwire-badge-minimized-pill {
+    pointer-events: auto !important;
+  }
+  .slotwire-slot-container.sw-highlight-wireframe {
+    outline: 2px dashed rgba(16, 185, 129, 0.85) !important;
+    outline-offset: 4px !important;
+    border-radius: 8px !important;
+  }
+  .slotwire-slot-container.sw-flash-locate {
+    animation: sw-locate-glow 2.5s ease-out forwards !important;
+  }
+  @keyframes sw-locate-glow {
+    0% {
+      outline: 4px solid #10b981 !important;
+      box-shadow: 0 0 28px rgba(16, 185, 129, 0.9) !important;
+    }
+    50% {
+      outline: 4px solid #38bdf8 !important;
+      box-shadow: 0 0 36px rgba(56, 189, 248, 0.9) !important;
+    }
+    100% {
+      outline: none !important;
+      box-shadow: none !important;
+    }
+  }
+
+  :global(.slotwire-hide-overlays) .slotwire-in-situ-badge,
+  :global(.slotwire-hide-overlays) .slotwire-composite-popover {
+    display: none !important;
+  }
+  :global(.slotwire-hide-overlays) .slotwire-slot-container {
+    outline: none !important;
+  }
+
   .slotwire-badge-card {
     display: inline-flex;
     align-items: center;
@@ -490,9 +568,39 @@ const serializedItems = childItems.length > 0 ? JSON.stringify(childItems.map(c 
     padding: 2px 6px;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 11px;
-    font-weight: 600;
-    text-decoration: none;
+    font-weight: 500;
+    text-decoration: none !important;
     cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+
+  .slotwire-status-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    line-height: 1.2;
+  }
+  .sw-status-published {
+    background: rgba(148, 163, 184, 0.15);
+    color: #94a3b8;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+  }
+  .sw-status-modified {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+  }
+  .sw-status-new {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.4);
   }
   .slotwire-edit-btn:hover {
     color: #ffffff !important;
@@ -632,11 +740,31 @@ const serializedItems = childItems.length > 0 ? JSON.stringify(childItems.map(c 
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  .slotwire-badge-edit-action,
   .slotwire-popover-item-action {
-    font-size: 11px;
-    font-weight: 600;
-    color: #34d399;
-    white-space: nowrap;
+    background: #451a03 !important;
+    border: 1px solid #d97706 !important;
+    color: #fb923c !important;
+    font-weight: 700 !important;
+    padding: 2px 7px !important;
+    border-radius: 4px !important;
+    font-size: 10px !important;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 3px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4) !important;
+    text-decoration: none !important;
+    transition: all 0.15s ease-in-out !important;
+    white-space: nowrap !important;
+  }
+  .slotwire-edit-btn:hover .slotwire-badge-edit-action,
+  .slotwire-popover-item:hover .slotwire-popover-item-action {
+    background: #78350f !important;
+    border-color: #f97316 !important;
+    color: #fdba74 !important;
+    box-shadow: 0 0 10px rgba(217, 119, 6, 0.45) !important;
+    transform: scale(1.03);
   }
   .slotwire-popover-footer {
     display: flex;

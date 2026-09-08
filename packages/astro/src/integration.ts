@@ -11,9 +11,19 @@ export function slotwire(options: SlotWireIntegrationOptions) {
   return {
     name: 'astro-slotwire',
     hooks: {
-      'astro:config:setup': async ({ addDevToolbarApp, isRestart }: any) => {
+      'astro:config:setup': async ({ addDevToolbarApp, updateConfig, isRestart }: any) => {
         if (!isRestart) {
           console.log('\n[SlotWire] Initialized schema contract bridge for Astro');
+        }
+
+        if (updateConfig) {
+          updateConfig({
+            vite: {
+              optimizeDeps: {
+                exclude: ['astro-slotwire', '@slotwire/core'],
+              },
+            },
+          });
         }
 
         if (addDevToolbarApp) {
