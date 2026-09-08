@@ -1,6 +1,6 @@
 {
   "name": "astro-slotwire",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Astro integration for SlotWire with visual in-situ Dev Toolbar and build-time validation",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

@@ -1,6 +1,6 @@
 {
   "name": "@slotwire/cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Automated HTML & AST slot scanner, contract validator, and CI quality gate for SlotWire",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

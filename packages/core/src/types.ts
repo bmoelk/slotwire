@@ -16,6 +16,14 @@ export type FieldType =
   | 'object'
   | 'reference';
 
+export interface MediaFieldOptions {
+  allowedExtensions?: string[];
+  checkExists?: boolean;
+  source?: 'r2' | 'cdn' | 'local' | 'any';
+  required?: boolean;
+  recommendation?: string;
+}
+
 export interface FieldDefinition {
   type: FieldType;
   required?: boolean;
@@ -25,6 +33,7 @@ export interface FieldDefinition {
   refTarget?: string;
   items?: FieldDefinition;
   properties?: Record<string, FieldDefinition>;
+  mediaOptions?: MediaFieldOptions;
   zodSchema: z.ZodTypeAny;
 }
 
@@ -260,6 +269,24 @@ export interface SlotWireConfig {
   archetypes?: Record<string, ArchetypeDefinition>;
 }
 
+export interface MissingMediaItem {
+  slotKey: string;
+  collection: string;
+  documentId: string;
+  documentTitle?: string;
+  documentSlug?: string;
+  field: string;
+  mediaPath: string;
+  recommendation?: string;
+}
+
+export interface FallbackSlotItem {
+  slotKey: string;
+  archetype?: string;
+  itemCount: number;
+  recommendation?: string;
+}
+
 export interface SlotValidationResult {
   slotKey: string;
   kind: 'object' | 'collection';
@@ -270,6 +297,12 @@ export interface SlotValidationResult {
     field: string;
     message: string;
   }>;
+  warnings?: Array<{
+    field: string;
+    message: string;
+  }>;
+  missingMedia?: MissingMediaItem[];
+  isFallback?: boolean;
   payloadCount?: number;
   previewUrl?: string;
 }
@@ -282,6 +315,9 @@ export interface ContractValidationReport {
   partialSlots: number;
   missingSlots: number;
   results: SlotValidationResult[];
+  missingMedia: MissingMediaItem[];
+  fallbackSlots?: FallbackSlotItem[];
+  recommendations: string[];
   isFullyCovered: boolean;
 }
 
@@ -290,8 +326,9 @@ export interface OrphanedContentItem {
   collection: string;
   title: string;
   slug: string;
-  reason: 'unreachable_route' | 'dangling_reference' | 'unreferenced_media';
+  reason: 'unreachable_route' | 'dangling_reference' | 'unreferenced_media' | 'missing_media';
   details: string;
+  recommendation?: string;
 }
 
 export interface OrphanedContentReport {
@@ -301,6 +338,8 @@ export interface OrphanedContentReport {
   ghostDocuments: OrphanedContentItem[];
   danglingReferences: OrphanedContentItem[];
   deadMedia: OrphanedContentItem[];
+  missingMedia: OrphanedContentItem[];
+  recommendations: string[];
   isClean: boolean;
 }
 

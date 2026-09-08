@@ -6,6 +6,7 @@ export async function scanOrphanedContent(
   knownRoutes: string[] = []
 ): Promise<OrphanedContentReport> {
   const { apiUrl, apiKey } = config.cms;
+  const isDirectus = config.cms.provider === 'directus' || config.cms.provider === 'slottd';
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -16,6 +17,8 @@ export async function scanOrphanedContent(
   const ghostDocuments: OrphanedContentItem[] = [];
   const danglingReferences: OrphanedContentItem[] = [];
   const deadMedia: OrphanedContentItem[] = [];
+  const missingMedia: OrphanedContentItem[] = [];
+  const recommendations: string[] = [];
   let totalChecked = 0;
 
   try {
@@ -27,7 +30,11 @@ export async function scanOrphanedContent(
     for (const [slotKey, slotDef] of Object.entries(config.slots)) {
       const collectionName = slotDef.kind === 'collection' ? slotDef.collectionName : slotKey;
       try {
-        const res = await fetch(`${apiUrl}/api/collections/${collectionName}/content`, { headers });
+        const endpoint = isDirectus
+          ? `${apiUrl}/items/${collectionName}`
+          : `${apiUrl}/api/collections/${collectionName}/content`;
+
+        const res = await fetch(endpoint, { headers, signal: AbortSignal.timeout(4000) } as any);
         if (!res.ok) continue;
         const json: any = await res.json();
         const items = Array.isArray(json) ? json : json.data || (json.id ? [json] : []);
@@ -60,9 +67,10 @@ export async function scanOrphanedContent(
 
           // Inspect media / author references in payload
           const rawString = JSON.stringify(mergedDoc);
-          const mediaMatches = rawString.match(/[a-zA-Z0-9_-]+\.(?:jpg|jpeg|png|webp|svg|gif)/gi) || [];
+          const mediaMatches = rawString.match(/[a-zA-Z0-9_.-]+\.(?:jpg|jpeg|png|webp|svg|gif|avif)/gi) || [];
           for (const m of mediaMatches) {
-            referencedMediaKeys.add(m);
+            const clean = m.replace(/^\/media\//, '').replace(/^\/+/, '');
+            referencedMediaKeys.add(clean);
           }
 
           if (mergedDoc.author) {
@@ -91,6 +99,7 @@ export async function scanOrphanedContent(
               slug: doc.slug,
               reason: 'unreachable_route',
               details: `Published document resolves to route '${expectedRoute}' which is not in sitemap or active page routes.`,
+              recommendation: `Create an Astro page route matching '${expectedRoute}' or adjust previewRoute pattern in slotwire.config.ts.`,
             });
           }
         }
@@ -104,7 +113,7 @@ export async function scanOrphanedContent(
       const knownAuthorSlugs = new Set(authorDocs.map((a) => a.slug).concat(authorDocs.map((a) => a.id)));
 
       for (const doc of allPublishedDocs) {
-        if (doc.collection === 'blog_post' && doc.data.author) {
+        if ((doc.collection === 'blog_post' || doc.collection === 'blog_posts') && doc.data.author) {
           const authorRef = String(doc.data.author);
           if (!knownAuthorSlugs.has(authorRef)) {
             danglingReferences.push({
@@ -114,37 +123,74 @@ export async function scanOrphanedContent(
               slug: doc.slug,
               reason: 'dangling_reference',
               details: `References author '${authorRef}', but no matching active author profile exists in CMS.`,
+              recommendation: `Create author profile with slug '${authorRef}' in authors collection.`,
             });
           }
         }
       }
     }
 
-    // 4. Check for Dead Media in CMS R2 library
+    // 4. Check CMS Media Storage (Dead Media vs Missing Media)
+    const existingMediaKeys = new Set<string>();
     try {
-      const mediaRes = await fetch(`${apiUrl}/api/collections/media_asset/content`, { headers });
+      const mediaEndpoint = isDirectus
+        ? `${apiUrl}/files?limit=-1`
+        : `${apiUrl}/api/collections/media_asset/content`;
+
+      const mediaRes = await fetch(mediaEndpoint, { headers, signal: AbortSignal.timeout(4000) } as any);
       if (mediaRes.ok) {
         const mediaJson: any = await mediaRes.json();
         const mediaItems = Array.isArray(mediaJson) ? mediaJson : mediaJson.data || [];
 
         for (const item of mediaItems) {
           totalChecked++;
-          const fileKey = item.r2Key || item.slug || item.title || item.name || '';
+          const fileKey = item.key || item.r2Key || item.slug || item.title || item.name || '';
           const filename = item.filename || item.name || fileKey;
+          const id = item.id ? String(item.id) : '';
+
+          if (fileKey) existingMediaKeys.add(fileKey);
+          if (filename) existingMediaKeys.add(filename);
+          if (id) existingMediaKeys.add(id);
+
+          // Dead Media: In R2 storage but unreferenced
           if (fileKey && !referencedMediaKeys.has(fileKey) && !referencedMediaKeys.has(filename)) {
             deadMedia.push({
               id: item.id || fileKey,
-              collection: 'media_asset',
+              collection: 'media',
               title: filename,
               slug: fileKey,
               reason: 'unreferenced_media',
               details: `Media file '${filename}' exists in R2 storage but is not referenced by any active content record.`,
+              recommendation: `Archive or delete unreferenced media file '${filename}' if no longer needed.`,
             });
+          }
+        }
+
+        // Missing Media: Referenced in content but missing from storage
+        for (const refKey of referencedMediaKeys) {
+          if (!existingMediaKeys.has(refKey)) {
+            missingMedia.push({
+              id: refKey,
+              collection: 'media',
+              title: refKey,
+              slug: refKey,
+              reason: 'missing_media',
+              details: `Referenced media asset '${refKey}' is missing from R2 media storage.`,
+              recommendation: `Upload '${refKey}' in SlottD Media library or update referencing content records.`,
+            });
+            recommendations.push(`Upload missing asset '${refKey}' to R2 storage before releasing.`);
           }
         }
       }
     } catch {
       // Media collection check optional
+    }
+
+    if (ghostDocuments.length > 0) {
+      recommendations.push(`Review ${ghostDocuments.length} ghost document(s) that resolve to unreachable routes.`);
+    }
+    if (danglingReferences.length > 0) {
+      recommendations.push(`Resolve ${danglingReferences.length} dangling author reference(s).`);
     }
   } catch (err: any) {
     // Graceful error logging
@@ -157,6 +203,8 @@ export async function scanOrphanedContent(
     ghostDocuments,
     danglingReferences,
     deadMedia,
-    isClean: ghostDocuments.length === 0 && danglingReferences.length === 0 && deadMedia.length === 0,
+    missingMedia,
+    recommendations: Array.from(new Set(recommendations)),
+    isClean: ghostDocuments.length === 0 && danglingReferences.length === 0 && missingMedia.length === 0,
   };
 }

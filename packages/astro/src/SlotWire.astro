@@ -189,13 +189,17 @@ const rawStatus = (data as any)?.status;
 const isDraftModified = rawDraftStatus === 'modified' || (rawStatus === 'draft' && rawDraftStatus !== 'new');
 const isDraftNew = rawDraftStatus === 'new';
 
-const statusBadgeLabel = isDraftNew
+const statusBadgeLabel = isFallback
+  ? 'Fallback Active'
+  : isDraftNew
   ? 'New'
   : isDraftModified
   ? 'Draft Modified'
   : 'Published';
 
-const statusBadgeClass = isDraftNew
+const statusBadgeClass = isFallback
+  ? 'sw-status-fallback'
+  : isDraftNew
   ? 'sw-status-new'
   : isDraftModified
   ? 'sw-status-modified'
@@ -643,6 +647,11 @@ const resolvedBadgeCorner = propBadgePosition
     background: rgba(59, 130, 246, 0.2);
     color: #60a5fa;
     border: 1px solid rgba(59, 130, 246, 0.4);
+  }
+  .sw-status-fallback {
+    background: rgba(236, 72, 153, 0.2);
+    color: #f472b6;
+    border: 1px solid rgba(236, 72, 153, 0.4);
   }
   .slotwire-edit-btn:hover {
     color: #ffffff !important;

@@ -1,6 +1,6 @@
 {
   "name": "@slotwire/sonicjs",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "SonicJS CMS plugin and collection scaffolder for SlotWire contracts",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

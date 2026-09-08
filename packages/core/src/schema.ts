@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { FieldDefinition, SlotDefinition, SlotWireConfig } from './types.js';
+import type { FieldDefinition, SlotDefinition, SlotWireConfig, MediaFieldOptions } from './types.js';
 
 class FieldBuilder {
   private def: Partial<FieldDefinition> = {
@@ -30,6 +30,19 @@ class FieldBuilder {
     return this;
   }
 
+  mediaOptions(opts: MediaFieldOptions) {
+    this.def.mediaOptions = { ...(this.def.mediaOptions || {}), ...opts };
+    return this;
+  }
+
+  image() {
+    this.def.mediaOptions = {
+      ...(this.def.mediaOptions || {}),
+      allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'svg', 'gif', 'avif'],
+    };
+    return this;
+  }
+
   build(): FieldDefinition {
     return this.def as FieldDefinition;
   }
@@ -44,7 +57,23 @@ export const s = {
   url: () => new FieldBuilder('url', z.string().url()),
   email: () => new FieldBuilder('email', z.string().email()),
   datetime: () => new FieldBuilder('datetime', z.string().or(z.date())),
-  media: () => new FieldBuilder('media', z.string()),
+  media: (options: MediaFieldOptions = {}) => {
+    const builder = new FieldBuilder('media', z.string());
+    (builder as any).def.mediaOptions = {
+      checkExists: true,
+      ...options,
+    };
+    if (options.required === false) {
+      builder.optional();
+    }
+    return builder;
+  },
+  image: (options: MediaFieldOptions = {}) => {
+    return s.media({
+      allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'svg', 'gif', 'avif'],
+      ...options,
+    });
+  },
   richText: () => new FieldBuilder('richText', z.string().or(z.record(z.unknown()))),
   
   enum: <T extends string>(values: [T, ...T[]]) => {
