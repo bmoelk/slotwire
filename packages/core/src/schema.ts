@@ -1,5 +1,13 @@
 import { z } from 'zod';
-import type { FieldDefinition, SlotDefinition, SlotWireConfig, MediaFieldOptions } from './types.js';
+import type {
+  FieldDefinition,
+  SlotDefinition,
+  SlotWireConfig,
+  MediaFieldOptions,
+  ScaffoldBundle,
+  ScaffoldRecord,
+} from './types.js';
+import { generateBlueprint } from './blueprint.js';
 
 class FieldBuilder {
   private def: Partial<FieldDefinition> = {
@@ -140,14 +148,20 @@ export const s = {
   page: (options: {
     collection?: string;
     template?: string;
+    label?: string;
     slots: Record<string, any>;
     description?: string;
+    defaultTitle?: string;
+    defaultDescription?: string;
   }) => ({
     name: 'page',
     collection: options.collection || 'pages',
     template: options.template || 'standard',
+    label: options.label,
     slots: options.slots,
     description: options.description || 'Standard Page Archetype',
+    defaultTitle: options.defaultTitle,
+    defaultDescription: options.defaultDescription,
   }),
 
   navigation: (options: {
@@ -174,6 +188,10 @@ export const s = {
     strategy?: 'cascade' | 'reference';
     children?: Record<string, any> | any;
     defaultData?: Record<string, any>;
+    defaultTitle?: string;
+    defaultDescription?: string;
+    defaultPrimaryCtaText?: string;
+    defaultPrimaryCtaUrl?: string;
   }) => ({
     kind: 'section' as const,
     collection: options.collection || 'page_sections',
@@ -183,6 +201,10 @@ export const s = {
       ? options.children
       : (options.children ? { items: options.children } : undefined),
     defaultData: options.defaultData,
+    defaultTitle: options.defaultTitle,
+    defaultDescription: options.defaultDescription,
+    defaultPrimaryCtaText: options.defaultPrimaryCtaText,
+    defaultPrimaryCtaUrl: options.defaultPrimaryCtaUrl,
   }),
 
   singleton: (collectionName: string, options: { strategy?: 'reference' } = {}) => ({
@@ -313,4 +335,95 @@ export function defineContract(config: SlotWireConfig): SlotWireConfig {
 }
 
 export const defineConfig = defineContract;
+
+/**
+ * Extracts the single-entry Zod schema for an Astro Content Layer collection from a SlotWire contract.
+ * Automatically enables .passthrough() to permit system/CMS metadata (id, slug, status).
+ */
+export function getSlotEntryZodSchema(config: SlotWireConfig, slotKeyOrCollection: string): z.ZodTypeAny {
+  if (!config || !config.slots) {
+    return z.record(z.unknown());
+  }
+
+  // 1. Direct slot key match
+  let slotDef: any = config.slots[slotKeyOrCollection];
+
+  // 2. Fuzzy/CollectionName match
+  if (!slotDef) {
+    for (const [key, def] of Object.entries(config.slots)) {
+      const coll = (def as any).collectionName || key;
+      if (coll === slotKeyOrCollection) {
+        slotDef = def;
+        break;
+      }
+    }
+  }
+
+  if (slotDef && slotDef.properties) {
+    const shape: Record<string, z.ZodTypeAny> = {};
+    for (const [propKey, fieldDef] of Object.entries(slotDef.properties as Record<string, FieldDefinition>)) {
+      shape[propKey] = fieldDef.zodSchema || z.unknown();
+    }
+    return z.object(shape).passthrough();
+  }
+
+  return z.record(z.unknown());
+}
+
+export interface GenerateArchetypeBundleOptions {
+  pageSlug: string;
+  title?: string;
+  addToNav?: boolean;
+  navMenu?: string;
+  customData?: Record<string, any>;
+}
+
+/**
+ * Generates an atomic bundle of records to be created across CMS collections from an Archetype contract.
+ */
+export function generateArchetypeScaffoldBundle(
+  config: SlotWireConfig,
+  templateKey: string,
+  options: GenerateArchetypeBundleOptions
+): ScaffoldBundle {
+  const targetSlug = options.pageSlug.replace(/^\/+|\/+$/g, '');
+  const targetTitle =
+    options.title ||
+    targetSlug.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+  // Find archetype by key or template match
+  let matchedKey = templateKey;
+  if (config.archetypes && !config.archetypes[templateKey]) {
+    for (const [key, arch] of Object.entries(config.archetypes)) {
+      if (arch.template === templateKey) {
+        matchedKey = key;
+        break;
+      }
+    }
+  }
+
+  const blueprint = generateBlueprint(config, matchedKey, {
+    targetSlug,
+    targetTitle,
+    template: templateKey,
+    addToMenu: options.addToNav,
+    menuKey: options.navMenu,
+    customData: options.customData,
+  });
+
+  const records: ScaffoldRecord[] = blueprint.items
+    .filter((item) => item.action === 'create')
+    .map((item) => ({
+      collection: item.collection,
+      data: item.data,
+    }));
+
+  return {
+    template: templateKey,
+    slug: targetSlug,
+    title: targetTitle,
+    records,
+    previewUrl: `/${targetSlug}?slotwire_preview=true`,
+  };
+}
 

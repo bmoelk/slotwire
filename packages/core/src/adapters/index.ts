@@ -5,6 +5,7 @@ import { KeystaticAdapter, DecapAdapter } from './git.js';
 import { StrapiAdapter } from './strapi.js';
 import { PayloadAdapter } from './payload.js';
 import { DirectusAdapter } from './directus.js';
+import { WordPressAdapter } from './wordpress.js';
 import { DefaultAdapter } from './default.js';
 
 export * from './types.js';
@@ -14,6 +15,7 @@ export * from './git.js';
 export * from './strapi.js';
 export * from './payload.js';
 export * from './directus.js';
+export * from './wordpress.js';
 export * from './default.js';
 
 const adapterRegistry = new Map<string, SlotWireCmsAdapter>([
@@ -25,6 +27,7 @@ const adapterRegistry = new Map<string, SlotWireCmsAdapter>([
   ['payload', new PayloadAdapter()],
   ['directus', new DirectusAdapter()],
   ['slottd', new DirectusAdapter()],
+  ['wordpress', new WordPressAdapter()],
   ['default', new DefaultAdapter()],
 ]);
 

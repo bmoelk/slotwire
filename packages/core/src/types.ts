@@ -126,7 +126,12 @@ export interface ArchetypeSlotDefinition {
   children?: Record<string, ArchetypeSlotDefinition>;
   minItems?: number;
   defaultCount?: number;
+  defaultTitle?: string;
+  defaultDescription?: string;
+  defaultPrimaryCtaText?: string;
+  defaultPrimaryCtaUrl?: string;
   defaultData?: Record<string, any>;
+  defaults?: Array<Record<string, any>>;
   defaultFilter?: Record<string, any>;
 }
 
@@ -167,14 +172,39 @@ export interface ContentBlueprint {
   generatedAt: string;
 }
 
+export interface ScaffoldRecord {
+  collection: string;
+  data: Record<string, any>;
+}
+
+export interface ScaffoldBundle {
+  template: string;
+  slug: string;
+  title: string;
+  records: ScaffoldRecord[];
+  previewUrl?: string;
+}
+
 export interface ScaffoldResult {
   success: boolean;
+  status?: 'ok' | 'error';
   targetSlug: string;
   createdCount: number;
   createdIds: string[];
   reusedCount?: number;
   errors?: string[];
   targetUrl?: string;
+  previewUrl?: string;
+}
+
+export interface SlotwireLoaderOptions {
+  collection: string;
+  config?: SlotWireConfig;
+  filter?: Record<string, any>;
+  sort?: string[];
+  preview?: boolean;
+  limit?: number;
+  transform?: (data: any) => any;
 }
 
 export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'dismissed';

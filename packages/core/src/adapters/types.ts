@@ -1,4 +1,4 @@
-import type { CmsDeepLinkOptions } from '../types.js';
+import type { CmsDeepLinkOptions, ScaffoldBundle, ScaffoldResult } from '../types.js';
 
 export interface DocumentContext {
   collection: string;
@@ -12,4 +12,6 @@ export interface SlotWireCmsAdapter {
   readonly provider: string;
   buildAdminLink(context: CmsDeepLinkOptions): string;
   resolveDocumentContext?(context: unknown): DocumentContext;
+  scaffoldBundle?(bundle: ScaffoldBundle, credentials?: { apiUrl?: string; apiKey?: string }): Promise<ScaffoldResult>;
+  fetchCollection?(collection: string, options?: { filter?: any; sort?: any; limit?: number; credentials?: { apiUrl?: string; apiKey?: string } }): Promise<any[]>;
 }

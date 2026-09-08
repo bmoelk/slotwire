@@ -163,7 +163,10 @@ function processSlotDefinition(
     data: {
       pageSlug,
       sectionKey,
-      title: `${pageTitle} ${sectionKey.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}`,
+      title: slotDef.defaultTitle || `${pageTitle} ${sectionKey.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}`,
+      description: slotDef.defaultDescription,
+      primaryCtaText: slotDef.defaultPrimaryCtaText,
+      primaryCtaUrl: slotDef.defaultPrimaryCtaUrl,
       status: 'draft',
       order: depth * 10,
       ...slotDef.defaultData,
