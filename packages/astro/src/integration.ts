@@ -11,9 +11,18 @@ export function slotwire(options: SlotWireIntegrationOptions) {
   return {
     name: 'astro-slotwire',
     hooks: {
-      'astro:config:setup': async ({ addDevToolbarApp, updateConfig, isRestart }: any) => {
+      'astro:config:setup': async ({ addDevToolbarApp, updateConfig, injectRoute, isRestart }: any) => {
+        (globalThis as any).__SLOTWIRE_CONFIG__ = options.config;
+
         if (!isRestart) {
           console.log('\n[SlotWire] Initialized schema contract bridge for Astro');
+        }
+
+        if (injectRoute) {
+          injectRoute({
+            pattern: '/api/slotwire/scaffold',
+            entrypoint: fileURLToPath(new URL('./endpoints/scaffold.js', import.meta.url)),
+          });
         }
 
         if (updateConfig) {

@@ -1,5 +1,6 @@
 import type { SlotWireConfig } from '@slotwire/core';
 import { resolvePreviewRoute, exportContractToJson, generateBlueprint } from '@slotwire/core';
+import { handleScaffoldRequest } from './endpoints/scaffold.js';
 
 export interface PreviewHandlerOptions {
   config: SlotWireConfig;
@@ -560,104 +561,11 @@ export function createPreviewHandler(options: PreviewHandlerOptions) {
 
 /**
  * Handles in-situ Pre-Create batch scaffolding requests dispatched from the frontend preview modal.
+ * Delegates to the universal standard REST handler handleScaffoldRequest.
  */
 export function createScaffoldHandler(config: SlotWireConfig) {
-  return async ({ request, cookies }: { request: Request; cookies: any }) => {
-    if (request.method !== 'POST') {
-      return new Response('Method Not Allowed', { status: 405 });
-    }
-
-    const isPreview =
-      cookies.get('slotwire_preview')?.value === 'true' ||
-      (globalThis as any).process?.env?.NODE_ENV === 'development';
-
-    if (!isPreview) {
-      return new Response('Unauthorized: Active preview session required to scaffold blueprints', { status: 401 });
-    }
-
-    try {
-      const body: any = await request.json();
-      const archetypeKey = body.archetypeKey || 'page';
-      const targetSlug = body.targetSlug;
-      const targetTitle = body.targetTitle;
-      const template = body.template;
-      const addToMenu = Boolean(body.addToMenu);
-      const menuKey = body.menuKey;
-      const menuLabel = body.menuLabel;
-      const menuOrder = body.menuOrder !== undefined ? Number(body.menuOrder) : undefined;
-      const parentSlug = body.parentSlug;
-
-      if (!targetSlug) {
-        return new Response(JSON.stringify({ success: false, error: 'targetSlug is required' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-
-      // 1. Generate Deterministic Blueprint
-      const blueprint = generateBlueprint(config, archetypeKey, {
-        targetSlug,
-        targetTitle,
-        template,
-        addToMenu,
-        menuKey,
-        menuLabel,
-        menuOrder,
-        parentSlug,
-      });
-
-      // 2. Dispatch to CMS Scaffolder endpoint
-      const cmsApi = config.cms.apiUrl.replace(/\/+$/, '');
-      const scaffoldEndpoint = `${cmsApi}/api/slotwire/scaffold-blueprint`;
-
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (config.cms.apiKey) {
-        headers['Authorization'] = `Bearer ${config.cms.apiKey}`;
-      }
-
-      const res = await fetch(scaffoldEndpoint, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ blueprint }),
-      }).catch(async () => {
-        // Fallback: Individual collection batch POSTs
-        const createdIds: string[] = [];
-        for (const item of blueprint.items.filter((i) => i.action === 'create')) {
-          const itemRes = await fetch(`${cmsApi}/api/collections/${encodeURIComponent(item.collection)}/content`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ data: item.data, status: 'draft' }),
-          }).catch(() => null);
-          if (itemRes && itemRes.ok) {
-            const itemJson: any = await itemRes.json().catch(() => ({}));
-            createdIds.push(itemJson.id || item.id);
-          }
-        }
-        return new Response(
-          JSON.stringify({
-            success: true,
-            targetSlug,
-            createdCount: createdIds.length,
-            createdIds,
-            targetUrl: `/${targetSlug}?slotwire_preview=true`,
-          }),
-          { status: 200, headers: { 'Content-Type': 'application/json' } }
-        );
-      });
-
-      const resText = await res.text();
-      return new Response(resText, {
-        status: res.status,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    } catch (err: any) {
-      return new Response(JSON.stringify({ success: false, error: err.message }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
+  return async ({ request }: { request: Request; cookies?: any }) => {
+    return handleScaffoldRequest(request, { config });
   };
 }
 

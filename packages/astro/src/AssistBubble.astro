@@ -1,5 +1,6 @@
 ---
 import { INSPECTOR_CSS, renderInspectorHtml } from './inspector-core.js';
+import PreCreateModal from './PreCreateModal.astro';
 
 export interface Props {
   adminUrl?: string;
@@ -85,6 +86,9 @@ if (session && session.route === Astro.url.pathname) {
     <div id="slotwire-inspector-modal" class="slotwire-inspector-modal">
       <Fragment set:html={renderInspectorHtml({ adminUrl, envTag, provider: 'slottd', showCloseBtn: true, showRequestSlotBtn: true })} />
     </div>
+
+    <!-- Visual Archetype Cloner / Pre-Create Modal -->
+    <PreCreateModal adminUrl={adminUrl} />
   </div>
 )}
 
