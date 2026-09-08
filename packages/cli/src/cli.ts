@@ -75,6 +75,50 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<nu
       return 0;
     }
 
+    case 'd1:sync': {
+      let values: any;
+      try {
+        const parsed = parseArgs({
+          args: argv.slice(1),
+          options: {
+            config: { type: 'string' },
+            output: { type: 'string' },
+            prefix: { type: 'string', default: 'view_' },
+            help: { type: 'boolean', short: 'h', default: false },
+          },
+          allowPositionals: true,
+        });
+        values = parsed.values;
+      } catch (err: any) {
+        console.error(`\x1b[31mCLI Argument Error:\x1b[0m ${err.message}`);
+        return 1;
+      }
+
+      if (values.help) {
+        printD1SyncHelp();
+        return 0;
+      }
+
+      const { syncD1Views } = await import('./d1-sync.js');
+      try {
+        const sql = await syncD1Views({
+          configPath: values.config,
+          outputPath: values.output,
+          viewPrefix: values.prefix,
+        });
+
+        if (values.output) {
+          console.log(`\x1b[32m✔ D1 SQL Views successfully generated and written to:\x1b[0m ${values.output}`);
+        } else {
+          console.log(sql);
+        }
+        return 0;
+      } catch (err: any) {
+        console.error(`\x1b[31mError generating D1 views:\x1b[0m ${err.message}`);
+        return 1;
+      }
+    }
+
     case 'check':
     case 'audit': {
       console.log('⚡ SlotWire Contract & Completeness Checker');
@@ -97,6 +141,7 @@ USAGE:
 
 COMMANDS:
   scan [dir]         Crawls built HTML files (default: ./dist) and generates a Slot Completeness Matrix
+  d1:sync            Generates SQLite/D1 CREATE VIEW migrations from slotwire.config.ts
   check              Validates slotwire.config.ts contract schema definitions vs CMS
   audit              Audits CMS database for ghost documents and orphaned content
 
@@ -105,6 +150,26 @@ GLOBAL OPTIONS:
   --version, -v      Show CLI version
 
 Run 'slotwire <command> --help' for options specific to a command.
+`);
+}
+
+function printD1SyncHelp() {
+  console.log(`
+⚡ SlotWire CLI: 'd1:sync' command
+
+USAGE:
+  slotwire d1:sync [options]
+
+OPTIONS:
+  --config <path>    Path to slotwire.config.ts configuration file (Default: './slotwire.config.ts')
+  --output <file>    Writes generated SQL migration to specified file path (e.g. ./migrations/0004_views.sql)
+  --prefix <str>     View prefix name (Default: 'view_')
+  --help, -h         Show this help message
+
+EXAMPLES:
+  slotwire d1:sync
+  slotwire d1:sync --output ./migrations/0004_slotwire_views.sql
+  slotwire d1:sync --config ./custom.slotwire.config.ts --prefix v_
 `);
 }
 
