@@ -26,6 +26,7 @@ export const INSPECTOR_CSS = `
     box-sizing: border-box;
     width: 440px;
     max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 32px);
     border-radius: 12px;
     border: 1px solid #27272a !important;
     box-shadow: 0 20px 35px -8px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.05);
@@ -41,8 +42,7 @@ export const INSPECTOR_CSS = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-bottom: 1px solid #27272a;
-    padding-bottom: 8px;
+    padding-bottom: 4px;
   }
 
   .sw-title {
@@ -134,63 +134,225 @@ export const INSPECTOR_CSS = `
     box-shadow: 0 0 14px rgba(16, 185, 129, 0.45);
   }
 
-  .sw-progress-wrap {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .sw-progress-bar {
+  /* Thin Integrated Completeness Divider (Dividing Horizontal Rule) */
+  .sw-progress-divider {
+    position: relative;
     width: 100%;
-    height: 6px;
+    height: 2px;
     background: #27272a;
     border-radius: 9999px;
-    overflow: hidden;
+    overflow: visible;
+    cursor: pointer;
+    margin: -4px 0 2px 0;
+    transition: height 0.15s ease, background 0.15s ease;
+  }
+
+  .sw-progress-divider:hover {
+    height: 4px;
+    background: #3f3f46;
   }
 
   .sw-progress-fill {
     height: 100%;
     background: linear-gradient(90deg, #059669, #10b981);
     border-radius: 9999px;
-    transition: width 0.3s ease;
+    transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  .sw-telemetry-strip {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
-    background: #141417;
+  .sw-progress-tooltip {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    background: #18181b;
+    border: 1px solid #3f3f46;
+    color: #f4f4f5;
+    font-size: 10px;
+    font-weight: 600;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    padding: 3px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.15s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+    z-index: 100;
+  }
+
+  .sw-progress-divider:hover .sw-progress-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .sw-progress-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 4px;
+    border-style: solid;
+    border-color: #3f3f46 transparent transparent transparent;
+  }
+
+  /* Segmented Tab Navigation Bar */
+  .sw-tab-bar {
+    display: flex;
+    background: #111114;
     border: 1px solid #27272a;
-    border-radius: 7px;
-    padding: 6px 8px;
-    margin-top: 6px;
+    border-radius: 6px;
+    padding: 2px;
+    gap: 2px;
   }
 
-  .sw-telemetry-item {
+  .sw-tab-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 5px;
+    color: #a1a1aa;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+    line-height: 1.2;
+  }
+
+  .sw-tab-btn:hover {
+    color: #f4f4f5;
+  }
+
+  .sw-tab-btn.active {
+    background: #1c1c20;
+    color: #10b981;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  }
+
+  .sw-tab-badge {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #34d399;
+    font-size: 9px;
+    padding: 0 4px;
+    border-radius: 9999px;
+    font-weight: 700;
+    line-height: 13px;
+  }
+
+  /* Consistent Tab Pane Height Across All Tabs (Fits at least 6 slots & full telemetry) */
+  .sw-tab-pane {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    height: 455px;
+    min-height: 455px;
+    max-height: 455px;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  .sw-tab-pane.active {
+    display: flex;
+  }
+
+  /* Telemetry & Diagnostics Pane (Scrollable within Fixed Height) */
+  .sw-diag-pane {
+    padding: 2px 2px 2px 0;
     display: flex;
     flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #27272a transparent;
+  }
+
+  .sw-diag-header {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #71717a;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .sw-diag-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .sw-diag-card {
+    background: #141417;
+    border: 1px solid #27272a;
+    border-radius: 8px;
+    padding: 9px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .sw-diag-card-title {
+    font-size: 10px;
+    color: #a1a1aa;
+    display: flex;
     align-items: center;
-    text-align: center;
-    gap: 1px;
+    gap: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
 
-  .sw-telemetry-icon {
-    font-size: 11px;
-    line-height: 1;
-  }
-
-  .sw-telemetry-val {
+  .sw-diag-card-val {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    font-size: 11px;
+    font-size: 16px;
     font-weight: 700;
     color: #34d399;
   }
 
-  .sw-telemetry-label {
-    font-size: 9px;
+  .sw-diag-details {
+    background: #141417;
+    border: 1px solid #27272a;
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+
+  .sw-diag-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     color: #a1a1aa;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
+    line-height: 1.35;
+  }
+
+  .sw-diag-row span:last-child {
+    font-family: ui-monospace, monospace;
+    color: #f4f4f5;
+    font-weight: 600;
+  }
+
+  .sw-diag-actions {
+    display: flex;
+    gap: 8px;
+    border-top: 1px solid #27272a;
+    padding-top: 8px;
+    flex-shrink: 0;
+    margin-top: auto;
   }
 
   .sw-filter-bar {
@@ -240,16 +402,35 @@ export const INSPECTOR_CSS = `
     font-weight: 600;
   }
 
-  /* Fixed Height Slot List Container (Never Resizes) */
+  /* Scrollable Slot List Container (Flexes within Fixed Height Tab Pane) */
   .sw-slot-list {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    height: 250px !important;
-    min-height: 250px !important;
-    max-height: 250px !important;
+    flex: 1;
+    min-height: 0;
     overflow-y: auto !important;
     padding-right: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: #27272a transparent;
+  }
+
+  .sw-slot-list::-webkit-scrollbar,
+  .sw-diag-pane::-webkit-scrollbar {
+    width: 4px;
+  }
+  .sw-slot-list::-webkit-scrollbar-track,
+  .sw-diag-pane::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .sw-slot-list::-webkit-scrollbar-thumb,
+  .sw-diag-pane::-webkit-scrollbar-thumb {
+    background: #27272a;
+    border-radius: 4px;
+  }
+  .sw-slot-list::-webkit-scrollbar-thumb:hover,
+  .sw-diag-pane::-webkit-scrollbar-thumb:hover {
+    background: #3f3f46;
   }
 
   .sw-slot-item {
@@ -392,81 +573,142 @@ export function renderInspectorHtml(options: InspectorOptions = {}) {
         </div>
         <div class="sw-header-actions">
           <button id="sw-btn-toggle-overlays" class="sw-btn" title="Toggle hover overlays to inspect clean page">
-            👁️ Overlays: ON
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Overlays: ON
           </button>
           <button id="sw-btn-rescan" class="sw-btn" title="Rescan page DOM">↻</button>
           ${showCloseBtn ? '<button id="sw-btn-close" class="sw-btn" style="padding:4px 7px;" title="Close Inspector">✕</button>' : ''}
         </div>
       </div>
 
-      <!-- Completeness Progress Bar -->
-      <div class="sw-progress-wrap">
-        <div style="display:flex; justify-content:space-between; font-family:ui-monospace,monospace; font-size:11px;">
-          <span>Completeness:</span>
-          <span id="sw-progress-pct" style="font-weight:bold; color:#10b981;">0%</span>
-        </div>
-        <div class="sw-progress-bar">
-          <div id="sw-progress-fill" class="sw-progress-fill" style="width: 0%;"></div>
-        </div>
+      <!-- Thin Integrated Completeness Divider (Dividing Horizontal Rule) -->
+      <div id="sw-progress-divider" class="sw-progress-divider" title="Completeness: 0%">
+        <div id="sw-progress-fill" class="sw-progress-fill" style="width: 0%;"></div>
+        <span id="sw-progress-pct" class="sw-progress-tooltip">Completeness: 0%</span>
       </div>
 
-      <!-- Live Page Performance & Telemetry Strip -->
-      <div class="sw-telemetry-strip" id="sw-telemetry-strip">
-        <div class="sw-telemetry-item">
-          <span class="sw-telemetry-icon">⏱️</span>
-          <span class="sw-telemetry-val" id="sw-tel-load">--</span>
-          <span class="sw-telemetry-label">Load Time</span>
-        </div>
-        <div class="sw-telemetry-item">
-          <span class="sw-telemetry-icon">⚡</span>
-          <span class="sw-telemetry-val" id="sw-tel-dom">--</span>
-          <span class="sw-telemetry-label">DOM Ready</span>
-        </div>
-        <div class="sw-telemetry-item">
-          <span class="sw-telemetry-icon">📦</span>
-          <span class="sw-telemetry-val" id="sw-tel-requests">--</span>
-          <span class="sw-telemetry-label">Requests</span>
-        </div>
-        <div class="sw-telemetry-item">
-          <span class="sw-telemetry-icon">🧩</span>
-          <span class="sw-telemetry-val" id="sw-tel-slots">--</span>
-          <span class="sw-telemetry-label">Slots</span>
-        </div>
-      </div>
-
-      <!-- Search & Filters -->
-      <div class="sw-filter-bar">
-        <input
-          type="text"
-          id="sw-filter-search"
-          placeholder="Filter slots by name, archetype, collection..."
-          class="sw-filter-input"
-        />
-        <div class="sw-filter-chips">
-          <button class="sw-filter-chip active" data-filter="all">All</button>
-          <button class="sw-filter-chip" data-filter="published">Published</button>
-          <button class="sw-filter-chip" data-filter="draft">Draft</button>
-          <button class="sw-filter-chip" data-filter="new">New</button>
-          <button class="sw-filter-chip" data-filter="missing">Missing</button>
-        </div>
-      </div>
-
-      <!-- Fixed-Height Slot List -->
-      <div id="sw-slot-list-container" class="sw-slot-list">
-        <div style="text-align:center; padding:20px; color:#71717a; font-size:11px;">
-          Auditing page slots...
-        </div>
-      </div>
-
-      <!-- Footer -->
-      <div class="sw-footer">
-        <button id="sw-btn-highlight-all" class="sw-btn">
-          📍 Highlight All
+      <!-- Segmented Tab Navigation Bar -->
+      <div class="sw-tab-bar" id="sw-tab-bar">
+        <button class="sw-tab-btn active" data-sw-tab="slots">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          <span>Slots</span>
+          <span id="sw-tab-slots-count" class="sw-tab-badge">0</span>
         </button>
-        ${options.showRequestSlotBtn ? '<button id="sw-btn-request-slot" class="sw-btn" title="Visually select an element to request a slot">🎯 Request Slot</button>' : ''}
-        <a href="${adminUrl}" target="_blank" rel="noopener noreferrer" class="sw-btn sw-btn-cms sw-provider-${provider}">
-          Open ${providerLabel} Studio ↗
-        </a>
+        <button class="sw-tab-btn" data-sw-tab="telemetry">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <span>Telemetry</span>
+        </button>
+      </div>
+
+      <!-- Tab Pane 1: Editorial Slots View (Default) -->
+      <div id="sw-tab-pane-slots" class="sw-tab-pane active">
+        <!-- Search & Filters -->
+        <div class="sw-filter-bar">
+          <input
+            type="text"
+            id="sw-filter-search"
+            placeholder="Filter slots by name, archetype, collection..."
+            class="sw-filter-input"
+          />
+          <div class="sw-filter-chips">
+            <button class="sw-filter-chip active" data-filter="all">All</button>
+            <button class="sw-filter-chip" data-filter="published">Published</button>
+            <button class="sw-filter-chip" data-filter="draft">Draft</button>
+            <button class="sw-filter-chip" data-filter="new">New</button>
+            <button class="sw-filter-chip" data-filter="missing">Missing</button>
+          </div>
+        </div>
+
+        <!-- Fixed-Height Slot List -->
+        <div id="sw-slot-list-container" class="sw-slot-list">
+          <div style="text-align:center; padding:20px; color:#71717a; font-size:11px;">
+            Auditing page slots...
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="sw-footer">
+          <button id="sw-btn-highlight-all" class="sw-btn">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Highlight All
+          </button>
+          ${options.showRequestSlotBtn ? '<button id="sw-btn-request-slot" class="sw-btn" title="Visually select an element to request a slot"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>Request Slot</button>' : ''}
+          <a href="${adminUrl}" target="_blank" rel="noopener noreferrer" class="sw-btn sw-btn-cms sw-provider-${provider}">
+            Open ${providerLabel} Studio ↗
+          </a>
+        </div>
+      </div>
+
+      <!-- Tab Pane 2: Dedicated Telemetry & Performance View -->
+      <div id="sw-tab-pane-telemetry" class="sw-tab-pane">
+        <div class="sw-diag-pane">
+          <div class="sw-diag-header">Page Telemetry & System Health</div>
+
+          <!-- 4 Telemetry Metric Cards Grid -->
+          <div class="sw-diag-grid">
+            <div class="sw-diag-card">
+              <div class="sw-diag-card-title">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Load Time
+              </div>
+              <div class="sw-diag-card-val" id="sw-tel-load">--</div>
+            </div>
+            <div class="sw-diag-card">
+              <div class="sw-diag-card-title">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                DOM Ready
+              </div>
+              <div class="sw-diag-card-val" id="sw-tel-dom">--</div>
+            </div>
+            <div class="sw-diag-card">
+              <div class="sw-diag-card-title">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                Requests
+              </div>
+              <div class="sw-diag-card-val" id="sw-tel-requests">--</div>
+            </div>
+            <div class="sw-diag-card">
+              <div class="sw-diag-card-title">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                Slots Audited
+              </div>
+              <div class="sw-diag-card-val" id="sw-tel-slots">--</div>
+            </div>
+          </div>
+
+          <!-- Environment & Timing Breakdown -->
+          <div class="sw-diag-details">
+            <div class="sw-diag-row">
+              <span>Route</span>
+              <span id="sw-diag-route">/</span>
+            </div>
+            <div class="sw-diag-row">
+              <span>Server SSR Time</span>
+              <span id="sw-diag-ssr-ms">--</span>
+            </div>
+            <div class="sw-diag-row">
+              <span>Environment</span>
+              <span id="sw-diag-env">${envTag}</span>
+            </div>
+            <div class="sw-diag-row">
+              <span>Navigation Type</span>
+              <span id="sw-diag-nav-type">navigate</span>
+            </div>
+            <div class="sw-diag-row">
+              <span>Slot Status Breakdown</span>
+              <span id="sw-diag-breakdown">--</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="sw-diag-actions">
+          <button id="sw-btn-copy-report" class="sw-btn" style="flex:1; justify-content:center;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span>Copy Diagnostic Report</span>
+          </button>
+          <button id="sw-btn-refresh-telemetry" class="sw-btn" title="Refresh metrics">
+            ↻
+          </button>
+        </div>
       </div>
     </div>
   `;
@@ -493,7 +735,9 @@ export function initInspector(containerEl: HTMLElement, options: InspectorOption
 
     const toggleBtn = containerEl.querySelector('#sw-btn-toggle-overlays');
     if (toggleBtn) {
-      toggleBtn.textContent = visible ? '👁️ Overlays: ON' : '🙈 Overlays: OFF';
+      toggleBtn.innerHTML = visible
+        ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Overlays: ON'
+        : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>Overlays: OFF';
       if (!visible) {
         toggleBtn.classList.add('sw-btn-active');
       } else {
@@ -522,7 +766,9 @@ export function initInspector(containerEl: HTMLElement, options: InspectorOption
 
     const highlightBtn = containerEl.querySelector('#sw-btn-highlight-all');
     if (highlightBtn) {
-      highlightBtn.textContent = isHighlightActive ? '✕ Clear Highlights' : '📍 Highlight All';
+      highlightBtn.innerHTML = isHighlightActive
+        ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Clear Highlights'
+        : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Highlight All';
       if (isHighlightActive) {
         highlightBtn.classList.add('sw-btn-active');
       } else {
@@ -567,22 +813,22 @@ export function initInspector(containerEl: HTMLElement, options: InspectorOption
       const isMissing = el.classList.contains('slotwire-ghost-slot') || el.classList.contains('slotwire-ghost-card') || el.getAttribute('data-slotwire-source') === 'fallback';
 
       let statusType = 'published';
-      let statusLabel = '[✓ Published]';
+      let statusLabel = 'Published';
 
       if (isMissing) {
         missingSlots++;
         statusType = 'missing';
-        statusLabel = '[✖ Missing]';
+        statusLabel = 'Missing';
       } else if (statusAttr.includes('New')) {
         newSlots++;
         populatedSlots++;
         statusType = 'new';
-        statusLabel = '[✨ New]';
+        statusLabel = 'New';
       } else if (statusAttr.includes('Draft') || statusAttr.includes('modified')) {
         draftSlots++;
         populatedSlots++;
         statusType = 'draft';
-        statusLabel = '[⚠️ Draft]';
+        statusLabel = 'Draft';
       } else {
         populatedSlots++;
       }
@@ -599,12 +845,19 @@ export function initInspector(containerEl: HTMLElement, options: InspectorOption
       };
     });
 
-    // Update completeness progress bar
+    // Update tab badge count
+    const tabSlotsCount = containerEl.querySelector('#sw-tab-slots-count');
+    if (tabSlotsCount) tabSlotsCount.textContent = String(totalSlots);
+
+    // Update completeness progress bar & hover tooltip
     const pct = totalSlots > 0 ? Math.round((populatedSlots / totalSlots) * 100) : 100;
     const pctEl = containerEl.querySelector('#sw-progress-pct');
     const fillEl = containerEl.querySelector<HTMLElement>('#sw-progress-fill');
-    if (pctEl) pctEl.textContent = `${pct}% (${populatedSlots}/${totalSlots})`;
+    const dividerEl = containerEl.querySelector<HTMLElement>('#sw-progress-divider');
+    const completenessText = `Completeness: ${pct}% (${populatedSlots}/${totalSlots} populated)`;
+    if (pctEl) pctEl.textContent = completenessText;
     if (fillEl) fillEl.style.width = `${pct}%`;
+    if (dividerEl) dividerEl.setAttribute('title', completenessText);
 
     // Collect & update live page loading telemetry
     function updateTelemetry() {
@@ -628,18 +881,47 @@ export function initInspector(containerEl: HTMLElement, options: InspectorOption
         reqCount = window.performance.getEntriesByType('resource').length;
       }
 
-      const telLoad = containerEl.querySelector('#sw-tel-load');
-      const telDom = containerEl.querySelector('#sw-tel-dom');
-      const telReqs = containerEl.querySelector('#sw-tel-requests');
-      const telSlots = containerEl.querySelector('#sw-tel-slots');
+      const telLoad = containerEl.querySelector<HTMLElement>('#sw-tel-load');
+      const telDom = containerEl.querySelector<HTMLElement>('#sw-tel-dom');
+      const telReqs = containerEl.querySelector<HTMLElement>('#sw-tel-requests');
+      const telSlots = containerEl.querySelector<HTMLElement>('#sw-tel-slots');
 
-      if (telLoad) telLoad.textContent = loadMs > 0 ? (loadMs >= 1000 ? `${(loadMs / 1000).toFixed(2)}s` : `${loadMs}ms`) : 'measuring';
+      if (telLoad) {
+        if (loadMs > 0) {
+          telLoad.textContent = loadMs >= 1000 ? `${(loadMs / 1000).toFixed(2)}s` : `${loadMs}ms`;
+          telLoad.style.color = loadMs < 800 ? '#34d399' : loadMs < 2000 ? '#fbbf24' : '#f87171';
+        } else {
+          telLoad.textContent = 'measuring';
+          telLoad.style.color = '#71717a';
+        }
+      }
       if (telDom) telDom.textContent = domMs > 0 ? (domMs >= 1000 ? `${(domMs / 1000).toFixed(2)}s` : `${domMs}ms`) : 'ready';
       if (telReqs) telReqs.textContent = `${reqCount}`;
       if (telSlots) telSlots.textContent = `${totalSlots}`;
 
+      // Detailed diagnostics breakdown
+      const diagRoute = containerEl.querySelector('#sw-diag-route');
+      if (diagRoute && typeof window !== 'undefined') diagRoute.textContent = window.location.pathname || '/';
+
+      const diagSsr = containerEl.querySelector('#sw-diag-ssr-ms');
+      if (diagSsr) {
+        diagSsr.textContent = containerEl.dataset.ssrRenderMs ? `${containerEl.dataset.ssrRenderMs}ms` : 'Client';
+      }
+
+      const diagBreakdown = containerEl.querySelector('#sw-diag-breakdown');
+      if (diagBreakdown) {
+        diagBreakdown.textContent = `${populatedSlots} populated, ${draftSlots} draft, ${missingSlots} missing`;
+      }
+
+      if (typeof window !== 'undefined' && window.performance) {
+        const navEntries = window.performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
+        const navType = (navEntries && navEntries[0]?.type) || 'navigate';
+        const diagNav = containerEl.querySelector('#sw-diag-nav-type');
+        if (diagNav) diagNav.textContent = navType;
+      }
+
       if (loadMs > 0 || reqCount > 0) {
-        console.log(`⚡ [SlotWire Telemetry] Page load: ${loadMs}ms (DOM: ${domMs}ms) | ${reqCount} network requests | ${totalSlots} slots audited (${populatedSlots} populated, ${missingSlots} missing)`);
+        console.log(`[SlotWire Telemetry] Page load: ${loadMs}ms (DOM: ${domMs}ms) | ${reqCount} network requests | ${totalSlots} slots audited (${populatedSlots} populated, ${missingSlots} missing)`);
       }
     }
 
@@ -692,17 +974,17 @@ export function initInspector(containerEl: HTMLElement, options: InspectorOption
           <div class="sw-slot-info">
             <div class="sw-slot-name-row">
               <span class="sw-slot-name">#${item.slot}</span>
-              <span class="sw-archetype-tag">🏷️ ${item.archetype}</span>
+              <span class="sw-archetype-tag">${item.archetype}</span>
             </div>
             <div class="sw-slot-meta-row">
               <span class="sw-badge-status ${item.statusType}">${item.statusLabel}</span>
-              <span>• 📦 ${item.collection}</span>
+              <span>• ${item.collection}</span>
             </div>
           </div>
           <div class="sw-slot-actions">
-            <button class="sw-btn sw-locate-btn" data-locate-idx="${item.idx}">📍 Locate</button>
+            <button class="sw-btn sw-locate-btn" data-locate-idx="${item.idx}">Locate</button>
             <a href="${item.editUrl}" target="_blank" rel="noopener noreferrer" class="sw-btn sw-btn-cms sw-slot-edit-btn">
-              ✏️ Edit ↗
+              Edit ↗
             </a>
           </div>
         </div>
@@ -735,7 +1017,47 @@ export function initInspector(containerEl: HTMLElement, options: InspectorOption
     });
   }
 
-  // 4. Attach Event Handlers
+  // 4. Tab Switching Controller
+  const tabBtns = containerEl.querySelectorAll<HTMLButtonElement>('.sw-tab-btn');
+  const tabPanes = containerEl.querySelectorAll<HTMLElement>('.sw-tab-pane');
+
+  function setActiveTab(tabName: string) {
+    tabBtns.forEach((btn) => {
+      if (btn.getAttribute('data-sw-tab') === tabName) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+
+    tabPanes.forEach((pane) => {
+      if (pane.id === `sw-tab-pane-${tabName}`) {
+        pane.classList.add('active');
+      } else {
+        pane.classList.remove('active');
+      }
+    });
+
+    try {
+      sessionStorage.setItem('slotwire_inspector_tab', tabName);
+    } catch {}
+  }
+
+  tabBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const tab = btn.getAttribute('data-sw-tab');
+      if (tab) setActiveTab(tab);
+    });
+  });
+
+  const savedTab = sessionStorage.getItem('slotwire_inspector_tab');
+  if (savedTab === 'telemetry') {
+    setActiveTab('telemetry');
+  } else {
+    setActiveTab('slots');
+  }
+
+  // 5. Attach Event Handlers
   containerEl.querySelector('#sw-btn-toggle-overlays')?.addEventListener('click', () => {
     syncOverlayState(!areOverlaysVisible);
   });
@@ -743,6 +1065,47 @@ export function initInspector(containerEl: HTMLElement, options: InspectorOption
   containerEl.querySelector('#sw-btn-highlight-all')?.addEventListener('click', toggleHighlightAll);
 
   containerEl.querySelector('#sw-btn-rescan')?.addEventListener('click', scanAndRender);
+
+  // Copy Diagnostic Report handler
+  const copyBtn = containerEl.querySelector<HTMLButtonElement>('#sw-btn-copy-report');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', () => {
+      const telLoad = containerEl.querySelector('#sw-tel-load')?.textContent || 'N/A';
+      const telDom = containerEl.querySelector('#sw-tel-dom')?.textContent || 'N/A';
+      const telReqs = containerEl.querySelector('#sw-tel-requests')?.textContent || 'N/A';
+      const telSlots = containerEl.querySelector('#sw-tel-slots')?.textContent || 'N/A';
+      const ssrMs = containerEl.dataset.ssrRenderMs ? `${containerEl.dataset.ssrRenderMs}ms` : 'N/A';
+
+      const report = [
+        '# SlotWire Telemetry & Diagnostic Report',
+        `- **Route**: ${window.location.pathname}`,
+        `- **Environment**: ${options.envTag || 'DEV'}`,
+        `- **Load Time**: ${telLoad}`,
+        `- **DOM Ready**: ${telDom}`,
+        `- **Network Requests**: ${telReqs}`,
+        `- **Slots Audited**: ${telSlots}`,
+        `- **Server SSR Render**: ${ssrMs}`,
+        `- **Timestamp**: ${new Date().toISOString()}`,
+      ].join('\n');
+
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(report).then(() => {
+          const originalText = copyBtn.innerHTML;
+          copyBtn.textContent = 'Copied to Clipboard!';
+          copyBtn.classList.add('sw-btn-active');
+          setTimeout(() => {
+            copyBtn.innerHTML = originalText;
+            copyBtn.classList.remove('sw-btn-active');
+          }, 2000);
+        }).catch(() => {});
+      }
+    });
+  }
+
+  // Refresh Telemetry handler
+  containerEl.querySelector('#sw-btn-refresh-telemetry')?.addEventListener('click', () => {
+    scanAndRender();
+  });
 
   if (options.onRequestSlot) {
     containerEl.querySelector('#sw-btn-request-slot')?.addEventListener('click', options.onRequestSlot);
