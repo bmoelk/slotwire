@@ -1,0 +1,206 @@
+/**
+ * SlotWire WordPress Admin Styles
+ */
+
+.slotwire-admin-wrap {
+  margin: 20px 20px 0 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+}
+
+.slotwire-header {
+  background: #0f172a;
+  color: #f8fafc;
+  padding: 24px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.slotwire-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.slotwire-bolt {
+  font-size: 24px;
+}
+
+.slotwire-header h1 {
+  color: #ffffff;
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+  padding: 0;
+  display: inline-block;
+}
+
+.slotwire-badge {
+  background: #10b981;
+  color: #042f2e;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  text-transform: uppercase;
+}
+
+.slotwire-subtitle {
+  color: #94a3b8;
+  font-size: 13px;
+  margin: 8px 0 16px 0;
+  max-width: 720px;
+}
+
+.slotwire-status-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.slotwire-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #cbd5e1;
+}
+
+.slotwire-status-pill .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.slotwire-status-pill.pill-success .dot {
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+}
+
+.slotwire-status-pill.pill-warning .dot {
+  background: #f59e0b;
+}
+
+.slotwire-status-pill.pill-info .dot {
+  background: #38bdf8;
+}
+
+.slotwire-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 1080px) {
+  .slotwire-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.slotwire-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 24px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+
+.slotwire-card h2 {
+  font-size: 16px;
+  font-weight: 700;
+  margin-top: 0;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.slotwire-table th {
+  width: 190px;
+  font-size: 13px;
+}
+
+.slotwire-input-btn-group {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.slotwire-input-btn-group input {
+  flex: 1;
+}
+
+.slotwire-submit-row {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+}
+
+.slotwire-test-result {
+  margin-left: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.slotwire-test-result.success {
+  color: #059669;
+}
+
+.slotwire-test-result.error {
+  color: #dc2626;
+}
+
+.slotwire-code-box {
+  position: relative;
+  background: #0f172a;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.slotwire-code-box pre {
+  margin: 0;
+  padding: 0;
+  overflow-x: auto;
+}
+
+.slotwire-code-box code {
+  color: #38bdf8;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.slotwire-code-copy-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+.slotwire-doc-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+  font-size: 12px;
+}
+
+.slotwire-doc-box h3 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.slotwire-doc-box pre {
+  background: #e2e8f0;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 11px;
+}
