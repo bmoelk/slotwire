@@ -1,6 +1,7 @@
 ---
 import { INSPECTOR_CSS, renderInspectorHtml } from './inspector-core.js';
 import PreCreateModal from './PreCreateModal.astro';
+import QuickEditDrawer from './QuickEditDrawer.astro';
 
 export interface Props {
   adminUrl?: string;
@@ -89,6 +90,9 @@ if (session && session.route === Astro.url.pathname) {
 
     <!-- Visual Archetype Cloner / Pre-Create Modal -->
     <PreCreateModal adminUrl={adminUrl} />
+
+    <!-- In-Situ 80/20 Quick Edit Drawer -->
+    <QuickEditDrawer adminUrl={adminUrl} />
   </div>
 )}
 

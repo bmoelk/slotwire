@@ -23,6 +23,10 @@ export function slotwire(options: SlotWireIntegrationOptions) {
             pattern: '/api/slotwire/scaffold',
             entrypoint: fileURLToPath(new URL('./endpoints/scaffold.js', import.meta.url)),
           });
+          injectRoute({
+            pattern: '/api/slotwire/quick-save',
+            entrypoint: fileURLToPath(new URL('./endpoints/quick-save.js', import.meta.url)),
+          });
         }
 
         if (updateConfig) {

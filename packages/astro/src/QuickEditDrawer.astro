@@ -1,0 +1,106 @@
+---
+export interface Props {
+  adminUrl?: string;
+}
+
+const { adminUrl = '/admin' } = Astro.props;
+
+const isPreview =
+  Boolean(import.meta.env.DEV) ||
+  Astro.url.searchParams.get('slotwire_preview') === 'true';
+---
+
+{isPreview && (
+  <div id="slotwire-quick-drawer-root" data-admin-url={adminUrl}>
+    <!-- Semi-transparent backdrop -->
+    <div
+      id="slotwire-quick-drawer-backdrop"
+      class="fixed inset-0 z-[999990] bg-black/50 backdrop-blur-xs hidden transition-opacity pointer-events-auto"
+      aria-hidden="true"
+    ></div>
+
+    <!-- Slide-over Edit Drawer -->
+    <aside
+      id="slotwire-quick-edit-drawer"
+      class="fixed top-0 right-0 z-[999995] h-full w-full max-w-md bg-zinc-950 border-l border-zinc-800 text-zinc-100 shadow-2xl flex flex-col translate-x-full transition-transform duration-300 ease-in-out font-sans text-xs pointer-events-auto"
+      aria-label="SlotWire Quick Edit"
+    >
+      <!-- Drawer Header -->
+      <div class="flex items-center justify-between px-5 py-4 border-b border-zinc-800 bg-zinc-900/60">
+        <div class="flex items-center gap-2">
+          <span class="inline-flex size-6 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-xs font-bold">
+            ⚡
+          </span>
+          <div>
+            <div class="flex items-center gap-1.5">
+              <h2 class="text-xs font-bold text-white uppercase tracking-wider">Quick Edit</h2>
+              <span id="sw-quick-slot-badge" class="font-mono text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300">
+                slot
+              </span>
+            </div>
+            <p id="sw-quick-doc-id" class="text-[11px] text-zinc-400 truncate max-w-[240px]">
+              doc: --
+            </p>
+          </div>
+        </div>
+
+        <button
+          id="sw-quick-close-btn"
+          type="button"
+          class="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors"
+          aria-label="Close drawer"
+        >
+          ✕
+        </button>
+      </div>
+
+      <!-- Drawer Form -->
+      <form id="sw-quick-edit-form" class="flex-1 flex flex-col overflow-hidden">
+        <!-- Scrollable Fields Area -->
+        <div id="sw-quick-fields-container" class="flex-1 overflow-y-auto p-5 space-y-4">
+          <div class="text-zinc-500 text-center py-8">
+            Click [⚡ Quick Edit] on any slot overlay to edit in-situ.
+          </div>
+        </div>
+
+        <!-- Error Banner -->
+        <div
+          id="sw-quick-error"
+          class="hidden mx-5 mb-2 rounded-lg bg-rose-500/10 border border-rose-500/30 p-2.5 text-xs text-rose-400"
+        ></div>
+
+        <!-- Drawer Footer -->
+        <div class="px-5 py-3.5 border-t border-zinc-800 bg-zinc-900/40 flex items-center justify-between gap-3">
+          <a
+            id="sw-quick-escape-hatch"
+            href={`${adminUrl.replace(/\/+$/, '')}/content`}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-[11px] text-zinc-400 hover:text-emerald-400 underline underline-offset-2 flex items-center gap-1"
+            title="Open full CMS studio for advanced layout, tables, or relational editing"
+          >
+            <span>Open Full Studio ↗</span>
+          </a>
+
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              id="sw-quick-cancel-btn"
+              class="rounded-lg bg-zinc-800 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              id="sw-quick-save-btn"
+              class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500 transition-transform active:scale-[0.98]"
+            >
+              <span>💾 Save Draft</span>
+            </button>
+          </div>
+        </div>
+      </form>
+    </aside>
+  </div>
+)}

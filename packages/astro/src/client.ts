@@ -1,5 +1,6 @@
 import type { SlotWireConfig, SlotMetadata } from '@slotwire/core';
 import { buildCmsDeepLink } from './deep-link.js';
+import './vendor/markdown-toolbar.js';
 
 export class SlotWireClient {
   private config: SlotWireConfig;
@@ -444,11 +445,13 @@ export function initSlotWirePreview(options: { adminUrl?: string; provider?: str
     applyOverlayVisibility(getOverlayHiddenState());
     initInSituBadges();
     updateHud();
+    initQuickEditDrawer({ adminUrl, provider });
   });
   document.addEventListener('astro:after-swap', () => {
     applyOverlayVisibility(getOverlayHiddenState());
     initInSituBadges();
     updateHud();
+    initQuickEditDrawer({ adminUrl, provider });
   });
 
   // Pre-Create Modal Handler
@@ -577,6 +580,491 @@ export function initSlotWirePreview(options: { adminUrl?: string; provider?: str
 
   // Listen for Custom Recompile Events
   window.addEventListener('slotwire:recompiled', updateHud);
+
+  // Initialize Quick Edit Drawer
+  initQuickEditDrawer({ adminUrl, provider });
+}
+
+export interface QuickEditDrawerParams {
+  slot: string;
+  collection?: string;
+  documentId?: string;
+  data?: any;
+  editUrl?: string;
+  slotElement?: HTMLElement | null;
+}
+
+/**
+ * Initializes the 80/20 in-situ Quick Edit slide-over drawer:
+ * - Direct on-page form editing without jumping to the full CMS studio
+ * - Featherweight GitHub Markdown Toolbar (<markdown-toolbar>) with native Cmd+Z undo preservation
+ * - Live [Write | Preview] tab switcher
+ * - Direct mutation dispatcher to POST /api/slotwire/quick-save
+ * - Zero-latency optimistic DOM update on save
+ */
+export function initQuickEditDrawer(options: { adminUrl?: string; provider?: string } = {}) {
+  if (typeof window === 'undefined') return;
+
+  const { adminUrl = '/admin' } = options;
+
+  function renderSimpleMarkdown(md: string): string {
+    if (!md) return '<p class="text-zinc-500 italic">No content</p>';
+    let html = escapeHtml(md);
+    html = html.replace(/^### (.*$)/gim, '<h3 class="text-sm font-bold text-emerald-400 mt-2 mb-1">$1</h3>');
+    html = html.replace(/^## (.*$)/gim, '<h2 class="text-base font-bold text-emerald-300 mt-2.5 mb-1">$1</h2>');
+    html = html.replace(/^# (.*$)/gim, '<h1 class="text-lg font-bold text-white mt-3 mb-1.5">$1</h1>');
+    html = html.replace(/^\> (.*$)/gim, '<blockquote class="border-l-2 border-emerald-500 pl-2 text-zinc-400 italic my-1">$1</blockquote>');
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>');
+    html = html.replace(/\*(.*?)\*/g, '<em class="text-zinc-200">$1</em>');
+    html = html.replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 rounded bg-zinc-800 text-emerald-300 font-mono text-[11px]">$1</code>');
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-emerald-400 underline">$1</a>');
+    html = html.replace(/^\- (.*$)/gim, '<li class="ml-4 list-disc text-zinc-300">$1</li>');
+    html = html.replace(/^\d+\. (.*$)/gim, '<li class="ml-4 list-decimal text-zinc-300">$1</li>');
+    html = html.replace(/\n\n+/g, '</p><p class="mt-2 text-zinc-300">');
+    html = html.replace(/\n/g, '<br />');
+    return `<p class="text-zinc-300">${html}</p>`;
+  }
+
+  function escapeHtml(str: string): string {
+    return String(str ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  const root = document.getElementById('slotwire-quick-drawer-root');
+  const backdrop = document.getElementById('slotwire-quick-drawer-backdrop');
+  const drawer = document.getElementById('slotwire-quick-edit-drawer');
+  const closeBtn = document.getElementById('sw-quick-close-btn');
+  const cancelBtn = document.getElementById('sw-quick-cancel-btn');
+  const saveBtn = document.getElementById('sw-quick-save-btn') as HTMLButtonElement | null;
+  const form = document.getElementById('sw-quick-edit-form') as HTMLFormElement | null;
+  const fieldsContainer = document.getElementById('sw-quick-fields-container');
+  const errorBox = document.getElementById('sw-quick-error');
+  const slotBadge = document.getElementById('sw-quick-slot-badge');
+  const docIdLabel = document.getElementById('sw-quick-doc-id');
+  const escapeHatch = document.getElementById('sw-quick-escape-hatch') as HTMLAnchorElement | null;
+
+  let currentSlot = '';
+  let currentCollection = '';
+  let currentDocId = '';
+  let currentSlotEl: HTMLElement | null = null;
+
+  function closeDrawer() {
+    backdrop?.classList.add('hidden');
+    drawer?.classList.remove('translate-x-0');
+    drawer?.classList.add('translate-x-full');
+  }
+
+  function openDrawer(params: QuickEditDrawerParams) {
+    currentSlot = params.slot;
+    currentCollection = params.collection || params.slot;
+    currentDocId = params.documentId || '';
+    currentSlotEl = params.slotElement || document.querySelector<HTMLElement>(`[data-slotwire-slot="${params.slot}"]`);
+
+    if (slotBadge) slotBadge.textContent = currentSlot;
+    if (docIdLabel) {
+      docIdLabel.textContent = currentDocId
+        ? `${currentCollection} • id: ${currentDocId}`
+        : `${currentCollection} • new`;
+    }
+
+    if (escapeHatch) {
+      const fallbackUrl = `${adminUrl.replace(/\/+$/, '')}/content/${currentCollection}`;
+      escapeHatch.href = params.editUrl || fallbackUrl;
+    }
+
+    if (errorBox) {
+      errorBox.textContent = '';
+      errorBox.classList.add('hidden');
+    }
+
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '<span>💾 Save Draft</span>';
+      saveBtn.className = 'inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500 transition-transform active:scale-[0.98]';
+    }
+
+    // Derive fields to render
+    const fieldMap: Record<string, { label: string; value: any; type: 'string' | 'text' | 'markdown' }> = {};
+    const rawData = params.data;
+
+    if (rawData && typeof rawData === 'object' && !Array.isArray(rawData)) {
+      const ignoredKeys = new Set([
+        'id', '_id', 'rootId', 'root_id', 'date_created', 'date_updated',
+        'user_created', 'user_updated', 'sort', 'status', 'draft_status',
+        'items', 'parent', 'authorId',
+      ]);
+
+      for (const [k, v] of Object.entries(rawData)) {
+        if (ignoredKeys.has(k)) continue;
+        if (typeof v === 'object' && v !== null) continue; // Skip complex nested relations in quick edit
+
+        const keyLower = k.toLowerCase();
+        let type: 'string' | 'text' | 'markdown' = 'string';
+        if (
+          keyLower.includes('content') ||
+          keyLower.includes('body') ||
+          keyLower.includes('markdown') ||
+          keyLower.includes('copy') ||
+          (typeof v === 'string' && (v.includes('\n') || v.length > 90))
+        ) {
+          type = 'markdown';
+        } else if (
+          keyLower.includes('desc') ||
+          keyLower.includes('summary') ||
+          keyLower.includes('excerpt') ||
+          keyLower.includes('subheading') ||
+          keyLower.includes('subtitle') ||
+          (typeof v === 'string' && v.length > 50)
+        ) {
+          type = 'text';
+        }
+
+        const label = k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+        fieldMap[k] = { label, value: v ?? '', type };
+      }
+    }
+
+    // Fallback: Check for DOM-tagged fields or standard heading/paragraph
+    if (Object.keys(fieldMap).length === 0) {
+      if (currentSlotEl) {
+        const taggedFields = currentSlotEl.querySelectorAll<HTMLElement>('[data-slotwire-field]');
+        if (taggedFields.length > 0) {
+          taggedFields.forEach((el) => {
+            const fieldKey = el.getAttribute('data-slotwire-field') || 'field';
+            const label = fieldKey.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+            const text = el.innerText.trim();
+            const type = text.includes('\n') || text.length > 80 ? 'markdown' : 'string';
+            fieldMap[fieldKey] = { label, value: text, type };
+          });
+        }
+      }
+
+      if (Object.keys(fieldMap).length === 0) {
+        const h = currentSlotEl?.querySelector('h1, h2, h3, h4');
+        const p = currentSlotEl?.querySelector('p');
+        fieldMap['title'] = {
+          label: 'Title',
+          value: h ? h.textContent?.trim() || '' : '',
+          type: 'string',
+        };
+        fieldMap['content'] = {
+          label: 'Content',
+          value: p ? p.textContent?.trim() || '' : '',
+          type: 'markdown',
+        };
+      }
+    }
+
+    // Render HTML fields into container
+    if (fieldsContainer) {
+      fieldsContainer.innerHTML = Object.entries(fieldMap)
+        .map(([name, f]) => {
+          if (f.type === 'markdown') {
+            return `
+              <div class="space-y-1.5 sw-field-group">
+                <div class="flex items-center justify-between">
+                  <label for="sw-field-${name}" class="font-mono text-[11px] font-semibold text-zinc-300">
+                    ${f.label}
+                  </label>
+                  <div class="flex items-center rounded bg-zinc-900 border border-zinc-800 p-0.5 text-[10px]">
+                    <button type="button" class="sw-tab-write px-2 py-0.5 rounded font-medium bg-zinc-800 text-emerald-400">Write</button>
+                    <button type="button" class="sw-tab-preview px-2 py-0.5 rounded font-medium text-zinc-400 hover:text-white">Preview</button>
+                  </div>
+                </div>
+
+                <div class="sw-write-pane">
+                  <markdown-toolbar for="sw-field-${name}" class="flex items-center gap-1 border border-b-0 border-zinc-700 rounded-t-md bg-zinc-900 px-2 py-1 text-zinc-400">
+                    <button type="button" data-md-action="bold" class="rounded px-1.5 py-0.5 hover:bg-zinc-800 hover:text-white font-bold" title="Bold (Cmd+B)">B</button>
+                    <button type="button" data-md-action="italic" class="rounded px-1.5 py-0.5 hover:bg-zinc-800 hover:text-white italic" title="Italic (Cmd+I)">I</button>
+                    <button type="button" data-md-action="header" data-level="2" class="rounded px-1.5 py-0.5 hover:bg-zinc-800 hover:text-white font-bold" title="Heading">H2</button>
+                    <button type="button" data-md-action="header" data-level="3" class="rounded px-1.5 py-0.5 hover:bg-zinc-800 hover:text-white font-bold" title="Subheading">H3</button>
+                    <button type="button" data-md-action="link" class="rounded px-1.5 py-0.5 hover:bg-zinc-800 hover:text-white" title="Link (Cmd+K)">🔗</button>
+                    <button type="button" data-md-action="unordered-list" class="rounded px-1.5 py-0.5 hover:bg-zinc-800 hover:text-white" title="Bullet List">•≡</button>
+                    <button type="button" data-md-action="ordered-list" class="rounded px-1.5 py-0.5 hover:bg-zinc-800 hover:text-white" title="Numbered List">1≡</button>
+                    <button type="button" data-md-action="quote" class="rounded px-1.5 py-0.5 hover:bg-zinc-800 hover:text-white" title="Quote">“</button>
+                    <button type="button" data-md-action="code" class="rounded px-1.5 py-0.5 hover:bg-zinc-800 hover:text-white font-mono" title="Code">&lt;&gt;</button>
+                  </markdown-toolbar>
+                  <textarea
+                    id="sw-field-${name}"
+                    name="${name}"
+                    rows="6"
+                    class="w-full rounded-b-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs font-mono text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-y"
+                  >${escapeHtml(f.value)}</textarea>
+                </div>
+
+                <div class="sw-preview-pane hidden rounded-md border border-zinc-700 bg-zinc-900/60 p-3 text-xs text-zinc-200 min-h-[140px] overflow-y-auto">
+                </div>
+              </div>
+            `;
+          } else if (f.type === 'text') {
+            return `
+              <div class="space-y-1.5 sw-field-group">
+                <label for="sw-field-${name}" class="block font-mono text-[11px] font-semibold text-zinc-300">
+                  ${f.label}
+                </label>
+                <textarea
+                  id="sw-field-${name}"
+                  name="${name}"
+                  rows="3"
+                  class="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-y"
+                >${escapeHtml(f.value)}</textarea>
+              </div>
+            `;
+          } else {
+            return `
+              <div class="space-y-1.5 sw-field-group">
+                <label for="sw-field-${name}" class="block font-mono text-[11px] font-semibold text-zinc-300">
+                  ${f.label}
+                </label>
+                <input
+                  type="text"
+                  id="sw-field-${name}"
+                  name="${name}"
+                  value="${escapeHtml(f.value)}"
+                  class="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-100 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+            `;
+          }
+        })
+        .join('');
+
+      // Wire Write / Preview tabs
+      fieldsContainer.querySelectorAll('.sw-field-group').forEach((group) => {
+        const writeBtn = group.querySelector('.sw-tab-write');
+        const prevBtn = group.querySelector('.sw-tab-preview');
+        const writePane = group.querySelector('.sw-write-pane');
+        const prevPane = group.querySelector('.sw-preview-pane');
+        const ta = group.querySelector('textarea');
+
+        if (writeBtn && prevBtn && writePane && prevPane && ta) {
+          prevBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            prevPane.innerHTML = renderSimpleMarkdown(ta.value);
+            writePane.classList.add('hidden');
+            prevPane.classList.remove('hidden');
+            prevBtn.classList.add('bg-zinc-800', 'text-emerald-400');
+            prevBtn.classList.remove('text-zinc-400');
+            writeBtn.classList.remove('bg-zinc-800', 'text-emerald-400');
+            writeBtn.classList.add('text-zinc-400');
+          });
+
+          writeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            prevPane.classList.add('hidden');
+            writePane.classList.remove('hidden');
+            writeBtn.classList.add('bg-zinc-800', 'text-emerald-400');
+            writeBtn.classList.remove('text-zinc-400');
+            prevBtn.classList.remove('bg-zinc-800', 'text-emerald-400');
+            prevBtn.classList.add('text-zinc-400');
+            ta.focus();
+          });
+        }
+      });
+    }
+
+    // Open drawer
+    backdrop?.classList.remove('hidden');
+    drawer?.classList.remove('translate-x-full');
+    drawer?.classList.add('translate-x-0');
+
+    // Auto-focus first input
+    setTimeout(() => {
+      const firstInput = fieldsContainer?.querySelector<HTMLInputElement | HTMLTextAreaElement>('input, textarea');
+      firstInput?.focus();
+    }, 50);
+  }
+
+  // Attach elements handlers (once per drawer element)
+  if (root && root.dataset.swBound !== 'true') {
+    root.dataset.swBound = 'true';
+
+    closeBtn?.addEventListener('click', closeDrawer);
+    cancelBtn?.addEventListener('click', closeDrawer);
+    backdrop?.addEventListener('click', closeDrawer);
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && drawer && !drawer.classList.contains('translate-x-full')) {
+        closeDrawer();
+      }
+    });
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!currentDocId) {
+        if (errorBox) {
+          errorBox.textContent = 'Cannot quick-save: No document ID associated with this slot. Use "Open Full Studio" to create or link the record.';
+          errorBox.classList.remove('hidden');
+        }
+        return;
+      }
+
+      const formData = new FormData(form);
+      const patchData: Record<string, any> = {};
+      formData.forEach((val, key) => {
+        patchData[key] = val;
+      });
+
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span>💾 Saving...</span>';
+      }
+      if (errorBox) {
+        errorBox.classList.add('hidden');
+        errorBox.textContent = '';
+      }
+
+      try {
+        const res = await fetch('/api/slotwire/quick-save', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-slotwire-action': 'quick-save',
+          },
+          body: JSON.stringify({
+            collection: currentCollection,
+            documentId: currentDocId,
+            data: patchData,
+          }),
+        });
+
+        if (!res.ok) {
+          let errMsg = `Save failed (${res.status})`;
+          try {
+            const json = await res.json();
+            if (json.error) errMsg = json.error;
+          } catch {
+            const text = await res.text();
+            if (text) errMsg = text;
+          }
+          throw new Error(errMsg);
+        }
+
+        if (saveBtn) {
+          saveBtn.innerHTML = '<span>✓ Saved!</span>';
+          saveBtn.classList.remove('bg-emerald-600');
+          saveBtn.classList.add('bg-emerald-500');
+        }
+
+        // Optimistic DOM Updates
+        if (currentSlotEl) {
+          Object.entries(patchData).forEach(([k, v]) => {
+            const fieldEl = currentSlotEl!.querySelector(`[data-slotwire-field="${k}"]`);
+            if (fieldEl) {
+              fieldEl.textContent = String(v);
+            }
+          });
+
+          if (patchData.title) {
+            const heading = currentSlotEl.querySelector('h1, h2, h3, h4');
+            if (heading) heading.textContent = String(patchData.title);
+          }
+
+          const bodyVal = patchData.content || patchData.body || patchData.description;
+          if (bodyVal) {
+            const p = currentSlotEl.querySelector('p, .prose');
+            if (p) p.textContent = String(bodyVal);
+          }
+
+          const statusTag = currentSlotEl.querySelector('.slotwire-status-tag');
+          if (statusTag) {
+            statusTag.textContent = 'Draft Modified';
+            statusTag.className = 'slotwire-status-tag sw-status-modified';
+          }
+        }
+
+        // Fire telemetry & update events
+        window.dispatchEvent(new CustomEvent('slotwire:recompiled'));
+        window.dispatchEvent(new CustomEvent('slotwire:quick-saved', {
+          detail: {
+            slot: currentSlot,
+            collection: currentCollection,
+            documentId: currentDocId,
+            data: patchData,
+          },
+        }));
+
+        setTimeout(() => {
+          closeDrawer();
+        }, 800);
+      } catch (err: any) {
+        if (errorBox) {
+          errorBox.textContent = `Save Error: ${err.message}`;
+          errorBox.classList.remove('hidden');
+        }
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = '<span>💾 Save Draft</span>';
+        }
+      }
+    });
+  }
+
+  // Global Click Delegate (runs once across whole page lifecycle)
+  if (!(window as any).__slotwire_quick_edit_delegate_bound) {
+    (window as any).__slotwire_quick_edit_delegate_bound = true;
+
+    document.addEventListener('click', (e) => {
+      // 1. Badge "⚡ Edit" button
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.slotwire-badge-quick-edit-btn');
+      if (btn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const slot = btn.getAttribute('data-slot') || '';
+        const collection = btn.getAttribute('data-collection') || slot;
+        const documentId = btn.getAttribute('data-document-id') || '';
+        const editUrl = btn.getAttribute('data-edit-url') || '';
+        let data: any = null;
+        try {
+          const raw = btn.getAttribute('data-slot-data');
+          if (raw) data = JSON.parse(raw);
+        } catch {}
+        const container = btn.closest<HTMLElement>('.slotwire-slot-container') || document.querySelector<HTMLElement>(`[data-slotwire-slot="${slot}"]`);
+        openDrawer({ slot, collection, documentId, data, editUrl, slotElement: container });
+        return;
+      }
+
+      // 2. Inspector "⚡ Quick" button
+      const inspectorBtn = (e.target as HTMLElement).closest<HTMLButtonElement>('.sw-quick-edit-trigger');
+      if (inspectorBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const slotItem = inspectorBtn.closest('.sw-slot-item');
+        const nameEl = slotItem?.querySelector('.sw-slot-name');
+        const slotName = (nameEl?.textContent || '').replace(/^#/, '').trim();
+        if (slotName) {
+          const container = document.querySelector<HTMLElement>(`[data-slotwire-slot="${slotName}"]`);
+          const badgeBtn = container?.querySelector<HTMLButtonElement>('.slotwire-badge-quick-edit-btn');
+          if (badgeBtn) {
+            badgeBtn.click();
+          } else if (container) {
+            const collection = container.getAttribute('data-slotwire-collection') || slotName;
+            const documentId = container.getAttribute('data-slotwire-id') || '';
+            const editUrl = container.getAttribute('data-slotwire-edit-url') || '';
+            openDrawer({ slot: slotName, collection, documentId, data: null, editUrl, slotElement: container });
+          }
+        }
+        return;
+      }
+    });
+
+    window.addEventListener('slotwire:open-quick-edit', (e: any) => {
+      if (e.detail) {
+        openDrawer(e.detail);
+      }
+    });
+  }
+
+  (window as any).__slotwire_open_quick_drawer = openDrawer;
+
+  return {
+    open: openDrawer,
+    close: closeDrawer,
+  };
 }
 
 /**

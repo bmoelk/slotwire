@@ -4,5 +4,16 @@ export * from './preview.js';
 export * from './deep-link.js';
 export * from './auth-guard.js';
 export * from './loader.js';
-export * from './endpoints/scaffold.js';
-
+export {
+  handleScaffoldRequest,
+  createScaffoldEndpoint,
+  type ScaffoldHandlerOptions,
+  POST as scaffoldPost,
+} from './endpoints/scaffold.js';
+export {
+  handleQuickSaveRequest,
+  createQuickSaveEndpoint,
+  type QuickSaveHandlerOptions,
+  POST as quickSavePost,
+} from './endpoints/quick-save.js';
+export * from './vendor/markdown-toolbar.js';

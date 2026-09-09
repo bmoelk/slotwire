@@ -985,9 +985,10 @@ export function initInspector(containerEl: HTMLElement, options: InspectorOption
             </div>
           </div>
           <div class="sw-slot-actions">
+            <button class="sw-btn sw-quick-edit-trigger" data-slot-idx="${item.idx}" style="color:#10b981; border-color:rgba(16,185,129,0.4); background:rgba(16,185,129,0.1);" title="Edit in-situ">⚡ Quick</button>
             <button class="sw-btn sw-locate-btn" data-locate-idx="${item.idx}">Locate</button>
             <a href="${item.editUrl}" target="_blank" rel="noopener noreferrer" class="sw-btn sw-btn-cms sw-slot-edit-btn">
-              Edit ↗
+              Studio ↗
             </a>
           </div>
         </div>
