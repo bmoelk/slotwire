@@ -1,9 +1,10 @@
 ---
 export interface Props {
   adminUrl?: string;
+  editor?: 'markdown' | 'html';
 }
 
-const { adminUrl = '/admin' } = Astro.props;
+const { adminUrl = '/admin', editor = 'markdown' } = Astro.props;
 
 const isPreview =
   Boolean(import.meta.env.DEV) ||
@@ -11,7 +12,7 @@ const isPreview =
 ---
 
 {isPreview && (
-  <div id="slotwire-quick-drawer-root" data-admin-url={adminUrl}>
+  <div id="slotwire-quick-drawer-root" data-admin-url={adminUrl} data-editor={editor}>
     <!-- Semi-transparent backdrop -->
     <div
       id="slotwire-quick-drawer-backdrop"

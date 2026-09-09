@@ -1,5 +1,5 @@
 import type { SlotwireLoaderOptions } from '@slotwire/core';
-import { getCmsAdapter, getSlotEntryZodSchema } from '@slotwire/core';
+import { getCmsAdapter, getSlotEntryZodSchema, resolveSlotTransformer } from '@slotwire/core';
 
 export interface AstroLoaderContext {
   store: {
@@ -72,7 +72,12 @@ export function slotwireLoader(options: SlotwireLoaderOptions) {
           return;
         }
 
+        const slotTransformer = resolveSlotTransformer(options.config, collection, { provider, collection });
+
         for (let item of rawItems) {
+          if (slotTransformer && typeof slotTransformer === 'function') {
+            item = slotTransformer(item, { slotKey: collection, collection, provider });
+          }
           if (options.transform && typeof options.transform === 'function') {
             item = options.transform(item);
           }

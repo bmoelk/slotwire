@@ -6,12 +6,20 @@ import QuickEditDrawer from './QuickEditDrawer.astro';
 export interface Props {
   adminUrl?: string;
   assistActive?: boolean;
+  editor?: 'markdown' | 'html';
 }
 
 const {
   adminUrl = '/admin',
   assistActive = true,
+  editor: propEditor,
 } = Astro.props;
+
+const globalConfig = (globalThis as any).__SLOTWIRE_CONFIG__;
+const resolvedEditor =
+  propEditor ||
+  globalConfig?.ui?.editor ||
+  (globalConfig?.cms?.provider === 'wordpress' ? 'html' : 'markdown');
 
 const envVar =
   (typeof process !== 'undefined' && process.env?.ENVIRONMENT) ||
@@ -92,7 +100,7 @@ if (session && session.route === Astro.url.pathname) {
     <PreCreateModal adminUrl={adminUrl} />
 
     <!-- In-Situ 80/20 Quick Edit Drawer -->
-    <QuickEditDrawer adminUrl={adminUrl} />
+    <QuickEditDrawer adminUrl={adminUrl} editor={resolvedEditor} />
   </div>
 )}
 

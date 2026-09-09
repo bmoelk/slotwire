@@ -1,6 +1,7 @@
 import type { SlotWireConfig, SlotMetadata } from '@slotwire/core';
 import { buildCmsDeepLink } from './deep-link.js';
 import './vendor/markdown-toolbar.js';
+import { initPell } from './vendor/pell.js';
 
 export class SlotWireClient {
   private config: SlotWireConfig;
@@ -97,10 +98,10 @@ export function introspectPageSlots(): IntrospectedSlot[] {
  * - Pre-Create Page Blueprint Cloner
  * - Live EventStream / SSE Slot Morphing
  */
-export function initSlotWirePreview(options: { adminUrl?: string; provider?: string } = {}) {
+export function initSlotWirePreview(options: { adminUrl?: string; provider?: string; editor?: 'markdown' | 'html' } = {}) {
   if (typeof window === 'undefined') return;
 
-  const { adminUrl = '/admin', provider = 'slottd' } = options;
+  const { adminUrl = '/admin', provider = 'slottd', editor } = options;
 
   function updateHud() {
     const slots = introspectPageSlots();
@@ -445,13 +446,13 @@ export function initSlotWirePreview(options: { adminUrl?: string; provider?: str
     applyOverlayVisibility(getOverlayHiddenState());
     initInSituBadges();
     updateHud();
-    initQuickEditDrawer({ adminUrl, provider });
+    initQuickEditDrawer({ adminUrl, provider, editor });
   });
   document.addEventListener('astro:after-swap', () => {
     applyOverlayVisibility(getOverlayHiddenState());
     initInSituBadges();
     updateHud();
-    initQuickEditDrawer({ adminUrl, provider });
+    initQuickEditDrawer({ adminUrl, provider, editor });
   });
 
   // Pre-Create Modal Handler
@@ -582,7 +583,7 @@ export function initSlotWirePreview(options: { adminUrl?: string; provider?: str
   window.addEventListener('slotwire:recompiled', updateHud);
 
   // Initialize Quick Edit Drawer
-  initQuickEditDrawer({ adminUrl, provider });
+  initQuickEditDrawer({ adminUrl, provider, editor });
 }
 
 export interface QuickEditDrawerParams {
@@ -602,7 +603,7 @@ export interface QuickEditDrawerParams {
  * - Direct mutation dispatcher to POST /api/slotwire/quick-save
  * - Zero-latency optimistic DOM update on save
  */
-export function initQuickEditDrawer(options: { adminUrl?: string; provider?: string } = {}) {
+export function initQuickEditDrawer(options: { adminUrl?: string; provider?: string; editor?: 'markdown' | 'html' } = {}) {
   if (typeof window === 'undefined') return;
 
   const { adminUrl = '/admin' } = options;
@@ -635,6 +636,10 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
   }
 
   const root = document.getElementById('slotwire-quick-drawer-root');
+  const configuredEditor: 'markdown' | 'html' =
+    (root?.getAttribute('data-editor') as any) ||
+    options.editor ||
+    (options.provider === 'wordpress' ? 'html' : 'markdown');
   const backdrop = document.getElementById('slotwire-quick-drawer-backdrop');
   const drawer = document.getElementById('slotwire-quick-edit-drawer');
   const closeBtn = document.getElementById('sw-quick-close-btn');
@@ -764,8 +769,19 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
       fieldsContainer.innerHTML = Object.entries(fieldMap)
         .map(([name, f]) => {
           if (f.type === 'markdown') {
+            if (configuredEditor === 'html') {
+              return `
+              <div class="space-y-1.5 sw-field-group" data-field-type="html">
+                <label for="sw-field-${name}" class="block font-mono text-[11px] font-semibold text-zinc-300">
+                  ${f.label} <span class="text-zinc-500 font-normal">(HTML)</span>
+                </label>
+                <div id="sw-pell-${name}" class="sw-pell-container"></div>
+                <input type="hidden" id="sw-field-${name}" name="${name}" value="${escapeHtml(f.value)}" />
+              </div>
+              `;
+            }
             return `
-              <div class="space-y-1.5 sw-field-group">
+              <div class="space-y-1.5 sw-field-group" data-field-type="markdown">
                 <div class="flex items-center justify-between">
                   <label for="sw-field-${name}" class="font-mono text-[11px] font-semibold text-zinc-300">
                     ${f.label}
@@ -865,6 +881,25 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
           });
         }
       });
+
+      // Initialize Pell for HTML fields when configuredEditor === 'html'
+      if (configuredEditor === 'html') {
+        Object.entries(fieldMap).forEach(([name, f]) => {
+          if (f.type === 'markdown') {
+            const pellEl = fieldsContainer.querySelector<HTMLElement>(`#sw-pell-${name}`);
+            const hiddenInput = fieldsContainer.querySelector<HTMLInputElement>(`#sw-field-${name}`);
+            if (pellEl && hiddenInput) {
+              initPell({
+                element: pellEl,
+                initialHtml: String(f.value || ''),
+                onChange: (html) => {
+                  hiddenInput.value = html;
+                },
+              });
+            }
+          }
+        });
+      }
     }
 
     // Open drawer
@@ -955,7 +990,11 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
           Object.entries(patchData).forEach(([k, v]) => {
             const fieldEl = currentSlotEl!.querySelector(`[data-slotwire-field="${k}"]`);
             if (fieldEl) {
-              fieldEl.textContent = String(v);
+              if (configuredEditor === 'html' || /<[a-z][\s\S]*>/i.test(String(v))) {
+                fieldEl.innerHTML = String(v);
+              } else {
+                fieldEl.textContent = String(v);
+              }
             }
           });
 
@@ -967,7 +1006,13 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
           const bodyVal = patchData.content || patchData.body || patchData.description;
           if (bodyVal) {
             const p = currentSlotEl.querySelector('p, .prose');
-            if (p) p.textContent = String(bodyVal);
+            if (p) {
+              if (configuredEditor === 'html' || /<[a-z][\s\S]*>/i.test(String(bodyVal))) {
+                p.innerHTML = String(bodyVal);
+              } else {
+                p.textContent = String(bodyVal);
+              }
+            }
           }
 
           const statusTag = currentSlotEl.querySelector('.slotwire-status-tag');

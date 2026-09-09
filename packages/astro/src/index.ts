@@ -16,4 +16,13 @@ export {
   type QuickSaveHandlerOptions,
   POST as quickSavePost,
 } from './endpoints/quick-save.js';
+export {
+  handleRevalidateRequest,
+  createRevalidateEndpoint,
+  type RevalidateHandlerOptions,
+  type RevalidatePayload,
+  POST as revalidatePost,
+} from './endpoints/revalidate.js';
 export * from './vendor/markdown-toolbar.js';
+export * from './vendor/pell.js';
+

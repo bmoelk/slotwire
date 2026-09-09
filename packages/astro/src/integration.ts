@@ -27,6 +27,10 @@ export function slotwire(options: SlotWireIntegrationOptions) {
             pattern: '/api/slotwire/quick-save',
             entrypoint: fileURLToPath(new URL('./endpoints/quick-save.js', import.meta.url)),
           });
+          injectRoute({
+            pattern: '/api/slotwire/revalidate',
+            entrypoint: fileURLToPath(new URL('./endpoints/revalidate.js', import.meta.url)),
+          });
         }
 
         if (updateConfig) {
