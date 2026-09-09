@@ -4,6 +4,7 @@ import {
   defineContract,
   s,
   getSlotEntryZodSchema,
+  getSlotEditableFields,
   generateArchetypeScaffoldBundle,
   WordPressAdapter,
   DirectusAdapter,
@@ -193,3 +194,97 @@ test('DirectusAdapter: scaffoldBundle executes and rolls back on failure', async
     globalThis.fetch = originalFetch;
   }
 });
+
+test('getSlotEditableFields: extracts editable fields with inferred widgets', () => {
+  const fields = getSlotEditableFields(mockConfig, 'pages');
+  assert.ok(fields.length >= 2);
+
+  const titleField = fields.find((f) => f.name === 'title');
+  assert.ok(titleField);
+  assert.equal(titleField.type, 'text');
+  assert.equal(titleField.label, 'Title');
+
+  const descField = fields.find((f) => f.name === 'description');
+  assert.ok(descField);
+  assert.equal(descField.type, 'markdown');
+
+  const heroFields = getSlotEditableFields(mockConfig, 'hero');
+  const urlField = heroFields.find((f) => f.name === 'primaryCtaUrl');
+  assert.ok(urlField);
+  assert.equal(urlField.type, 'url');
+});
+
+test('DirectusAdapter: updateItem issues PATCH with Bearer headers', async () => {
+  const adapter = new DirectusAdapter();
+  let capturedUrl = '';
+  let capturedMethod = '';
+  let capturedAuth = '';
+  let capturedBody = '';
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, opts) => {
+    capturedUrl = String(url);
+    capturedMethod = opts.method;
+    capturedAuth = opts.headers?.Authorization || '';
+    capturedBody = opts.body;
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ data: { id: 'home', title: 'New Title' } }),
+    };
+  };
+
+  try {
+    const result = await adapter.updateItem(
+      'pages',
+      'home',
+      { title: 'New Title' },
+      { apiUrl: 'https://directus.test', apiKey: 'secret-token' }
+    );
+
+    assert.equal(result.success, true);
+    assert.equal(capturedMethod, 'PATCH');
+    assert.equal(capturedUrl, 'https://directus.test/items/pages/home');
+    assert.equal(capturedAuth, 'Bearer secret-token');
+    assert.ok(capturedBody.includes('New Title'));
+    assert.equal(result.data.title, 'New Title');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('WordPressAdapter: updateItem issues POST with Basic auth', async () => {
+  const adapter = new WordPressAdapter();
+  let capturedUrl = '';
+  let capturedMethod = '';
+  let capturedAuth = '';
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, opts) => {
+    capturedUrl = String(url);
+    capturedMethod = opts.method;
+    capturedAuth = opts.headers?.Authorization || '';
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ id: 42, title: { rendered: 'Updated Title' } }),
+    };
+  };
+
+  try {
+    const result = await adapter.updateItem(
+      'pages',
+      '42',
+      { title: 'Updated Title' },
+      { apiUrl: 'https://wp.test', apiKey: 'admin:app-pass-123' }
+    );
+
+    assert.equal(result.success, true);
+    assert.equal(capturedMethod, 'POST');
+    assert.equal(capturedUrl, 'https://wp.test/wp-json/wp/v2/pages/42');
+    assert.ok(capturedAuth.startsWith('Basic '));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+

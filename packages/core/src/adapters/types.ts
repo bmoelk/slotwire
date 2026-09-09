@@ -14,4 +14,5 @@ export interface SlotWireCmsAdapter {
   resolveDocumentContext?(context: unknown): DocumentContext;
   scaffoldBundle?(bundle: ScaffoldBundle, credentials?: { apiUrl?: string; apiKey?: string }): Promise<ScaffoldResult>;
   fetchCollection?(collection: string, options?: { filter?: any; sort?: any; limit?: number; credentials?: { apiUrl?: string; apiKey?: string } }): Promise<any[]>;
+  updateItem?(collection: string, id: string, data: Record<string, any>, credentials?: { apiUrl?: string; apiKey?: string }): Promise<{ success: boolean; data?: any; error?: string }>;
 }

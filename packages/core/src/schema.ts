@@ -6,6 +6,7 @@ import type {
   MediaFieldOptions,
   ScaffoldBundle,
   ScaffoldRecord,
+  EditableFieldDescriptor,
 } from './types.js';
 import { generateBlueprint } from './blueprint.js';
 
@@ -425,5 +426,90 @@ export function generateArchetypeScaffoldBundle(
     records,
     previewUrl: `/${targetSlug}?slotwire_preview=true`,
   };
+}
+
+/**
+ * Introspects slot contract fields and maps them to UI editable field descriptors for the Quick Drawer.
+ */
+export function getSlotEditableFields(
+  config: SlotWireConfig,
+  slotKeyOrCollection: string
+): EditableFieldDescriptor[] {
+  if (!config || !config.slots) return [];
+
+  let slotDef: any = config.slots[slotKeyOrCollection];
+  if (!slotDef) {
+    for (const [key, def] of Object.entries(config.slots)) {
+      const coll = (def as any).collectionName || (def as any).collection || key;
+      if (coll === slotKeyOrCollection) {
+        slotDef = def;
+        break;
+      }
+    }
+  }
+
+  // Also check archetypes if not found in slots
+  if (!slotDef && config.archetypes) {
+    for (const [, arch] of Object.entries(config.archetypes)) {
+      if (arch.slots && arch.slots[slotKeyOrCollection]) {
+        slotDef = arch.slots[slotKeyOrCollection];
+        break;
+      }
+    }
+  }
+
+  if (!slotDef || !slotDef.properties) {
+    return [];
+  }
+
+  const fields: EditableFieldDescriptor[] = [];
+
+  for (const [propName, fieldDef] of Object.entries(slotDef.properties as Record<string, FieldDefinition>)) {
+    // Skip internal system fields
+    if (['id', 'created_at', 'updated_at'].includes(propName)) continue;
+
+    const label =
+      fieldDef.ui?.label ||
+      propName.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+    let widgetType: EditableFieldDescriptor['type'] = 'text';
+
+    if (fieldDef.ui?.widget) {
+      if (fieldDef.ui.widget === 'markdown') widgetType = 'markdown';
+      else if (fieldDef.ui.widget === 'textarea') widgetType = 'textarea';
+      else if (fieldDef.ui.widget === 'url') widgetType = 'url';
+      else if (fieldDef.ui.widget === 'select') widgetType = 'select';
+      else if (fieldDef.ui.widget === 'toggle') widgetType = 'boolean';
+      else if (fieldDef.ui.widget === 'media') widgetType = 'image';
+      else widgetType = 'text';
+    } else {
+      // Inferred from type and field name
+      if (fieldDef.type === 'boolean') {
+        widgetType = 'boolean';
+      } else if (fieldDef.type === 'number') {
+        widgetType = 'number';
+      } else if (fieldDef.type === 'media' || /image|avatar|photo|logo|banner|thumbnail/i.test(propName)) {
+        widgetType = 'image';
+      } else if (/url|link|href/i.test(propName)) {
+        widgetType = 'url';
+      } else if (/description|content|body|bio|summary|markdown/i.test(propName)) {
+        widgetType = 'markdown';
+      } else {
+        widgetType = 'text';
+      }
+    }
+
+    fields.push({
+      name: propName,
+      label,
+      type: widgetType,
+      required: fieldDef.required,
+      defaultValue: fieldDef.defaultValue,
+      placeholder: fieldDef.ui?.placeholder,
+      options: fieldDef.ui?.options,
+    });
+  }
+
+  return fields;
 }
 

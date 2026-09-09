@@ -62,4 +62,52 @@ export class WordPressAdapter extends BaseCmsAdapter {
     if (collection === 'site_navigation') return 'menu-items';
     return collection;
   }
+
+  async updateItem(
+    collection: string,
+    id: string,
+    data: Record<string, any>,
+    credentials?: { apiUrl?: string; apiKey?: string }
+  ): Promise<{ success: boolean; data?: any; error?: string }> {
+    const apiUrl = this.cleanBaseUrl(credentials?.apiUrl || '');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (credentials?.apiKey) {
+      if (credentials.apiKey.includes(':')) {
+        const encoded = Buffer.from(credentials.apiKey).toString('base64');
+        headers['Authorization'] = `Basic ${encoded}`;
+      } else {
+        headers['Authorization'] = `Bearer ${credentials.apiKey}`;
+      }
+    }
+
+    const endpoint = this.getItemEndpoint(apiUrl, collection, id);
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        return {
+          success: false,
+          error: `WordPress update failed for '${collection}/${id}' (${res.status}): ${errText}`,
+        };
+      }
+
+      const json: any = await res.json().catch(() => ({}));
+      return {
+        success: true,
+        data: json,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err.message || 'Network error during WordPress update',
+      };
+    }
+  }
 }

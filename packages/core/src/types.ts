@@ -34,6 +34,13 @@ export interface FieldDefinition {
   items?: FieldDefinition;
   properties?: Record<string, FieldDefinition>;
   mediaOptions?: MediaFieldOptions;
+  defaultValue?: unknown;
+  ui?: {
+    widget?: 'text' | 'textarea' | 'markdown' | 'url' | 'select' | 'toggle' | 'media';
+    label?: string;
+    placeholder?: string;
+    options?: Array<{ label: string; value: string }>;
+  };
   zodSchema: z.ZodTypeAny;
 }
 
@@ -205,6 +212,16 @@ export interface SlotwireLoaderOptions {
   preview?: boolean;
   limit?: number;
   transform?: (data: any) => any;
+}
+
+export interface EditableFieldDescriptor {
+  name: string;
+  label: string;
+  type: 'text' | 'textarea' | 'markdown' | 'url' | 'number' | 'boolean' | 'image' | 'select';
+  required?: boolean;
+  defaultValue?: any;
+  placeholder?: string;
+  options?: Array<{ label: string; value: string }>;
 }
 
 export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'dismissed';
