@@ -176,12 +176,14 @@ function processSlotDefinition(
   // Cascade creation for children (e.g. multi-card bento grids)
   if (slotDef.children) {
     for (const [childKey, childDef] of Object.entries(slotDef.children)) {
-      const count = childDef.defaultCount || childDef.minItems || 3;
+      if (!childDef || typeof childDef !== 'object') continue;
+      const count = (childDef as any).defaultCount || (childDef as any).minItems || 3;
+      const childCollection = (childDef as any).collection || (childDef as any).collectionName || childKey;
       for (let i = 1; i <= count; i++) {
         const cardSlug = `${pageSlug}-${sectionKey}-item-${i}`;
         items.push({
           id: `draft-${cardSlug}`,
-          collection: childDef.collection || 'feature_cards',
+          collection: childCollection,
           action: 'create',
           pageSlug,
           sectionKey,

@@ -47,6 +47,18 @@ export interface FieldDefinition {
 export type PreviewRouteFn = (doc: Record<string, any>) => string;
 export type PreviewRoute = string | PreviewRouteFn;
 
+export interface SlotTransformerContext {
+  slotKey: string;
+  collection: string;
+  provider?: string;
+  archetype?: string;
+}
+
+export type SlotTransformer<TInput = any, TOutput = any> = (
+  rawItem: TInput,
+  context: SlotTransformerContext
+) => TOutput;
+
 export type SlotDefinition =
   | {
       kind: 'object';
@@ -54,6 +66,8 @@ export type SlotDefinition =
       zodSchema: z.ZodTypeAny;
       previewRoute?: PreviewRoute;
       previewRouteFn?: (route: PreviewRoute) => SlotDefinition;
+      transform?: SlotTransformer;
+      editor?: 'markdown' | 'html';
     }
   | {
       kind: 'collection';
@@ -62,6 +76,8 @@ export type SlotDefinition =
       zodSchema: z.ZodTypeAny;
       previewRoute?: PreviewRoute;
       previewRouteFn?: (route: PreviewRoute) => SlotDefinition;
+      transform?: SlotTransformer;
+      editor?: 'markdown' | 'html';
     };
 
 export type SlotArchetype =
@@ -140,6 +156,8 @@ export interface ArchetypeSlotDefinition {
   defaultData?: Record<string, any>;
   defaults?: Array<Record<string, any>>;
   defaultFilter?: Record<string, any>;
+  transform?: SlotTransformer;
+  editor?: 'markdown' | 'html';
 }
 
 export interface ArchetypeDefinition {
@@ -309,6 +327,10 @@ export interface SlotWireConfig {
     apiKey?: string;
     previewSecret?: string;
   };
+  ui?: {
+    editor?: 'markdown' | 'html';
+  };
+  transformers?: Record<string, SlotTransformer>;
   staticTagging?: boolean;
   ticketing?: TicketingConfig;
   navigation?: NavigationConfig;

@@ -63,6 +63,48 @@ export class WordPressAdapter extends BaseCmsAdapter {
     return collection;
   }
 
+  async fetchCollection(collection: string, options: { filter?: any; sort?: any; limit?: number; credentials?: { apiUrl?: string; apiKey?: string } } = {}): Promise<any[]> {
+    const apiUrl = this.cleanBaseUrl(options.credentials?.apiUrl || '');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (options.credentials?.apiKey) {
+      if (options.credentials.apiKey.includes(':')) {
+        const encoded = Buffer.from(options.credentials.apiKey).toString('base64');
+        headers['Authorization'] = `Basic ${encoded}`;
+      } else {
+        headers['Authorization'] = `Bearer ${options.credentials.apiKey}`;
+      }
+    }
+
+    const path = this.mapCollectionToWpRoute(collection);
+    const params = new URLSearchParams();
+    params.set('per_page', String(options.limit || 100));
+
+    // 1. Try dedicated high-performance SlotWire route if plugin is installed
+    const slotwireEndpoint = `${apiUrl}/wp-json/slotwire/v1/content/${path}?${params.toString()}`;
+    try {
+      const res = await fetch(slotwireEndpoint, { headers });
+      if (res.ok) {
+        const json: any = await res.json();
+        return Array.isArray(json) ? json : json.data || [];
+      }
+    } catch {
+      // SlotWire plugin endpoint not available or network error, fall back to core REST
+    }
+
+    // 2. Fall back to standard WordPress core REST API
+    const coreEndpoint = `${apiUrl}/wp-json/wp/v2/${path}?${params.toString()}`;
+    const res = await fetch(coreEndpoint, { headers });
+    if (!res.ok) {
+      const err = await res.text().catch(() => '');
+      throw new Error(`[SlotWire] WordPress fetch failed for '${collection}' (${res.status}): ${err}`);
+    }
+
+    const json: any = await res.json();
+    return Array.isArray(json) ? json : json.data || [];
+  }
+
   async updateItem(
     collection: string,
     id: string,
