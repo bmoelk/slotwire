@@ -5,6 +5,7 @@ import {
   s,
   resolveSlotTransformer,
   resolveSlotEditor,
+  getCmsAdapter,
 } from '../dist/index.js';
 
 test('resolveSlotTransformer: executes slot-level transformer function', () => {
@@ -176,3 +177,32 @@ test('resolveSlotEditor: resolves html for wordpress and markdown for others', (
   });
   assert.equal(resolveSlotEditor(slotOverrideConfig, 'custom'), 'html');
 });
+
+test('WordPressAdapter: defensively normalizes base URLs and formats API routes', () => {
+  const adapter = getCmsAdapter('wordpress');
+
+  // Test root URL
+  const ep1 = adapter.getCollectionEndpoint('https://cadynorth.com', 'pages');
+  assert.equal(ep1, 'https://cadynorth.com/wp-json/wp/v2/pages?per_page=100');
+
+  // Test root URL with trailing slash
+  const ep2 = adapter.getCollectionEndpoint('https://cadynorth.com/', 'posts');
+  assert.equal(ep2, 'https://cadynorth.com/wp-json/wp/v2/posts?per_page=100');
+
+  // Test when developer accidentally appends /wp-json
+  const ep3 = adapter.getCollectionEndpoint('https://cadynorth.com/wp-json', 'page');
+  assert.equal(ep3, 'https://cadynorth.com/wp-json/wp/v2/pages?per_page=100');
+
+  // Test when developer accidentally appends /wp-json/wp/v2
+  const ep4 = adapter.getCollectionEndpoint('https://cadynorth.com/wp-json/wp/v2', 'post');
+  assert.equal(ep4, 'https://cadynorth.com/wp-json/wp/v2/posts?per_page=100');
+
+  // Test single item endpoint
+  const itemEp = adapter.getItemEndpoint('https://cadynorth.com/wp-json/', 'pages', '42');
+  assert.equal(itemEp, 'https://cadynorth.com/wp-json/wp/v2/pages/42');
+
+  // Test high-performance SlotWire content endpoint
+  const swEp = adapter.getSlotwireContentEndpoint('https://cadynorth.com/wp-json', 'posts', '99');
+  assert.equal(swEp, 'https://cadynorth.com/wp-json/slotwire/v1/content/posts/99');
+});
+

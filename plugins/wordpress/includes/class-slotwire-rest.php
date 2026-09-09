@@ -47,6 +47,10 @@ class Slotwire_Rest {
                         'type'              => 'integer',
                         'sanitize_callback' => 'absint',
                     ],
+                    'slot' => [
+                        'type'              => 'string',
+                        'sanitize_callback' => 'sanitize_text_field',
+                    ],
                     'status' => [
                         'type'              => 'string',
                         'default'           => 'publish',
@@ -156,6 +160,7 @@ class Slotwire_Rest {
         $page     = max(1, (int) $request->get_param('page'));
         $slug     = $request->get_param('slug');
         $id       = $request->get_param('id');
+        $slot     = $request->get_param('slot');
         $status   = $request->get_param('status') ?: 'publish';
 
         // Check if requester is authorized to view drafts or private items
@@ -184,10 +189,23 @@ class Slotwire_Rest {
         ];
 
         if (!empty($slug)) {
-            $query_args['name'] = $slug;
+            if ($post_type === 'page') {
+                $query_args['pagename'] = $slug;
+            } else {
+                $query_args['name'] = $slug;
+            }
         }
         if (!empty($id)) {
             $query_args['p'] = $id;
+        }
+        if (!empty($slot)) {
+            $query_args['meta_query'] = [
+                [
+                    'key'     => '_slotwire_slot',
+                    'value'   => $slot,
+                    'compare' => '=',
+                ],
+            ];
         }
 
         $query = new WP_Query($query_args);
