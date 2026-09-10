@@ -107,21 +107,22 @@ export function extractHeading(
  */
 export function extractButton(raw: string): ButtonExtraction | null {
   if (!raw) return null;
-  // Divi shortcode pattern
-  const btnUrlMatch = raw.match(/button_url=["']?([^"'\s\]]+)/i);
-  const btnTextMatch = raw.match(/button_text=["']?([^"'\s\]]+(?: [^"'\s\]]+)*)/i);
+  const decoded = decodeEntities(raw);
+  // Divi shortcode pattern: quoted or unquoted attributes
+  const btnUrlMatch = decoded.match(/button_url=["']([^"']+)["']/i) || decoded.match(/button_url=([^"'\s\]]+)/i);
+  const btnTextMatch = decoded.match(/button_text=["']([^"']+)["']/i) || decoded.match(/button_text=([^"'\s\]]+)/i);
   if (btnUrlMatch && btnTextMatch) {
     return {
-      url: decodeEntities(btnUrlMatch[1]),
-      text: decodeEntities(btnTextMatch[1]),
+      url: btnUrlMatch[1].trim().replace(/^["']|["']$/g, ''),
+      text: btnTextMatch[1].trim().replace(/^["']|["']$/g, ''),
     };
   }
   // HTML link pattern
-  const aMatch = raw.match(/<a[^>]+href=["']([^"']+)["'][^>]*>(.*?)<\/a>/i);
+  const aMatch = decoded.match(/<a[^>]+href=["']([^"']+)["'][^>]*>(.*?)<\/a>/i);
   if (aMatch) {
     return {
-      url: decodeEntities(aMatch[1]),
-      text: stripHtml(aMatch[2]),
+      url: aMatch[1].trim(),
+      text: stripHtml(aMatch[2]).trim(),
     };
   }
   return null;
