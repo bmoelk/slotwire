@@ -8,6 +8,12 @@ const toolbarApp: any = {
       const windowElement = document.createElement('astro-dev-toolbar-window');
       windowElement.setAttribute('placement', 'bottom-center');
       windowElement.style.cssText = `
+        position: fixed !important;
+        left: 50% !important;
+        right: auto !important;
+        top: auto !important;
+        bottom: 72px !important;
+        transform: translateX(-50%) !important;
         width: 440px !important;
         max-width: calc(100vw - 32px) !important;
         max-height: calc(100vh - 100px) !important;
@@ -19,10 +25,7 @@ const toolbarApp: any = {
         box-shadow: 0 20px 35px -8px rgba(0, 0, 0, 0.85) !important;
         overflow: hidden !important;
         color-scheme: dark !important;
-        left: 50% !important;
-        transform: translateX(-50%) !important;
-        bottom: 72px !important;
-        margin: 0 auto !important;
+        margin: 0 !important;
       `;
       windowElement.innerHTML = `
         <style>

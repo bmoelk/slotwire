@@ -84,7 +84,12 @@ if (session && session.route === Astro.url.pathname) {
     data-ssr-slots={JSON.stringify(ssrSlots)}
   >
     <!-- Compact Draggable Assist Pill -->
-    <div id="slotwire-assist-bubble" class="slotwire-assist-bubble" title="SlotWire Assist (Hover or click to inspect)">
+    <div
+      id="slotwire-assist-bubble"
+      class="slotwire-assist-bubble"
+      title="SlotWire Assist (Hover or click to inspect)"
+      style={Boolean(import.meta.env.DEV) ? "display: none;" : ""}
+    >
       <span id="sw-pill-drag" class="sw-pill-drag" title="Drag to reposition">⋮⋮</span>
       <span class="sw-pulse-dot"></span>
       <span class="sw-assist-label">SlotWire</span>
@@ -197,7 +202,11 @@ if (session && session.route === Astro.url.pathname) {
     pointer-events: none;
     opacity: 0;
     visibility: hidden;
-    transform: translateY(8px) scale(0.98);
+    left: 50%;
+    right: auto;
+    bottom: 72px;
+    top: auto;
+    transform: translateX(-50%) translateY(8px) scale(0.98);
     transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1),
                 transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
                 visibility 0.28s cubic-bezier(0.16, 1, 0.3, 1);
@@ -207,7 +216,7 @@ if (session && session.route === Astro.url.pathname) {
   .slotwire-inspector-modal.sw-open {
     opacity: 1;
     visibility: visible;
-    transform: translateY(0) scale(1);
+    transform: translateX(-50%) translateY(0) scale(1);
     pointer-events: auto;
   }
 `} />
@@ -230,14 +239,38 @@ if (session && session.route === Astro.url.pathname) {
 
     if (!container || !bubble || !modal) return;
 
-    // When Astro Dev Toolbar is present in DOM, hide floating pill so controls don't compete
+    // When Astro Dev Toolbar is present in DOM, keep floating pill hidden so controls don't compete.
+    // In DEV mode, Astro Dev Toolbar attaches asynchronously.
+    // We observe the DOM for astro-dev-toolbar. If after 1.5s the toolbar never appears, reveal the pill.
+    const isDev = Boolean(import.meta.env.DEV);
+
     const checkToolbar = () => {
       if (document.querySelector('astro-dev-toolbar')) {
         bubble.style.display = 'none';
+        return true;
       }
+      return false;
     };
-    checkToolbar();
-    setTimeout(checkToolbar, 400);
+
+    if (checkToolbar()) {
+      bubble.style.display = 'none';
+    } else if (isDev) {
+      const observer = new MutationObserver(() => {
+        if (checkToolbar()) {
+          observer.disconnect();
+        }
+      });
+      observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
+
+      setTimeout(() => {
+        observer.disconnect();
+        if (!checkToolbar()) {
+          bubble.style.display = '';
+        }
+      }, 1500);
+    } else {
+      bubble.style.display = '';
+    }
 
     const adminUrl = container.dataset.adminUrl || '/admin';
     const envTag = container.dataset.envTag || 'DEV';
@@ -247,52 +280,14 @@ if (session && session.route === Astro.url.pathname) {
     let hoverTimer: any = null;
     let hideTimer: any = null;
 
-    // 1. Position Modal cleanly above or below bubble (Never Overlapping)
+    // 1. Position Modal cleanly centered in viewport (never shifted or off-screen)
     function updateModalPosition() {
-      if (!bubble || !modal) return;
-      const rect = bubble.getBoundingClientRect();
-      const modalWidth = 440;
-      const gap = 12;
-
-      // Horizontal positioning: align right edge with bubble, stay within screen
-      if (rect.width === 0 || window.getComputedStyle(bubble).display === 'none') {
-        modal.style.left = 'max(16px, calc(50vw - 220px))';
-        modal.style.right = 'auto';
-        modal.style.bottom = '80px';
-        modal.style.top = 'auto';
-        return;
-      }
-
-      let left = rect.right - modalWidth;
-      if (left < 16) left = 16;
-      if (left + modalWidth > window.innerWidth - 16) {
-        left = window.innerWidth - modalWidth - 16;
-      }
-      modal.style.left = `${Math.round(left)}px`;
+      if (!modal) return;
+      modal.style.left = '50%';
       modal.style.right = 'auto';
-
-      // Vertical positioning:
-      // If pill is in bottom half of viewport -> dock ABOVE pill (never overlaps)
-      if (rect.top > window.innerHeight / 2) {
-        const bottomDistance = window.innerHeight - rect.top + gap;
-        modal.style.bottom = `${Math.round(bottomDistance)}px`;
-        modal.style.top = 'auto';
-        const modalHeight = modal.offsetHeight || 570;
-        if (window.innerHeight - bottomDistance - modalHeight < 16) {
-          modal.style.bottom = 'auto';
-          modal.style.top = '16px';
-        }
-      } else {
-        // Pill is in top half -> dock BELOW pill
-        const topDistance = rect.bottom + gap;
-        modal.style.top = `${Math.round(topDistance)}px`;
-        modal.style.bottom = 'auto';
-        const modalHeight = modal.offsetHeight || 570;
-        if (topDistance + modalHeight > window.innerHeight - 16) {
-          modal.style.top = 'auto';
-          modal.style.bottom = '16px';
-        }
-      }
+      modal.style.bottom = '72px';
+      modal.style.top = 'auto';
+      modal.style.transform = 'translateX(-50%)';
     }
 
     function openInspector() {

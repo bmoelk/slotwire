@@ -659,6 +659,22 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
   let currentDocId = '';
   let currentSlotEl: HTMLElement | null = null;
 
+  function applySavedDrawerWidth(targetDrawer: HTMLElement | null) {
+    if (!targetDrawer) return;
+    try {
+      const savedWidth = localStorage.getItem('slotwire_drawer_width');
+      if (savedWidth) {
+        const w = parseInt(savedWidth, 10);
+        if (!isNaN(w) && w >= 320 && w <= window.innerWidth - 20) {
+          targetDrawer.style.width = `${w}px`;
+          targetDrawer.style.maxWidth = `${w}px`;
+        }
+      }
+    } catch {}
+  }
+
+  applySavedDrawerWidth(drawer);
+
   function closeDrawer() {
     const bd = document.getElementById('slotwire-quick-drawer-backdrop') || backdrop;
     const dr = document.getElementById('slotwire-quick-edit-drawer') || drawer;
@@ -672,6 +688,7 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
   function openDrawer(params: QuickEditDrawerParams) {
     const bd = document.getElementById('slotwire-quick-drawer-backdrop') || backdrop;
     const dr = document.getElementById('slotwire-quick-edit-drawer') || drawer;
+    applySavedDrawerWidth(dr);
     const sb = document.getElementById('sw-quick-slot-badge') || slotBadge;
     const dl = document.getElementById('sw-quick-doc-id') || docIdLabel;
     const eh = (document.getElementById('sw-quick-escape-hatch') as HTMLAnchorElement | null) || escapeHatch;
@@ -939,6 +956,61 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
     const activeClose = document.getElementById('sw-quick-close-btn') || closeBtn;
     const activeCancel = document.getElementById('sw-quick-cancel-btn') || cancelBtn;
     const activeBackdrop = document.getElementById('slotwire-quick-drawer-backdrop') || backdrop;
+    const resizeHandle = document.getElementById('sw-quick-resize-handle');
+
+    if (resizeHandle) {
+      let isResizing = false;
+      let startX = 0;
+      let startWidth = 0;
+
+      const onMouseDown = (e: MouseEvent) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        isResizing = true;
+        startX = e.clientX;
+        const activeDr = document.getElementById('slotwire-quick-edit-drawer') || drawer;
+        startWidth = activeDr ? activeDr.getBoundingClientRect().width : 440;
+        resizeHandle.classList.add('sw-resizing');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+
+        const onMouseMove = (moveEv: MouseEvent) => {
+          if (!isResizing) return;
+          const delta = startX - moveEv.clientX;
+          const minW = 320;
+          const maxW = Math.max(window.innerWidth - 32, minW);
+          const newWidth = Math.min(Math.max(startWidth + delta, minW), maxW);
+          const currentDr = document.getElementById('slotwire-quick-edit-drawer') || drawer;
+          if (currentDr) {
+            currentDr.style.width = `${Math.round(newWidth)}px`;
+            currentDr.style.maxWidth = `${Math.round(newWidth)}px`;
+          }
+        };
+
+        const onMouseUp = () => {
+          if (!isResizing) return;
+          isResizing = false;
+          resizeHandle.classList.remove('sw-resizing');
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+          window.removeEventListener('mousemove', onMouseMove);
+          window.removeEventListener('mouseup', onMouseUp);
+
+          const currentDr = document.getElementById('slotwire-quick-edit-drawer') || drawer;
+          if (currentDr) {
+            const finalWidth = Math.round(currentDr.getBoundingClientRect().width);
+            try {
+              localStorage.setItem('slotwire_drawer_width', String(finalWidth));
+            } catch {}
+          }
+        };
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+      };
+
+      resizeHandle.addEventListener('mousedown', onMouseDown);
+    }
 
     activeClose?.addEventListener('click', closeDrawer);
     activeCancel?.addEventListener('click', closeDrawer);
@@ -955,7 +1027,7 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
       e.preventDefault();
       if (!currentDocId) {
         if (errorBox) {
-          errorBox.textContent = 'Cannot quick-save: No document ID associated with this slot. Use "Open Full Studio" to create or link the record.';
+          errorBox.textContent = 'Cannot quick-save: No document ID associated with this slot. Use "Open Full CMS" to create or link the record.';
           errorBox.classList.remove('hidden');
         }
         return;

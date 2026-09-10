@@ -181,7 +181,7 @@ const isCollectionSlot =
   archetype === 'table' ||
   isArray;
 
-const actionLabel = isCollectionSlot ? 'Studio Table ↗' : 'Studio ↗';
+const actionLabel = isCollectionSlot ? 'CMS Table ↗' : 'CMS ↗';
 let serializedSlotData: string | undefined;
 if (data && typeof data === 'object') {
   try {
@@ -340,7 +340,7 @@ const resolvedBadgeCorner = propBadgePosition
                       <span class="slotwire-popover-item-label">{child.label}</span>
                       <span class="slotwire-popover-item-id">{child.id}</span>
                     </div>
-                    <span class="slotwire-popover-item-action">Studio ↗</span>
+                    <span class="slotwire-popover-item-action">CMS ↗</span>
                   </a>
                 ))}
               </div>
@@ -588,7 +588,9 @@ const resolvedBadgeCorner = propBadgePosition
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 2px 8px;
+    height: 22px;
+    box-sizing: border-box;
+    padding: 0 8px;
     background: rgba(16, 185, 129, 0.15);
     border: 1px solid rgba(16, 185, 129, 0.4);
     border-radius: 4px;
@@ -596,7 +598,7 @@ const resolvedBadgeCorner = propBadgePosition
     font-size: 11px;
     font-weight: 700;
     cursor: pointer;
-    line-height: 1.2;
+    line-height: 1;
     transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
   }
   .slotwire-badge-quick-edit-btn .sw-quick-icon {
@@ -616,7 +618,12 @@ const resolvedBadgeCorner = propBadgePosition
     border: 1px solid #27272a;
     color: #a1a1aa;
     border-radius: 4px;
-    padding: 2px 5px;
+    height: 22px;
+    box-sizing: border-box;
+    padding: 0 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     font-size: 10px;
     font-weight: 700;
     cursor: pointer;
@@ -662,7 +669,9 @@ const resolvedBadgeCorner = propBadgePosition
     background-color: transparent !important;
     color: #34d399 !important;
     border: none !important;
-    padding: 2px 6px;
+    height: 22px;
+    box-sizing: border-box;
+    padding: 0 6px;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 11px;
     font-weight: 500;
@@ -671,6 +680,7 @@ const resolvedBadgeCorner = propBadgePosition
     border-radius: 4px;
     transition: all 0.15s ease;
     white-space: nowrap;
+    line-height: 1;
   }
 
   .slotwire-status-tag {
