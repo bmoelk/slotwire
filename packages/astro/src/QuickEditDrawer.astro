@@ -6,9 +6,19 @@ export interface Props {
 
 const { adminUrl = '/admin', editor = 'markdown' } = Astro.props;
 
+const envVar =
+  (typeof process !== 'undefined' && process.env?.ENVIRONMENT) ||
+  (import.meta as any).env?.ENVIRONMENT ||
+  (typeof process !== 'undefined' && process.env?.ASTRO_STAGING);
+const isStaging = envVar === 'staging' || envVar === 'true';
+
 const isPreview =
   Boolean(import.meta.env.DEV) ||
-  Astro.url.searchParams.get('slotwire_preview') === 'true';
+  isStaging ||
+  Astro.url.searchParams.get('slotwire_assist') === 'true' ||
+  Astro.url.searchParams.get('slotwire_preview') === 'true' ||
+  Astro.url.hostname.startsWith('edit.') ||
+  Astro.url.hostname.includes('staging');
 ---
 
 {isPreview && (

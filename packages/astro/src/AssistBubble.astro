@@ -136,6 +136,9 @@ if (session && session.route === Astro.url.pathname) {
     user-select: none;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
+  body:has(astro-dev-toolbar) .slotwire-assist-bubble {
+    display: none !important;
+  }
   .slotwire-assist-bubble:hover {
     border-color: #10b981;
     box-shadow: 0 14px 35px -4px rgba(16, 185, 129, 0.25);
@@ -220,6 +223,15 @@ if (session && session.route === Astro.url.pathname) {
     const countBadge = document.getElementById('sw-slot-count');
 
     if (!container || !bubble || !modal) return;
+
+    // When Astro Dev Toolbar is present in DOM, hide floating pill so controls don't compete
+    const checkToolbar = () => {
+      if (document.querySelector('astro-dev-toolbar')) {
+        bubble.style.display = 'none';
+      }
+    };
+    checkToolbar();
+    setTimeout(checkToolbar, 400);
 
     const adminUrl = container.dataset.adminUrl || '/admin';
     const envTag = container.dataset.envTag || 'DEV';

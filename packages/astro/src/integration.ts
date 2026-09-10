@@ -43,7 +43,7 @@ export function slotwire(options: SlotWireIntegrationOptions) {
           });
         }
 
-        if (addDevToolbarApp && options.devToolbar === true) {
+        if (addDevToolbarApp && options.devToolbar !== false) {
           addDevToolbarApp({
             id: 'slotwire',
             name: 'SlotWire',
