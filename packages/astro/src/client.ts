@@ -713,11 +713,33 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
       currentSlotEl?.getAttribute('data-slotwire-section') ||
       params.slot;
 
+    // Persist to form dataset and window global state to eliminate multi-instance closure drift
+    const activeFormEl = (document.getElementById('sw-quick-edit-form') as HTMLFormElement | null) || form;
+    if (activeFormEl) {
+      activeFormEl.dataset.slot = currentSlot;
+      activeFormEl.dataset.collection = currentCollection;
+      activeFormEl.dataset.documentId = currentDocId;
+    }
+    if (sBtn) {
+      sBtn.dataset.slot = currentSlot;
+      sBtn.dataset.collection = currentCollection;
+      sBtn.dataset.documentId = currentDocId;
+    }
+
+    (window as any).__slotwire_drawer_state = {
+      slot: currentSlot,
+      collection: currentCollection,
+      documentId: currentDocId,
+      data: params.data,
+      editUrl: params.editUrl || '',
+      slotElement: currentSlotEl,
+    };
+
     if (sb) sb.textContent = currentSlot;
     if (dl) {
       dl.textContent = currentDocId
         ? `${currentCollection} • id: ${currentDocId}`
-        : `${currentCollection} • new`;
+        : `${currentCollection} • unlinked`;
     }
 
     if (eh) {
@@ -725,16 +747,33 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
       eh.href = params.editUrl || fallbackUrl;
     }
 
-    if (eb) {
-      eb.textContent = '';
-      eb.classList.add('hidden');
-      eb.style.display = 'none';
-    }
-
-    if (sBtn) {
-      sBtn.disabled = false;
-      sBtn.innerHTML = '<span>🚀 Publish Changes</span>';
-      sBtn.className = 'sw-quick-save-btn';
+    if (!currentDocId) {
+      if (eb) {
+        eb.innerHTML = `<span>⚠️ This slot is using template fallback data and has not yet been linked to a CMS document. Quick edit requires an existing CMS record. Use <a href="${eh?.href || '#'}" target="_blank" rel="noopener noreferrer" style="color:#34d399;text-decoration:underline;">Open Full CMS ↗</a> to create it.</span>`;
+        eb.classList.remove('hidden');
+        eb.style.display = 'block';
+      }
+      if (sBtn) {
+        sBtn.disabled = true;
+        sBtn.title = 'Cannot publish: Document does not exist in CMS yet';
+        sBtn.innerHTML = '<span>⚠️ Unlinked Slot</span>';
+        sBtn.style.opacity = '0.5';
+        sBtn.style.cursor = 'not-allowed';
+      }
+    } else {
+      if (eb) {
+        eb.textContent = '';
+        eb.classList.add('hidden');
+        eb.style.display = 'none';
+      }
+      if (sBtn) {
+        sBtn.disabled = false;
+        sBtn.title = '';
+        sBtn.style.opacity = '';
+        sBtn.style.cursor = '';
+        sBtn.innerHTML = '<span>🚀 Publish Changes</span>';
+        sBtn.className = 'sw-quick-save-btn';
+      }
     }
 
     // Derive fields to render
@@ -1044,14 +1083,20 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
       }
       if (isSaving) return;
 
-      console.log('[SlotWire] Quick Save initiated:', { currentSlot, currentCollection, currentDocId });
-
+      const state = (window as any).__slotwire_drawer_state || {};
       const eb = document.getElementById('sw-quick-error') || errorBox;
       const sBtn = (document.getElementById('sw-quick-save-btn') as HTMLButtonElement | null) || saveBtn;
       const activeForm = (document.getElementById('sw-quick-edit-form') as HTMLFormElement | null) || form;
 
-      if (!currentDocId) {
-        const msg = `Cannot publish: No document ID or slug associated with slot '${currentSlot}'. Use "Open Full CMS" to edit or link this record.`;
+      const resolvedSlot = activeForm?.dataset.slot || sBtn?.dataset.slot || state.slot || currentSlot || '';
+      const resolvedCollection = activeForm?.dataset.collection || sBtn?.dataset.collection || state.collection || currentCollection || resolvedSlot;
+      const resolvedDocId = activeForm?.dataset.documentId || sBtn?.dataset.documentId || state.documentId || currentDocId || '';
+      const targetSlotEl = state.slotElement || currentSlotEl || (resolvedSlot ? document.querySelector<HTMLElement>(`[data-slotwire-slot="${resolvedSlot}"]`) : null);
+
+      console.log('[SlotWire] Quick Save initiated:', { resolvedSlot, resolvedCollection, resolvedDocId });
+
+      if (!resolvedDocId) {
+        const msg = `Cannot publish: No document ID or slug associated with slot '${resolvedSlot}'. Use "Open Full CMS" to edit or link this record.`;
         console.error('[SlotWire] ' + msg);
         if (eb) {
           eb.textContent = msg;
@@ -1088,8 +1133,8 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
             'x-slotwire-action': 'quick-save',
           },
           body: JSON.stringify({
-            collection: currentCollection,
-            documentId: currentDocId,
+            collection: resolvedCollection,
+            documentId: resolvedDocId,
             publish: true,
             data: patchData,
           }),
@@ -1107,7 +1152,7 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
           throw new Error(errMsg);
         }
 
-        console.log('[SlotWire] Quick Save succeeded:', { currentSlot, currentDocId });
+        console.log('[SlotWire] Quick Save succeeded:', { resolvedSlot, resolvedDocId });
 
         if (sBtn) {
           sBtn.innerHTML = '<span>✓ Published!</span>';
@@ -1115,9 +1160,9 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
         }
 
         // Optimistic DOM Updates
-        if (currentSlotEl) {
+        if (targetSlotEl) {
           Object.entries(patchData).forEach(([k, v]) => {
-            const fieldEl = currentSlotEl!.querySelector(`[data-slotwire-field="${k}"]`);
+            const fieldEl = targetSlotEl.querySelector(`[data-slotwire-field="${k}"]`);
             if (fieldEl) {
               if (configuredEditor === 'html' || /<[a-z][\s\S]*>/i.test(String(v))) {
                 fieldEl.innerHTML = String(v);
@@ -1128,13 +1173,13 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
           });
 
           if (patchData.title) {
-            const heading = currentSlotEl.querySelector('h1, h2, h3, h4');
+            const heading = targetSlotEl.querySelector('h1, h2, h3, h4');
             if (heading) heading.textContent = String(patchData.title);
           }
 
           const bodyVal = patchData.content || patchData.body || patchData.description;
           if (bodyVal) {
-            const p = currentSlotEl.querySelector('p, .prose');
+            const p = targetSlotEl.querySelector('p, .prose');
             if (p) {
               if (configuredEditor === 'html' || /<[a-z][\s\S]*>/i.test(String(bodyVal))) {
                 p.innerHTML = String(bodyVal);
@@ -1144,7 +1189,7 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
             }
           }
 
-          const statusTag = currentSlotEl.querySelector('.slotwire-status-tag');
+          const statusTag = targetSlotEl.querySelector('.slotwire-status-tag');
           if (statusTag) {
             statusTag.textContent = 'Published';
             statusTag.className = 'slotwire-status-tag sw-status-published';
@@ -1155,9 +1200,9 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
         window.dispatchEvent(new CustomEvent('slotwire:recompiled'));
         window.dispatchEvent(new CustomEvent('slotwire:quick-saved', {
           detail: {
-            slot: currentSlot,
-            collection: currentCollection,
-            documentId: currentDocId,
+            slot: resolvedSlot,
+            collection: resolvedCollection,
+            documentId: resolvedDocId,
             status: 'published',
             data: patchData,
           },

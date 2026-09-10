@@ -399,9 +399,10 @@ const resolvedBadgeCorner = propBadgePosition
         <!-- Quick Edit In-Situ Button -->
         <button
           type="button"
-          class="slotwire-badge-quick-edit-btn"
-          title={`Quick Edit: ${slot}`}
+          class={`slotwire-badge-quick-edit-btn ${!resolvedDocId ? 'sw-disabled' : ''}`}
+          title={!resolvedDocId ? `Cannot quick-edit: No document ID linked to ${slot}. Use 'CMS ↗' to create it.` : `Quick Edit: ${slot}`}
           aria-label={`Quick Edit: ${slot}`}
+          disabled={!resolvedDocId}
           data-slot={slot}
           data-collection={resolvedCollection}
           data-document-id={resolvedDocId}
@@ -617,6 +618,12 @@ const resolvedBadgeCorner = propBadgePosition
     border-color: #10b981;
     color: #ffffff;
     transform: scale(1.03);
+  }
+  .slotwire-badge-quick-edit-btn:disabled,
+  .slotwire-badge-quick-edit-btn.sw-disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none !important;
   }
 
   .slotwire-badge-minimize-btn {
