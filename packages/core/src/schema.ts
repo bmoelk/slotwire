@@ -53,6 +53,12 @@ class FieldBuilder {
     return this;
   }
 
+  or(other: z.ZodTypeAny | FieldBuilder) {
+    const otherZod = other instanceof FieldBuilder ? (other as any).def.zodSchema : other;
+    this.def.zodSchema = this.def.zodSchema?.or(otherZod);
+    return this;
+  }
+
   build(): FieldDefinition {
     return this.def as FieldDefinition;
   }
@@ -102,6 +108,18 @@ export const s = {
     const itemDef = itemBuilder.build();
     const builder = new FieldBuilder('array', z.array(itemDef.zodSchema));
     (builder as any).def.items = itemDef;
+    return builder;
+  },
+
+  nestedObject: (props: Record<string, FieldBuilder>) => {
+    const properties: Record<string, FieldDefinition> = {};
+    const shape: Record<string, z.ZodTypeAny> = {};
+    for (const [key, builder] of Object.entries(props)) {
+      properties[key] = builder.build();
+      shape[key] = properties[key].zodSchema;
+    }
+    const builder = new FieldBuilder('object', z.object(shape));
+    (builder as any).def.properties = properties;
     return builder;
   },
 
