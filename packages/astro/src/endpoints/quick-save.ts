@@ -89,12 +89,46 @@ export async function handleQuickSaveRequest(
     (typeof process !== 'undefined' && (process.env?.CMS_API_URL || process.env?.PUBLIC_CMS_API_URL)) ||
     `http://localhost:${defaultPort}`;
 
+  // Forward incoming client authentication credentials
+  const forwardHeaders: Record<string, string> = {};
+  const clientAuth = request.headers.get('authorization') || request.headers.get('Authorization');
+  if (clientAuth) {
+    forwardHeaders['Authorization'] = clientAuth;
+  }
+  const cookie = request.headers.get('cookie');
+  if (cookie) {
+    forwardHeaders['Cookie'] = cookie;
+  }
+  const cfEmail = request.headers.get('cf-access-authenticated-user-email');
+  if (cfEmail) {
+    forwardHeaders['cf-access-authenticated-user-email'] = cfEmail;
+  }
+  const cfJwt = request.headers.get('cf-access-jwt-assertion');
+  if (cfJwt) {
+    forwardHeaders['cf-access-jwt-assertion'] = cfJwt;
+  }
+
   const apiKey =
     config?.cms?.apiKey ||
     (typeof process !== 'undefined' && (process.env?.CMS_API_KEY || process.env?.SLOTTD_ADMIN_API_KEY || process.env?.ADMIN_API_KEY || process.env?.DIRECTUS_TOKEN)) ||
     undefined;
 
-  console.log(`[SlotWire Quick Save] Mutating ${collection}/${documentId} via provider '${provider}' (status: ${patchData.status})`);
+  // Zero-Backdoor Security Gate: Write operations require authenticated client credentials or configured CMS key
+  if (!clientAuth && !apiKey && !cookie && !cfEmail) {
+    console.warn(`[SlotWire Quick Save] Blocked unauthenticated write attempt to ${collection}/${documentId}`);
+    return new Response(
+      JSON.stringify({
+        error: 'Unauthorized',
+        message: 'Write operations require an authenticated CMS session. Please sign in via the Quick Edit drawer.',
+      }),
+      {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
+  console.log(`[SlotWire Quick Save] Mutating ${collection}/${documentId} via provider '${provider}' (status: ${patchData.status}, clientAuth: ${Boolean(clientAuth)})`);
 
   const adapter = getCmsAdapter(provider);
 
@@ -111,7 +145,11 @@ export async function handleQuickSaveRequest(
   }
 
   try {
-    const result = await adapter.updateItem(collection, documentId, patchData, { apiUrl, apiKey });
+    const result = await adapter.updateItem(collection, documentId, patchData, {
+      apiUrl,
+      apiKey,
+      headers: forwardHeaders,
+    });
 
     if (!result.success) {
       console.error(`[SlotWire Quick Save] Adapter error updating ${collection}/${documentId}:`, result.error);

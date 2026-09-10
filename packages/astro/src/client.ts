@@ -597,6 +597,133 @@ export interface QuickEditDrawerParams {
   slotElement?: HTMLElement | null;
 }
 
+export interface SlotWireAuthUser {
+  email: string;
+  name?: string;
+  provider?: string;
+}
+
+export const SlotWireAuthManager = {
+  getStorageKey(apiUrl: string): string {
+    const clean = (apiUrl || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/[:.]/g, '_');
+    return `slotwire_auth_${clean || 'default'}`;
+  },
+
+  getToken(apiUrl: string): string | null {
+    try {
+      return localStorage.getItem(this.getStorageKey(apiUrl)) || null;
+    } catch {
+      return null;
+    }
+  },
+
+  getUser(apiUrl: string): SlotWireAuthUser | null {
+    try {
+      const raw = localStorage.getItem(`${this.getStorageKey(apiUrl)}_user`);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  setAuth(apiUrl: string, token: string, user: SlotWireAuthUser) {
+    try {
+      localStorage.setItem(this.getStorageKey(apiUrl), token);
+      localStorage.setItem(`${this.getStorageKey(apiUrl)}_user`, JSON.stringify(user));
+    } catch {}
+  },
+
+  clearAuth(apiUrl: string) {
+    try {
+      localStorage.removeItem(this.getStorageKey(apiUrl));
+      localStorage.removeItem(`${this.getStorageKey(apiUrl)}_user`);
+    } catch {}
+  },
+
+  async checkAuth(apiUrl: string, provider: string): Promise<{ authenticated: boolean; user?: SlotWireAuthUser }> {
+    const token = this.getToken(apiUrl);
+    if (!token) {
+      return { authenticated: false };
+    }
+
+    const cleanApi = (apiUrl || '').replace(/\/+$/, '');
+    const probeUrl = provider === 'wordpress' ? `${cleanApi}/wp-json/wp/v2/users/me` : `${cleanApi}/ext/auth/me`;
+
+    try {
+      const res = await fetch(probeUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (res.ok) {
+        const json: any = await res.json().catch(() => ({}));
+        const user = json.user || { email: json.email || json.name || 'operator' };
+        this.setAuth(apiUrl, token, user);
+        return { authenticated: true, user };
+      } else {
+        this.clearAuth(apiUrl);
+        return { authenticated: false };
+      }
+    } catch {
+      const cachedUser = this.getUser(apiUrl);
+      if (cachedUser) {
+        return { authenticated: true, user: cachedUser };
+      }
+      return { authenticated: false };
+    }
+  },
+
+  openAuthPopup(apiUrl: string, provider: string): Promise<{ token: string; user: SlotWireAuthUser }> {
+    return new Promise((resolve, reject) => {
+      const cleanApi = (apiUrl || '').replace(/\/+$/, '');
+      const returnOrigin = window.location.origin;
+      const loginUrl =
+        provider === 'wordpress'
+          ? `${cleanApi}/wp-login.php?slotwire_auth=1&origin=${encodeURIComponent(returnOrigin)}`
+          : `${cleanApi}/admin/login?slotwire_auth=1&origin=${encodeURIComponent(returnOrigin)}`;
+
+      const w = 500;
+      const h = 650;
+      const left = Math.max(0, (window.screen.width - w) / 2);
+      const top = Math.max(0, (window.screen.height - h) / 2);
+
+      const popup = window.open(
+        loginUrl,
+        'slotwire_cms_auth',
+        `width=${w},height=${h},top=${top},left=${left},status=no,resizable=yes,scrollbars=yes`
+      );
+
+      if (!popup) {
+        alert('Please allow popups for this site to sign in to the CMS.');
+        return reject(new Error('Popup blocked'));
+      }
+
+      const onMessage = (event: MessageEvent) => {
+        if (event.data && event.data.type === 'slotwire:auth_success') {
+          window.removeEventListener('message', onMessage);
+          const token = event.data.token;
+          const user: SlotWireAuthUser = {
+            email: event.data.email || 'operator',
+            name: event.data.name,
+            provider: event.data.provider || provider,
+          };
+          SlotWireAuthManager.setAuth(apiUrl, token, user);
+          resolve({ token, user });
+        }
+      };
+
+      window.addEventListener('message', onMessage);
+
+      const timer = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(timer);
+          window.removeEventListener('message', onMessage);
+        }
+      }, 500);
+    });
+  },
+};
+
 /**
  * Initializes the 80/20 in-situ Quick Edit slide-over drawer:
  * - Direct on-page form editing without jumping to the full CMS studio
@@ -605,7 +732,7 @@ export interface QuickEditDrawerParams {
  * - Direct mutation dispatcher to POST /api/slotwire/quick-save
  * - Zero-latency optimistic DOM update on save
  */
-export function initQuickEditDrawer(options: { adminUrl?: string; provider?: string; editor?: 'markdown' | 'html' } = {}) {
+export function initQuickEditDrawer(options: { adminUrl?: string; apiUrl?: string; provider?: string; editor?: 'markdown' | 'html' } = {}) {
   if (typeof window === 'undefined') return;
 
   const { adminUrl = '/admin' } = options;
@@ -638,10 +765,25 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
   }
 
   const root = document.getElementById('slotwire-quick-drawer-root');
+  const configuredApiUrl =
+    root?.getAttribute('data-api-url') ||
+    options.apiUrl ||
+    (options.provider === 'slottd' ? 'http://localhost:8787' : '');
+  const configuredProvider =
+    root?.getAttribute('data-provider') ||
+    options.provider ||
+    'slottd';
+  const configuredAdminUrl =
+    root?.getAttribute('data-admin-url') ||
+    options.adminUrl ||
+    adminUrl ||
+    configuredApiUrl ||
+    '/admin';
+
   const configuredEditor: 'markdown' | 'html' =
     (root?.getAttribute('data-editor') as any) ||
     options.editor ||
-    (options.provider === 'wordpress' ? 'html' : 'markdown');
+    (configuredProvider === 'wordpress' ? 'html' : 'markdown');
   const backdrop = document.getElementById('slotwire-quick-drawer-backdrop');
   const drawer = document.getElementById('slotwire-quick-edit-drawer');
   const closeBtn = document.getElementById('sw-quick-close-btn');
@@ -658,6 +800,78 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
   let currentCollection = '';
   let currentDocId = '';
   let currentSlotEl: HTMLElement | null = null;
+
+  async function updateDrawerAuthState() {
+    const authCard = document.getElementById('sw-quick-auth-card');
+    const userChip = document.getElementById('sw-quick-user-chip');
+    const userEmailSpan = document.getElementById('sw-quick-user-email');
+    const loginBtn = document.getElementById('sw-quick-login-btn');
+    const signoutBtn = document.getElementById('sw-quick-signout-btn');
+    const sBtn = (document.getElementById('sw-quick-save-btn') as HTMLButtonElement | null) || saveBtn;
+    const activeFc = document.getElementById('sw-quick-fields-container') || fieldsContainer;
+
+    if (loginBtn && (loginBtn as any).dataset.swBound !== 'true') {
+      (loginBtn as any).dataset.swBound = 'true';
+      loginBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        try {
+          loginBtn.textContent = 'Connecting...';
+          await SlotWireAuthManager.openAuthPopup(configuredApiUrl, configuredProvider);
+          await updateDrawerAuthState();
+        } catch (err: any) {
+          console.error('[SlotWire Auth] Login failed:', err);
+        } finally {
+          loginBtn.innerHTML = '🔑 Sign in to CMS ↗';
+        }
+      });
+    }
+
+    if (signoutBtn && (signoutBtn as any).dataset.swBound !== 'true') {
+      (signoutBtn as any).dataset.swBound = 'true';
+      signoutBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        SlotWireAuthManager.clearAuth(configuredApiUrl);
+        await updateDrawerAuthState();
+      });
+    }
+
+    const authStatus = await SlotWireAuthManager.checkAuth(configuredApiUrl, configuredProvider);
+
+    if (authStatus.authenticated && authStatus.user) {
+      authCard?.classList.add('hidden');
+      userChip?.classList.remove('hidden');
+      if (userEmailSpan) {
+        userEmailSpan.textContent = authStatus.user.email;
+      }
+
+      activeFc?.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input, textarea').forEach((input) => {
+        input.disabled = false;
+      });
+
+      if (sBtn && currentDocId) {
+        sBtn.disabled = false;
+        sBtn.title = '';
+        sBtn.innerHTML = '<span>🚀 Publish Changes</span>';
+        sBtn.style.opacity = '';
+        sBtn.style.cursor = '';
+      }
+    } else {
+      authCard?.classList.remove('hidden');
+      userChip?.classList.add('hidden');
+
+      activeFc?.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input, textarea').forEach((input) => {
+        input.disabled = true;
+      });
+
+      if (sBtn) {
+        sBtn.disabled = true;
+        sBtn.title = 'Sign in to CMS required to publish';
+        sBtn.innerHTML = '<span>🔒 Sign in to Publish</span>';
+        sBtn.style.opacity = '0.6';
+        sBtn.style.cursor = 'not-allowed';
+      }
+    }
+  }
 
   function applySavedDrawerWidth(targetDrawer: HTMLElement | null) {
     if (!targetDrawer) return;
@@ -986,6 +1200,9 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
       }
     }
 
+    // Check and update CMS auth state
+    updateDrawerAuthState();
+
     // Open drawer
     bd?.classList.add('sw-open');
     bd?.classList.remove('hidden');
@@ -1126,12 +1343,33 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
 
       isSaving = true;
       try {
+        let token = SlotWireAuthManager.getToken(configuredApiUrl);
+        if (!token) {
+          try {
+            const authRes = await SlotWireAuthManager.openAuthPopup(configuredApiUrl, configuredProvider);
+            token = authRes.token;
+            await updateDrawerAuthState();
+          } catch {
+            isSaving = false;
+            if (sBtn) {
+              sBtn.disabled = false;
+              sBtn.innerHTML = '<span>🚀 Publish Changes</span>';
+            }
+            return;
+          }
+        }
+
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          'x-slotwire-action': 'quick-save',
+        };
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
         const res = await fetch('/api/slotwire/quick-save', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-slotwire-action': 'quick-save',
-          },
+          headers,
           body: JSON.stringify({
             collection: resolvedCollection,
             documentId: resolvedDocId,
@@ -1141,10 +1379,15 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
         });
 
         if (!res.ok) {
+          if (res.status === 401) {
+            SlotWireAuthManager.clearAuth(configuredApiUrl);
+            await updateDrawerAuthState();
+          }
           let errMsg = `Publish failed (${res.status})`;
           try {
             const json = await res.json();
             if (json.error) errMsg = json.error;
+            if (json.message) errMsg = `${errMsg}: ${json.message}`;
           } catch {
             const text = await res.text();
             if (text) errMsg = text;

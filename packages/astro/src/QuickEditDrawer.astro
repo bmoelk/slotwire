@@ -1,10 +1,26 @@
 ---
 export interface Props {
   adminUrl?: string;
+  apiUrl?: string;
+  provider?: string;
   editor?: 'markdown' | 'html';
 }
 
-const { adminUrl = '/admin', editor = 'markdown' } = Astro.props;
+const globalConfig = (globalThis as any).__SLOTWIRE_CONFIG__;
+const resolvedProvider =
+  Astro.props.provider ||
+  globalConfig?.cms?.provider ||
+  (typeof process !== 'undefined' && (process.env?.CMS_PROVIDER || process.env?.PUBLIC_CMS_PROVIDER)) ||
+  'slottd';
+
+const defaultPort = resolvedProvider === 'slottd' ? '8787' : '8055';
+const resolvedApiUrl =
+  Astro.props.apiUrl ||
+  globalConfig?.cms?.apiUrl ||
+  (typeof process !== 'undefined' && (process.env?.CMS_API_URL || process.env?.PUBLIC_CMS_API_URL)) ||
+  (Boolean(import.meta.env.DEV) ? `http://localhost:${defaultPort}` : '');
+
+const { adminUrl = resolvedApiUrl || '/admin', editor = 'markdown' } = Astro.props;
 
 const envVar =
   (typeof process !== 'undefined' && process.env?.ENVIRONMENT) ||
@@ -22,7 +38,13 @@ const isPreview =
 ---
 
 {isPreview && (
-  <div id="slotwire-quick-drawer-root" data-admin-url={adminUrl} data-editor={editor}>
+  <div
+    id="slotwire-quick-drawer-root"
+    data-admin-url={adminUrl}
+    data-api-url={resolvedApiUrl}
+    data-provider={resolvedProvider}
+    data-editor={editor}
+  >
     <!-- Semi-transparent backdrop -->
     <div
       id="slotwire-quick-drawer-backdrop"
@@ -58,7 +80,13 @@ const isPreview =
               <h2 class="sw-quick-h2">Quick Edit</h2>
               <span id="sw-quick-slot-badge" class="sw-quick-badge">slot</span>
             </div>
-            <p id="sw-quick-doc-id" class="sw-quick-doc-id">doc: --</p>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+              <p id="sw-quick-doc-id" class="sw-quick-doc-id" style="margin: 0;">doc: --</p>
+              <div id="sw-quick-user-chip" class="sw-quick-user-chip hidden">
+                <span>👤</span> <span id="sw-quick-user-email"></span>
+                <button type="button" id="sw-quick-signout-btn" class="sw-quick-signout-btn" title="Sign out of CMS">Sign Out</button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -74,6 +102,24 @@ const isPreview =
 
       <!-- Drawer Form -->
       <form id="sw-quick-edit-form" class="sw-quick-form">
+        <!-- CMS Auth Prompt Card (Shown when unauthenticated) -->
+        <div id="sw-quick-auth-card" class="sw-quick-auth-card hidden">
+          <div class="sw-quick-auth-icon">🔒</div>
+          <div class="sw-quick-auth-content">
+            <h4 class="sw-quick-auth-title">CMS Authentication Required</h4>
+            <p class="sw-quick-auth-desc">
+              You must sign in to the CMS to edit and publish changes directly to this slot.
+            </p>
+            <button
+              type="button"
+              id="sw-quick-login-btn"
+              class="sw-quick-login-btn"
+            >
+              🔑 Sign in to CMS ↗
+            </button>
+          </div>
+        </div>
+
         <!-- Scrollable Fields Area -->
         <div id="sw-quick-fields-container" class="sw-quick-fields">
           <div style="color: #71717a; text-align: center; padding: 32px 0;">
@@ -380,6 +426,87 @@ const isPreview =
     .sw-quick-save-btn.sw-published {
       background: #10b981;
     }
+    .sw-quick-auth-card {
+      margin: 16px;
+      padding: 16px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      border-radius: 8px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+    .sw-quick-auth-card.hidden {
+      display: none !important;
+    }
+    .sw-quick-auth-icon {
+      font-size: 22px;
+      line-height: 1;
+      padding-top: 2px;
+    }
+    .sw-quick-auth-content {
+      flex: 1;
+    }
+    .sw-quick-auth-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #f8fafc;
+      margin: 0 0 4px 0;
+    }
+    .sw-quick-auth-desc {
+      font-size: 12px;
+      color: #94a3b8;
+      margin: 0 0 12px 0;
+      line-height: 1.4;
+    }
+    .sw-quick-login-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      background: #10b981;
+      color: #ffffff;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+      transition: background 0.15s, transform 0.1s;
+    }
+    .sw-quick-login-btn:hover {
+      background: #059669;
+    }
+    .sw-quick-login-btn:active {
+      transform: scale(0.98);
+    }
+    .sw-quick-user-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: #10b981;
+      background: rgba(16, 185, 129, 0.1);
+      padding: 1px 7px;
+      border-radius: 12px;
+      border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+    .sw-quick-user-chip.hidden {
+      display: none !important;
+    }
+    .sw-quick-signout-btn {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 10px;
+      cursor: pointer;
+      text-decoration: underline;
+      padding: 0 0 0 2px;
+    }
+    .sw-quick-signout-btn:hover {
+      color: #ef4444;
+    }
   </style>
 
   <script>
@@ -389,8 +516,10 @@ const isPreview =
       const root = document.getElementById('slotwire-quick-drawer-root');
       if (!root) return;
       const adminUrl = root.dataset.adminUrl || '/admin';
+      const apiUrl = root.dataset.apiUrl || '';
+      const provider = root.dataset.provider || 'slottd';
       const editor = (root.dataset.editor as 'markdown' | 'html') || 'markdown';
-      initQuickEditDrawer({ adminUrl, editor });
+      initQuickEditDrawer({ adminUrl, apiUrl, provider, editor });
     }
 
     if (document.readyState === 'loading') {

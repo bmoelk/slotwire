@@ -98,12 +98,33 @@ test('handleQuickSaveRequest: rejects missing data payload with 400', async () =
   assert.equal(res.status, 400);
 });
 
-test('handleQuickSaveRequest: dispatches updateItem and returns 200 with updated payload', async () => {
+test('handleQuickSaveRequest: rejects unauthenticated write attempts with 401', async () => {
   const req = new Request('https://astro.test/api/slotwire/quick-save', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'x-slotwire-action': 'quick-save',
+    },
+    body: JSON.stringify({
+      collection: 'homepage_sections',
+      documentId: 'sec-123',
+      data: { title: 'Unauthorized update' },
+    }),
+  });
+  const res = await handleQuickSaveRequest(req, { config: mockConfig });
+  assert.equal(res.status, 401);
+  const json = await res.json();
+  assert.equal(json.error, 'Unauthorized');
+  assert.ok(json.message.includes('authenticated CMS session'));
+});
+
+test('handleQuickSaveRequest: dispatches updateItem and returns 200 with updated payload when authenticated', async () => {
+  const req = new Request('https://astro.test/api/slotwire/quick-save', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-slotwire-action': 'quick-save',
+      'Authorization': 'Bearer test-user-session-token',
     },
     body: JSON.stringify({
       collection: 'homepage_sections',
@@ -131,6 +152,7 @@ test('handleQuickSaveRequest: returns 500 when adapter returns error', async () 
     headers: {
       'Content-Type': 'application/json',
       'x-slotwire-action': 'quick-save',
+      'Authorization': 'Bearer test-user-session-token',
     },
     body: JSON.stringify({
       collection: 'pages',
@@ -159,6 +181,7 @@ test('handleQuickSaveRequest: returns 501 when adapter does not implement update
     headers: {
       'Content-Type': 'application/json',
       'x-slotwire-action': 'quick-save',
+      'Authorization': 'Bearer test-user-session-token',
     },
     body: JSON.stringify({
       collection: 'pages',
