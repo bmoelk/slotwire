@@ -10,6 +10,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./transformers": {
+      "types": "./dist/transformers.d.ts",
+      "import": "./dist/transformers.js",
+      "default": "./dist/transformers.js"
     }
   },
   "scripts": {
