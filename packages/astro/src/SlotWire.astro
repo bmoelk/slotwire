@@ -112,7 +112,13 @@ if (typeof globalThis !== 'undefined') {
 
 // Determine cardinality and resolve document ID
 const isArray = Array.isArray(data);
-const resolvedDocId = documentId || (!isArray ? (data?.id || data?.rootId || data?.root_id) : undefined);
+const resolvedDocId =
+  documentId ||
+  (!isArray ? (data?.id || data?.rootId || data?.root_id || data?.slug) : undefined) ||
+  (data && (data.id || data.slug || data.rootId)) ||
+  pageSlug ||
+  sectionKey ||
+  slot;
 const resolvedCollection = collection || archetype || slot;
 
 // Introspect Child Documents for Composite Slots
@@ -397,8 +403,8 @@ const resolvedBadgeCorner = propBadgePosition
           title={`Quick Edit: ${slot}`}
           aria-label={`Quick Edit: ${slot}`}
           data-slot={slot}
-          data-collection={collection}
-          data-document-id={documentId || (data && (data.id || data.slug))}
+          data-collection={resolvedCollection}
+          data-document-id={resolvedDocId}
           data-slot-data={serializedSlotData}
           data-edit-url={isCollectionSlot ? listUrl : singleEditUrl}
         >

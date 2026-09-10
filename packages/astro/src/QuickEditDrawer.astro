@@ -84,8 +84,7 @@ const isPreview =
         <!-- Error Banner -->
         <div
           id="sw-quick-error"
-          class="sw-quick-error"
-          style="display: none;"
+          class="sw-quick-error hidden"
         ></div>
 
         <!-- Drawer Footer -->
@@ -115,7 +114,7 @@ const isPreview =
               id="sw-quick-save-btn"
               class="sw-quick-save-btn"
             >
-              <span>💾 Save Draft</span>
+              <span>🚀 Publish Changes</span>
             </button>
           </div>
         </div>
@@ -312,6 +311,10 @@ const isPreview =
       border: 1px solid rgba(244, 63, 94, 0.3);
       color: #fb7185;
       font-size: 12px;
+      line-height: 1.4;
+    }
+    .sw-quick-error.hidden {
+      display: none !important;
     }
     .sw-quick-footer {
       padding: 12px 18px;
@@ -369,6 +372,13 @@ const isPreview =
     }
     .sw-quick-save-btn:active {
       transform: scale(0.98);
+    }
+    .sw-quick-save-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .sw-quick-save-btn.sw-published {
+      background: #10b981;
     }
   </style>
 

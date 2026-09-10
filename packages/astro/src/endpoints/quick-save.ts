@@ -1,3 +1,5 @@
+export const prerender = false;
+
 import type { SlotWireConfig } from '@slotwire/core';
 import { getCmsAdapter } from '@slotwire/core';
 
@@ -47,6 +49,7 @@ export async function handleQuickSaveRequest(
   const patchData = body.data;
 
   if (!collection || !documentId) {
+    console.error('[SlotWire Quick Save] Missing collection or documentId:', { collection, documentId });
     return new Response(
       JSON.stringify({ error: 'Missing required parameters: collection and documentId' }),
       {
@@ -57,6 +60,7 @@ export async function handleQuickSaveRequest(
   }
 
   if (!patchData || typeof patchData !== 'object') {
+    console.error('[SlotWire Quick Save] Missing or invalid patchData:', patchData);
     return new Response(
       JSON.stringify({ error: 'Missing or invalid data object to update' }),
       {
@@ -64,6 +68,11 @@ export async function handleQuickSaveRequest(
         headers: { 'Content-Type': 'application/json' },
       }
     );
+  }
+
+  // Enforce direct publishing unless specifically requested otherwise
+  if (!patchData.status || body.publish === true) {
+    patchData.status = 'published';
   }
 
   const config: SlotWireConfig | undefined =
@@ -74,15 +83,18 @@ export async function handleQuickSaveRequest(
     (typeof process !== 'undefined' && (process.env?.CMS_PROVIDER || process.env?.PUBLIC_CMS_PROVIDER)) ||
     'directus';
 
+  const defaultPort = provider === 'slottd' ? '8787' : '8055';
   const apiUrl =
     config?.cms?.apiUrl ||
     (typeof process !== 'undefined' && (process.env?.CMS_API_URL || process.env?.PUBLIC_CMS_API_URL)) ||
-    'http://localhost:8055';
+    `http://localhost:${defaultPort}`;
 
   const apiKey =
     config?.cms?.apiKey ||
-    (typeof process !== 'undefined' && (process.env?.CMS_API_KEY || process.env?.SLOTTD_ADMIN_API_KEY || process.env?.DIRECTUS_TOKEN)) ||
+    (typeof process !== 'undefined' && (process.env?.CMS_API_KEY || process.env?.SLOTTD_ADMIN_API_KEY || process.env?.ADMIN_API_KEY || process.env?.DIRECTUS_TOKEN)) ||
     undefined;
+
+  console.log(`[SlotWire Quick Save] Mutating ${collection}/${documentId} via provider '${provider}' (status: ${patchData.status})`);
 
   const adapter = getCmsAdapter(provider);
 
@@ -102,9 +114,10 @@ export async function handleQuickSaveRequest(
     const result = await adapter.updateItem(collection, documentId, patchData, { apiUrl, apiKey });
 
     if (!result.success) {
+      console.error(`[SlotWire Quick Save] Adapter error updating ${collection}/${documentId}:`, result.error);
       return new Response(
         JSON.stringify({
-          error: result.error || 'Update failed',
+          error: result.error || 'Update failed in CMS',
         }),
         {
           status: 500,
@@ -113,6 +126,7 @@ export async function handleQuickSaveRequest(
       );
     }
 
+    console.log(`[SlotWire Quick Save] Successfully published ${collection}/${documentId}`);
     return new Response(
       JSON.stringify({
         status: 'ok',
@@ -126,6 +140,7 @@ export async function handleQuickSaveRequest(
       }
     );
   } catch (err: any) {
+    console.error(`[SlotWire Quick Save] Unexpected exception for ${collection}/${documentId}:`, err);
     return new Response(
       JSON.stringify({
         error: err.message || 'Quick save failed unexpectedly',

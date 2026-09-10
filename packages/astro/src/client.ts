@@ -697,9 +697,21 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
     const sBtn = (document.getElementById('sw-quick-save-btn') as HTMLButtonElement | null) || saveBtn;
 
     currentSlot = params.slot;
-    currentCollection = params.collection || params.slot;
-    currentDocId = params.documentId || '';
     currentSlotEl = params.slotElement || document.querySelector<HTMLElement>(`[data-slotwire-slot="${params.slot}"]`);
+    currentCollection =
+      params.collection ||
+      currentSlotEl?.getAttribute('data-slotwire-collection') ||
+      params.slot;
+    currentDocId =
+      params.documentId ||
+      params.data?.id ||
+      params.data?.rootId ||
+      params.data?.root_id ||
+      params.data?.slug ||
+      currentSlotEl?.getAttribute('data-slotwire-id') ||
+      currentSlotEl?.getAttribute('data-slotwire-page') ||
+      currentSlotEl?.getAttribute('data-slotwire-section') ||
+      params.slot;
 
     if (sb) sb.textContent = currentSlot;
     if (dl) {
@@ -716,12 +728,13 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
     if (eb) {
       eb.textContent = '';
       eb.classList.add('hidden');
+      eb.style.display = 'none';
     }
 
     if (sBtn) {
       sBtn.disabled = false;
-      sBtn.innerHTML = '<span>💾 Save Draft</span>';
-      sBtn.className = 'inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500 transition-transform active:scale-[0.98]';
+      sBtn.innerHTML = '<span>🚀 Publish Changes</span>';
+      sBtn.className = 'sw-quick-save-btn';
     }
 
     // Derive fields to render
@@ -1023,31 +1036,50 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
       }
     });
 
-    form?.addEventListener('submit', async (e) => {
-      e.preventDefault();
+    let isSaving = false;
+    const executeQuickSave = async (e?: Event) => {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      if (isSaving) return;
+
+      console.log('[SlotWire] Quick Save initiated:', { currentSlot, currentCollection, currentDocId });
+
+      const eb = document.getElementById('sw-quick-error') || errorBox;
+      const sBtn = (document.getElementById('sw-quick-save-btn') as HTMLButtonElement | null) || saveBtn;
+      const activeForm = (document.getElementById('sw-quick-edit-form') as HTMLFormElement | null) || form;
+
       if (!currentDocId) {
-        if (errorBox) {
-          errorBox.textContent = 'Cannot quick-save: No document ID associated with this slot. Use "Open Full CMS" to create or link the record.';
-          errorBox.classList.remove('hidden');
+        const msg = `Cannot publish: No document ID or slug associated with slot '${currentSlot}'. Use "Open Full CMS" to edit or link this record.`;
+        console.error('[SlotWire] ' + msg);
+        if (eb) {
+          eb.textContent = msg;
+          eb.classList.remove('hidden');
+          eb.style.display = 'block';
         }
         return;
       }
 
-      const formData = new FormData(form);
+      const formData = activeForm ? new FormData(activeForm) : new FormData();
       const patchData: Record<string, any> = {};
       formData.forEach((val, key) => {
         patchData[key] = val;
       });
 
-      if (saveBtn) {
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = '<span>💾 Saving...</span>';
+      patchData.status = 'published';
+
+      if (sBtn) {
+        sBtn.disabled = true;
+        sBtn.innerHTML = '<span>🚀 Publishing...</span>';
       }
-      if (errorBox) {
-        errorBox.classList.add('hidden');
-        errorBox.textContent = '';
+      if (eb) {
+        eb.classList.add('hidden');
+        eb.style.display = 'none';
+        eb.textContent = '';
       }
 
+      isSaving = true;
       try {
         const res = await fetch('/api/slotwire/quick-save', {
           method: 'POST',
@@ -1058,12 +1090,13 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
           body: JSON.stringify({
             collection: currentCollection,
             documentId: currentDocId,
+            publish: true,
             data: patchData,
           }),
         });
 
         if (!res.ok) {
-          let errMsg = `Save failed (${res.status})`;
+          let errMsg = `Publish failed (${res.status})`;
           try {
             const json = await res.json();
             if (json.error) errMsg = json.error;
@@ -1074,10 +1107,11 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
           throw new Error(errMsg);
         }
 
-        if (saveBtn) {
-          saveBtn.innerHTML = '<span>✓ Saved!</span>';
-          saveBtn.classList.remove('bg-emerald-600');
-          saveBtn.classList.add('bg-emerald-500');
+        console.log('[SlotWire] Quick Save succeeded:', { currentSlot, currentDocId });
+
+        if (sBtn) {
+          sBtn.innerHTML = '<span>✓ Published!</span>';
+          sBtn.classList.add('sw-published');
         }
 
         // Optimistic DOM Updates
@@ -1112,8 +1146,8 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
 
           const statusTag = currentSlotEl.querySelector('.slotwire-status-tag');
           if (statusTag) {
-            statusTag.textContent = 'Draft Modified';
-            statusTag.className = 'slotwire-status-tag sw-status-modified';
+            statusTag.textContent = 'Published';
+            statusTag.className = 'slotwire-status-tag sw-status-published';
           }
         }
 
@@ -1124,6 +1158,7 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
             slot: currentSlot,
             collection: currentCollection,
             documentId: currentDocId,
+            status: 'published',
             data: patchData,
           },
         }));
@@ -1132,16 +1167,26 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
           closeDrawer();
         }, 800);
       } catch (err: any) {
-        if (errorBox) {
-          errorBox.textContent = `Save Error: ${err.message}`;
-          errorBox.classList.remove('hidden');
+        console.error('[SlotWire] Quick Save error:', err);
+        if (eb) {
+          eb.textContent = `Publish Error: ${err.message}`;
+          eb.classList.remove('hidden');
+          eb.style.display = 'block';
         }
-        if (saveBtn) {
-          saveBtn.disabled = false;
-          saveBtn.innerHTML = '<span>💾 Save Draft</span>';
+        if (sBtn) {
+          sBtn.disabled = false;
+          sBtn.innerHTML = '<span>🚀 Publish Changes</span>';
         }
+      } finally {
+        isSaving = false;
       }
-    });
+    };
+
+    const activeForm = (document.getElementById('sw-quick-edit-form') as HTMLFormElement | null) || form;
+    const activeSaveBtn = (document.getElementById('sw-quick-save-btn') as HTMLButtonElement | null) || saveBtn;
+
+    activeForm?.addEventListener('submit', executeQuickSave);
+    activeSaveBtn?.addEventListener('click', executeQuickSave);
   }
 
   // Global Click Delegate (runs once across whole page lifecycle)
