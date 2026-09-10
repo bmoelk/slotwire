@@ -300,11 +300,15 @@ export interface TicketDispatchResult {
 }
 
 export interface TokenPayload {
+  sub?: string | number;
   collection?: string;
+  post_type?: string;
+  slot?: string;
   slug?: string;
-  exp: number;
-  iat: number;
+  exp?: number;
+  iat?: number;
   role?: string;
+  [key: string]: any;
 }
 
 export interface VerifyTokenResult {

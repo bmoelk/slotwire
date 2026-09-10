@@ -5,6 +5,11 @@ export interface SlotWireIntegrationOptions {
   config: SlotWireConfig;
   strict?: boolean;
   devToolbar?: boolean;
+  injectEndpoints?: {
+    scaffold?: boolean;
+    quickSave?: boolean;
+    revalidate?: boolean;
+  };
 }
 
 export function slotwire(options: SlotWireIntegrationOptions) {
@@ -19,18 +24,25 @@ export function slotwire(options: SlotWireIntegrationOptions) {
         }
 
         if (injectRoute) {
-          injectRoute({
-            pattern: '/api/slotwire/scaffold',
-            entrypoint: fileURLToPath(new URL('./endpoints/scaffold.js', import.meta.url)),
-          });
-          injectRoute({
-            pattern: '/api/slotwire/quick-save',
-            entrypoint: fileURLToPath(new URL('./endpoints/quick-save.js', import.meta.url)),
-          });
-          injectRoute({
-            pattern: '/api/slotwire/revalidate',
-            entrypoint: fileURLToPath(new URL('./endpoints/revalidate.js', import.meta.url)),
-          });
+          const endpoints = options.injectEndpoints || {};
+          if (endpoints.scaffold !== false) {
+            injectRoute({
+              pattern: '/api/slotwire/scaffold',
+              entrypoint: fileURLToPath(new URL('./endpoints/scaffold.js', import.meta.url)),
+            });
+          }
+          if (endpoints.quickSave !== false) {
+            injectRoute({
+              pattern: '/api/slotwire/quick-save',
+              entrypoint: fileURLToPath(new URL('./endpoints/quick-save.js', import.meta.url)),
+            });
+          }
+          if (endpoints.revalidate !== false) {
+            injectRoute({
+              pattern: '/api/slotwire/revalidate',
+              entrypoint: fileURLToPath(new URL('./endpoints/revalidate.js', import.meta.url)),
+            });
+          }
         }
 
         if (updateConfig) {
