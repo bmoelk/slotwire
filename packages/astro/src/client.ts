@@ -660,40 +660,51 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
   let currentSlotEl: HTMLElement | null = null;
 
   function closeDrawer() {
-    backdrop?.classList.remove('sw-open');
-    backdrop?.classList.add('hidden');
-    drawer?.classList.remove('sw-open');
-    drawer?.classList.remove('translate-x-0');
-    drawer?.classList.add('translate-x-full');
+    const bd = document.getElementById('slotwire-quick-drawer-backdrop') || backdrop;
+    const dr = document.getElementById('slotwire-quick-edit-drawer') || drawer;
+    bd?.classList.remove('sw-open');
+    bd?.classList.add('hidden');
+    dr?.classList.remove('sw-open');
+    dr?.classList.remove('translate-x-0');
+    dr?.classList.add('translate-x-full');
   }
 
   function openDrawer(params: QuickEditDrawerParams) {
+    const bd = document.getElementById('slotwire-quick-drawer-backdrop') || backdrop;
+    const dr = document.getElementById('slotwire-quick-edit-drawer') || drawer;
+    const sb = document.getElementById('sw-quick-slot-badge') || slotBadge;
+    const dl = document.getElementById('sw-quick-doc-id') || docIdLabel;
+    const eh = (document.getElementById('sw-quick-escape-hatch') as HTMLAnchorElement | null) || escapeHatch;
+    const fc = document.getElementById('sw-quick-fields-container') || fieldsContainer;
+    const eb = document.getElementById('sw-quick-error') || errorBox;
+    const sBtn = (document.getElementById('sw-quick-save-btn') as HTMLButtonElement | null) || saveBtn;
+
     currentSlot = params.slot;
     currentCollection = params.collection || params.slot;
     currentDocId = params.documentId || '';
     currentSlotEl = params.slotElement || document.querySelector<HTMLElement>(`[data-slotwire-slot="${params.slot}"]`);
 
-    if (slotBadge) slotBadge.textContent = currentSlot;
-    if (docIdLabel) {
-      docIdLabel.textContent = currentDocId
+    if (sb) sb.textContent = currentSlot;
+    if (dl) {
+      dl.textContent = currentDocId
         ? `${currentCollection} • id: ${currentDocId}`
         : `${currentCollection} • new`;
     }
 
-    if (escapeHatch) {
+    if (eh) {
       const fallbackUrl = `${adminUrl.replace(/\/+$/, '')}/content/${currentCollection}`;
-      escapeHatch.href = params.editUrl || fallbackUrl;
+      eh.href = params.editUrl || fallbackUrl;
     }
 
-    if (errorBox) {
-      errorBox.textContent = '';
-      errorBox.classList.add('hidden');
+    if (eb) {
+      eb.textContent = '';
+      eb.classList.add('hidden');
     }
 
-    if (saveBtn) {
-      saveBtn.disabled = false;
-      saveBtn.innerHTML = '<span>💾 Save Draft</span>';
-      saveBtn.className = 'inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500 transition-transform active:scale-[0.98]';
+    if (sBtn) {
+      sBtn.disabled = false;
+      sBtn.innerHTML = '<span>💾 Save Draft</span>';
+      sBtn.className = 'inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500 transition-transform active:scale-[0.98]';
     }
 
     // Derive fields to render
@@ -907,29 +918,35 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
     }
 
     // Open drawer
-    backdrop?.classList.add('sw-open');
-    backdrop?.classList.remove('hidden');
-    drawer?.classList.add('sw-open');
-    drawer?.classList.remove('translate-x-full');
-    drawer?.classList.add('translate-x-0');
+    bd?.classList.add('sw-open');
+    bd?.classList.remove('hidden');
+    dr?.classList.add('sw-open');
+    dr?.classList.remove('translate-x-full');
+    dr?.classList.add('translate-x-0');
 
     // Auto-focus first input
     setTimeout(() => {
-      const firstInput = fieldsContainer?.querySelector<HTMLInputElement | HTMLTextAreaElement>('input, textarea');
+      const firstInput = fc?.querySelector<HTMLInputElement | HTMLTextAreaElement>('input, textarea');
       firstInput?.focus();
     }, 50);
   }
 
   // Attach elements handlers (once per drawer element)
-  if (root && root.dataset.swBound !== 'true') {
-    root.dataset.swBound = 'true';
+  const activeRoot = document.getElementById('slotwire-quick-drawer-root') || root;
+  if (activeRoot && activeRoot.dataset.swBound !== 'true') {
+    activeRoot.dataset.swBound = 'true';
 
-    closeBtn?.addEventListener('click', closeDrawer);
-    cancelBtn?.addEventListener('click', closeDrawer);
-    backdrop?.addEventListener('click', closeDrawer);
+    const activeClose = document.getElementById('sw-quick-close-btn') || closeBtn;
+    const activeCancel = document.getElementById('sw-quick-cancel-btn') || cancelBtn;
+    const activeBackdrop = document.getElementById('slotwire-quick-drawer-backdrop') || backdrop;
+
+    activeClose?.addEventListener('click', closeDrawer);
+    activeCancel?.addEventListener('click', closeDrawer);
+    activeBackdrop?.addEventListener('click', closeDrawer);
 
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && drawer && (drawer.classList.contains('sw-open') || !drawer.classList.contains('translate-x-full'))) {
+      const activeDr = document.getElementById('slotwire-quick-edit-drawer') || drawer;
+      if (e.key === 'Escape' && activeDr && (activeDr.classList.contains('sw-open') || !activeDr.classList.contains('translate-x-full'))) {
         closeDrawer();
       }
     });
@@ -1060,7 +1077,7 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
     (window as any).__slotwire_quick_edit_delegate_bound = true;
 
     document.addEventListener('click', (e) => {
-      // 1. Badge "⚡ Edit" button
+      // 1. Badge "Quick Edit" button
       const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.slotwire-badge-quick-edit-btn');
       if (btn) {
         e.preventDefault();
@@ -1075,11 +1092,12 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
           if (raw) data = JSON.parse(raw);
         } catch {}
         const container = btn.closest<HTMLElement>('.slotwire-slot-container') || document.querySelector<HTMLElement>(`[data-slotwire-slot="${slot}"]`);
-        openDrawer({ slot, collection, documentId, data, editUrl, slotElement: container });
+        const openFn = (window as any).__slotwire_open_quick_drawer || openDrawer;
+        openFn({ slot, collection, documentId, data, editUrl, slotElement: container });
         return;
       }
 
-      // 2. Inspector "⚡ Quick" button
+      // 2. Inspector "Quick Edit" button
       const inspectorBtn = (e.target as HTMLElement).closest<HTMLButtonElement>('.sw-quick-edit-trigger');
       if (inspectorBtn) {
         e.preventDefault();
@@ -1096,7 +1114,8 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
             const collection = container.getAttribute('data-slotwire-collection') || slotName;
             const documentId = container.getAttribute('data-slotwire-id') || '';
             const editUrl = container.getAttribute('data-slotwire-edit-url') || '';
-            openDrawer({ slot: slotName, collection, documentId, data: null, editUrl, slotElement: container });
+            const openFn = (window as any).__slotwire_open_quick_drawer || openDrawer;
+            openFn({ slot: slotName, collection, documentId, data: null, editUrl, slotElement: container });
           }
         }
         return;
@@ -1105,7 +1124,8 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
 
     window.addEventListener('slotwire:open-quick-edit', (e: any) => {
       if (e.detail) {
-        openDrawer(e.detail);
+        const openFn = (window as any).__slotwire_open_quick_drawer || openDrawer;
+        openFn(e.detail);
       }
     });
   }

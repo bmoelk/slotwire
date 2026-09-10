@@ -181,7 +181,13 @@ const isCollectionSlot =
   archetype === 'table' ||
   isArray;
 
-const actionLabel = isCollectionSlot ? '✏️ List ↗' : '✏️ Edit ↗';
+const actionLabel = isCollectionSlot ? 'Studio Table ↗' : 'Studio ↗';
+let serializedSlotData: string | undefined;
+if (data && typeof data === 'object') {
+  try {
+    serializedSlotData = JSON.stringify(data);
+  } catch {}
+}
 const serializedItems = childItems.length > 0 ? JSON.stringify(childItems.map(c => ({ id: c.id, label: c.label, thumbnail: c.thumbnail }))) : undefined;
 
 const rawDraftStatus = (data as any)?.draft_status;
@@ -334,7 +340,7 @@ const resolvedBadgeCorner = propBadgePosition
                       <span class="slotwire-popover-item-label">{child.label}</span>
                       <span class="slotwire-popover-item-id">{child.id}</span>
                     </div>
-                    <span class="slotwire-popover-item-action">✏️ Edit ↗</span>
+                    <span class="slotwire-popover-item-action">Studio ↗</span>
                   </a>
                 ))}
               </div>
@@ -393,10 +399,13 @@ const resolvedBadgeCorner = propBadgePosition
           data-slot={slot}
           data-collection={collection}
           data-document-id={documentId || (data && (data.id || data.slug))}
-          data-slot-data={data ? JSON.stringify(data) : undefined}
+          data-slot-data={serializedSlotData}
           data-edit-url={isCollectionSlot ? listUrl : singleEditUrl}
         >
-          ⚡ Edit
+          <svg class="sw-quick-icon" width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.25a1.75 1.75 0 0 1 .445-.758l8.61-8.61Zm1.414 1.06a.25.25 0 0 0-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 0 0 0-.354l-1.086-1.086ZM11.189 6.25 9.75 4.81l-6.286 6.287a.25.25 0 0 0-.064.108l-.558 1.953 1.953-.558a.249.249 0 0 0 .108-.064l6.286-6.286Z"/>
+          </svg>
+          <span>Quick Edit</span>
         </button>
 
         <!-- Minimize / Collapse Button -->
@@ -578,8 +587,8 @@ const resolvedBadgeCorner = propBadgePosition
   .slotwire-badge-quick-edit-btn {
     display: inline-flex;
     align-items: center;
-    gap: 3px;
-    padding: 2px 7px;
+    gap: 4px;
+    padding: 2px 8px;
     background: rgba(16, 185, 129, 0.15);
     border: 1px solid rgba(16, 185, 129, 0.4);
     border-radius: 4px;
@@ -589,6 +598,11 @@ const resolvedBadgeCorner = propBadgePosition
     cursor: pointer;
     line-height: 1.2;
     transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  }
+  .slotwire-badge-quick-edit-btn .sw-quick-icon {
+    width: 11px;
+    height: 11px;
+    flex-shrink: 0;
   }
   .slotwire-badge-quick-edit-btn:hover {
     background: rgba(16, 185, 129, 0.3);
@@ -972,7 +986,32 @@ const resolvedBadgeCorner = propBadgePosition
         if (slotKey) sessionStorage.setItem(`sw_min_${slotKey}`, 'false');
       });
 
-      // B. Free Drag Handler
+      // B. Quick Edit In-Situ Handler
+      const quickBtn = badge.querySelector<HTMLButtonElement>('.slotwire-badge-quick-edit-btn');
+      quickBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const slot = quickBtn.getAttribute('data-slot') || '';
+        const collection = quickBtn.getAttribute('data-collection') || slot;
+        const documentId = quickBtn.getAttribute('data-document-id') || '';
+        const editUrl = quickBtn.getAttribute('data-edit-url') || '';
+        let data: any = null;
+        try {
+          const raw = quickBtn.getAttribute('data-slot-data');
+          if (raw) data = JSON.parse(raw);
+        } catch {}
+        const container = badge.closest<HTMLElement>('.slotwire-slot-container') || document.querySelector<HTMLElement>(`[data-slotwire-slot="${slot}"]`);
+
+        if (typeof (window as any).__slotwire_open_quick_drawer === 'function') {
+          (window as any).__slotwire_open_quick_drawer({ slot, collection, documentId, data, editUrl, slotElement: container });
+        } else {
+          window.dispatchEvent(new CustomEvent('slotwire:open-quick-edit', {
+            detail: { slot, collection, documentId, data, editUrl, slotElement: container }
+          }));
+        }
+      });
+
+      // C. Free Drag Handler
       const dragHandle = badge.querySelector<HTMLElement>('.slotwire-badge-drag');
       if (dragHandle) {
         let isDragging = false;

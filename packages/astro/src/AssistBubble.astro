@@ -214,6 +214,7 @@ if (session && session.route === Astro.url.pathname) {
 
 <script>
   import { initInspector, startVisualElementPicker } from './inspector-core.js';
+  import { initQuickEditDrawer } from './client.js';
 
   function setupAssistPill() {
     const container = document.getElementById('slotwire-assist-container');
@@ -221,6 +222,11 @@ if (session && session.route === Astro.url.pathname) {
     const modal = document.getElementById('slotwire-inspector-modal');
     const dragHandle = document.getElementById('sw-pill-drag');
     const countBadge = document.getElementById('sw-slot-count');
+
+    if (container) {
+      const adminUrl = container.dataset.adminUrl || '/admin';
+      initQuickEditDrawer({ adminUrl });
+    }
 
     if (!container || !bubble || !modal) return;
 
