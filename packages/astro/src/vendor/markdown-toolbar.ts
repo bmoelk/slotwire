@@ -48,7 +48,9 @@ function insertText(textarea: HTMLTextAreaElement, before: string, after: string
   textarea.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
-export class MarkdownToolbarElement extends HTMLElement {
+const BaseElement = typeof HTMLElement !== 'undefined' ? HTMLElement : (class {} as unknown as typeof HTMLElement);
+
+export class MarkdownToolbarElement extends BaseElement {
   connectedCallback() {
     this.addEventListener('click', this.handleClick.bind(this));
     this.setupShortcuts();

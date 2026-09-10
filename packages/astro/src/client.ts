@@ -328,22 +328,24 @@ export function initSlotWirePreview(options: { adminUrl?: string; provider?: str
   function openDrawer() {
     drawer?.classList.remove('hidden');
     drawer?.classList.add('flex');
+    drawer?.classList.add('open');
   }
 
   function closeDrawer() {
     drawer?.classList.remove('flex');
+    drawer?.classList.remove('open');
     drawer?.classList.add('hidden');
   }
 
   pill?.addEventListener('click', (e) => {
     if ((e.target as HTMLElement).id !== 'slotwire-hud-toggle-btn') {
-      drawer?.classList.contains('hidden') ? openDrawer() : closeDrawer();
+      (drawer?.classList.contains('hidden') || !drawer?.classList.contains('open')) ? openDrawer() : closeDrawer();
     }
   });
 
   toggleBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
-    drawer?.classList.contains('hidden') ? openDrawer() : closeDrawer();
+    (drawer?.classList.contains('hidden') || !drawer?.classList.contains('open')) ? openDrawer() : closeDrawer();
   });
 
   closeBtn?.addEventListener('click', closeDrawer);
@@ -658,7 +660,9 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
   let currentSlotEl: HTMLElement | null = null;
 
   function closeDrawer() {
+    backdrop?.classList.remove('sw-open');
     backdrop?.classList.add('hidden');
+    drawer?.classList.remove('sw-open');
     drawer?.classList.remove('translate-x-0');
     drawer?.classList.add('translate-x-full');
   }
@@ -903,7 +907,9 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
     }
 
     // Open drawer
+    backdrop?.classList.add('sw-open');
     backdrop?.classList.remove('hidden');
+    drawer?.classList.add('sw-open');
     drawer?.classList.remove('translate-x-full');
     drawer?.classList.add('translate-x-0');
 
@@ -923,7 +929,7 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
     backdrop?.addEventListener('click', closeDrawer);
 
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && drawer && !drawer.classList.contains('translate-x-full')) {
+      if (e.key === 'Escape' && drawer && (drawer.classList.contains('sw-open') || !drawer.classList.contains('translate-x-full'))) {
         closeDrawer();
       }
     });

@@ -6,16 +6,35 @@ const toolbarApp: any = {
       canvas.innerHTML = '';
 
       const windowElement = document.createElement('astro-dev-toolbar-window');
+      windowElement.setAttribute('placement', 'bottom-center');
+      windowElement.style.cssText = `
+        width: 440px !important;
+        max-width: calc(100vw - 32px) !important;
+        max-height: calc(100vh - 100px) !important;
+        height: auto !important;
+        padding: 0 !important;
+        background: #09090b !important;
+        border: 1px solid #27272a !important;
+        border-radius: 12px !important;
+        box-shadow: 0 20px 35px -8px rgba(0, 0, 0, 0.85) !important;
+        overflow: hidden !important;
+        color-scheme: dark !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        bottom: 72px !important;
+        margin: 0 auto !important;
+      `;
       windowElement.innerHTML = `
         <style>
-          :host astro-dev-toolbar-window {
-            width: 440px;
-            max-width: calc(100vw - 32px);
-            color-scheme: dark;
-            border-radius: 12px;
-            border: 1px solid #27272a;
-            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.7);
-            overflow: hidden;
+          .sw-inspector {
+            width: 100% !important;
+            max-width: 100% !important;
+            border: none !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            background: transparent !important;
+            margin: 0 !important;
+            padding: 14px !important;
           }
           ${INSPECTOR_CSS}
         </style>

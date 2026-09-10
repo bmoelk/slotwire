@@ -249,6 +249,14 @@ if (session && session.route === Astro.url.pathname) {
       const gap = 12;
 
       // Horizontal positioning: align right edge with bubble, stay within screen
+      if (rect.width === 0 || window.getComputedStyle(bubble).display === 'none') {
+        modal.style.left = 'max(16px, calc(50vw - 220px))';
+        modal.style.right = 'auto';
+        modal.style.bottom = '80px';
+        modal.style.top = 'auto';
+        return;
+      }
+
       let left = rect.right - modalWidth;
       if (left < 16) left = 16;
       if (left + modalWidth > window.innerWidth - 16) {

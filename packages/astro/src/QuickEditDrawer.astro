@@ -26,39 +26,33 @@ const isPreview =
     <!-- Semi-transparent backdrop -->
     <div
       id="slotwire-quick-drawer-backdrop"
-      class="fixed inset-0 z-[999990] bg-black/50 backdrop-blur-xs hidden transition-opacity pointer-events-auto"
+      class="sw-quick-backdrop"
       aria-hidden="true"
     ></div>
 
     <!-- Slide-over Edit Drawer -->
     <aside
       id="slotwire-quick-edit-drawer"
-      class="fixed top-0 right-0 z-[999995] h-full w-full max-w-md bg-zinc-950 border-l border-zinc-800 text-zinc-100 shadow-2xl flex flex-col translate-x-full transition-transform duration-300 ease-in-out font-sans text-xs pointer-events-auto"
+      class="sw-quick-drawer"
       aria-label="SlotWire Quick Edit"
     >
       <!-- Drawer Header -->
-      <div class="flex items-center justify-between px-5 py-4 border-b border-zinc-800 bg-zinc-900/60">
-        <div class="flex items-center gap-2">
-          <span class="inline-flex size-6 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-xs font-bold">
-            ⚡
-          </span>
+      <div class="sw-quick-header">
+        <div class="sw-quick-header-title">
+          <span class="sw-quick-bolt">⚡</span>
           <div>
-            <div class="flex items-center gap-1.5">
-              <h2 class="text-xs font-bold text-white uppercase tracking-wider">Quick Edit</h2>
-              <span id="sw-quick-slot-badge" class="font-mono text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300">
-                slot
-              </span>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <h2 class="sw-quick-h2">Quick Edit</h2>
+              <span id="sw-quick-slot-badge" class="sw-quick-badge">slot</span>
             </div>
-            <p id="sw-quick-doc-id" class="text-[11px] text-zinc-400 truncate max-w-[240px]">
-              doc: --
-            </p>
+            <p id="sw-quick-doc-id" class="sw-quick-doc-id">doc: --</p>
           </div>
         </div>
 
         <button
           id="sw-quick-close-btn"
           type="button"
-          class="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors"
+          class="sw-quick-close-btn"
           aria-label="Close drawer"
         >
           ✕
@@ -66,10 +60,10 @@ const isPreview =
       </div>
 
       <!-- Drawer Form -->
-      <form id="sw-quick-edit-form" class="flex-1 flex flex-col overflow-hidden">
+      <form id="sw-quick-edit-form" class="sw-quick-form">
         <!-- Scrollable Fields Area -->
-        <div id="sw-quick-fields-container" class="flex-1 overflow-y-auto p-5 space-y-4">
-          <div class="text-zinc-500 text-center py-8">
+        <div id="sw-quick-fields-container" class="sw-quick-fields">
+          <div style="color: #71717a; text-align: center; padding: 32px 0;">
             Click [⚡ Quick Edit] on any slot overlay to edit in-situ.
           </div>
         </div>
@@ -77,27 +71,28 @@ const isPreview =
         <!-- Error Banner -->
         <div
           id="sw-quick-error"
-          class="hidden mx-5 mb-2 rounded-lg bg-rose-500/10 border border-rose-500/30 p-2.5 text-xs text-rose-400"
+          class="sw-quick-error"
+          style="display: none;"
         ></div>
 
         <!-- Drawer Footer -->
-        <div class="px-5 py-3.5 border-t border-zinc-800 bg-zinc-900/40 flex items-center justify-between gap-3">
+        <div class="sw-quick-footer">
           <a
             id="sw-quick-escape-hatch"
             href={`${adminUrl.replace(/\/+$/, '')}/content`}
             target="_blank"
             rel="noopener noreferrer"
-            class="text-[11px] text-zinc-400 hover:text-emerald-400 underline underline-offset-2 flex items-center gap-1"
+            class="sw-quick-escape"
             title="Open full CMS studio for advanced layout, tables, or relational editing"
           >
             <span>Open Full Studio ↗</span>
           </a>
 
-          <div class="flex items-center gap-2">
+          <div style="display: flex; align-items: center; gap: 8px;">
             <button
               type="button"
               id="sw-quick-cancel-btn"
-              class="rounded-lg bg-zinc-800 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors"
+              class="sw-quick-cancel-btn"
             >
               Cancel
             </button>
@@ -105,7 +100,7 @@ const isPreview =
             <button
               type="submit"
               id="sw-quick-save-btn"
-              class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500 transition-transform active:scale-[0.98]"
+              class="sw-quick-save-btn"
             >
               <span>💾 Save Draft</span>
             </button>
@@ -114,4 +109,227 @@ const isPreview =
       </form>
     </aside>
   </div>
+
+  <style is:global>
+    #slotwire-quick-drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 999990;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(4px);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.25s ease, visibility 0.25s ease;
+      display: none;
+    }
+    #slotwire-quick-drawer-backdrop.sw-open {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      display: block !important;
+    }
+
+    #slotwire-quick-edit-drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      z-index: 999995;
+      height: 100vh;
+      width: 100%;
+      max-width: 440px;
+      background: #09090b !important;
+      border-left: 1px solid #27272a;
+      color: #f4f4f5;
+      box-shadow: -10px 0 35px rgba(0, 0, 0, 0.85);
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%) !important;
+      visibility: hidden;
+      pointer-events: none;
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.3s ease;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 12px;
+      box-sizing: border-box;
+    }
+    #slotwire-quick-edit-drawer.sw-open {
+      transform: translateX(0) !important;
+      visibility: visible !important;
+      pointer-events: auto !important;
+    }
+
+    #slotwire-quick-edit-drawer * {
+      box-sizing: border-box;
+    }
+
+    .sw-quick-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: 1px solid #27272a;
+      background: rgba(24, 24, 27, 0.7);
+    }
+    .sw-quick-header-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .sw-quick-bolt {
+      display: inline-flex;
+      width: 24px;
+      height: 24px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .sw-quick-h2 {
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin: 0;
+    }
+    .sw-quick-badge {
+      font-family: ui-monospace, monospace;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #27272a;
+      color: #d4d4d8;
+    }
+    .sw-quick-doc-id {
+      font-size: 11px;
+      color: #a1a1aa;
+      margin: 2px 0 0 0;
+      max-width: 240px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .sw-quick-close-btn {
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 8px;
+      color: #a1a1aa;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      transition: background 0.15s, color 0.15s;
+    }
+    .sw-quick-close-btn:hover {
+      background: #27272a;
+      color: #fff;
+    }
+    .sw-quick-form {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .sw-quick-fields {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .sw-quick-fields input[type="text"],
+    .sw-quick-fields textarea {
+      width: 100%;
+      background: #18181b;
+      border: 1px solid #3f3f46;
+      border-radius: 6px;
+      padding: 8px 10px;
+      color: #f4f4f5;
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s;
+      box-sizing: border-box;
+    }
+    .sw-quick-fields textarea {
+      font-family: ui-monospace, monospace;
+      line-height: 1.5;
+      resize: vertical;
+    }
+    .sw-quick-fields input[type="text"]:focus,
+    .sw-quick-fields textarea:focus {
+      border-color: #10b981;
+    }
+    .sw-quick-error {
+      margin: 0 18px 10px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      background: rgba(244, 63, 94, 0.1);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+      color: #fb7185;
+      font-size: 12px;
+    }
+    .sw-quick-footer {
+      padding: 12px 18px;
+      border-top: 1px solid #27272a;
+      background: rgba(24, 24, 27, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .sw-quick-escape {
+      font-size: 11px;
+      color: #a1a1aa;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .sw-quick-escape:hover {
+      color: #34d399;
+    }
+    .sw-quick-cancel-btn {
+      background: #27272a;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #d4d4d8;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .sw-quick-cancel-btn:hover {
+      background: #3f3f46;
+      color: #fff;
+    }
+    .sw-quick-save-btn {
+      background: #059669;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #fff;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+      transition: background 0.15s, transform 0.1s;
+    }
+    .sw-quick-save-btn:hover {
+      background: #10b981;
+    }
+    .sw-quick-save-btn:active {
+      transform: scale(0.98);
+    }
+  </style>
 )}
