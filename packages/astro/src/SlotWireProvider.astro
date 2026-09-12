@@ -1,0 +1,28 @@
+---
+import AssistBubble from './AssistBubble.astro';
+
+export interface Props {
+  adminUrl?: string;
+  editor?: 'markdown' | 'html';
+  assistActive?: boolean;
+}
+
+const {
+  adminUrl,
+  editor,
+  assistActive = true,
+} = Astro.props;
+---
+
+<slot />
+
+<AssistBubble
+  adminUrl={adminUrl}
+  editor={editor}
+  assistActive={assistActive}
+/>
+
+<script>
+  import './slot-highlight.js';
+</script>
+

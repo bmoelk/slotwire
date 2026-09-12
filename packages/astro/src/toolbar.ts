@@ -5,35 +5,105 @@ const toolbarApp: any = {
     function renderApp() {
       canvas.innerHTML = '';
 
+      const canvasStyle = document.createElement('style');
+      canvasStyle.textContent = `
+        astro-dev-toolbar-window {
+          position: fixed !important;
+          left: 50% !important;
+          right: auto !important;
+          top: auto !important;
+          bottom: 72px !important;
+          transform: translateX(-50%) !important;
+          width: 480px !important;
+          max-width: calc(100vw - 32px) !important;
+          max-height: calc(100vh - 100px) !important;
+          height: auto !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          border: none !important;
+          background: transparent !important;
+          box-shadow: none !important;
+          overflow: visible !important;
+        }
+      `;
+      canvas.appendChild(canvasStyle);
+
       const windowElement = document.createElement('astro-dev-toolbar-window');
+      windowElement.setAttribute('placement', 'bottom-center');
+      windowElement.style.cssText = `
+        position: fixed !important;
+        left: 50% !important;
+        right: auto !important;
+        top: auto !important;
+        bottom: 72px !important;
+        transform: translateX(-50%) !important;
+        width: 480px !important;
+        max-width: calc(100vw - 32px) !important;
+        max-height: calc(100vh - 100px) !important;
+        height: auto !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        overflow: visible !important;
+      `;
       windowElement.innerHTML = `
         <style>
-          :host astro-dev-toolbar-window {
-            width: 440px;
-            max-width: calc(100vw - 32px);
-            color-scheme: dark;
-            border-radius: 12px;
-            border: 1px solid #27272a;
-            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.7);
-            overflow: hidden;
-          }
           ${INSPECTOR_CSS}
+          .sw-inspector {
+            width: 480px !important;
+            max-width: calc(100vw - 32px) !important;
+            box-sizing: border-box !important;
+            margin: 0 auto !important;
+          }
         </style>
-        ${renderInspectorHtml({
-          adminUrl: '/admin',
-          envTag: 'DEV',
-          provider: 'slottd',
-          showCloseBtn: false,
-          showRequestSlotBtn: true,
-        })}
+        ${(() => {
+          const globalConfig = (globalThis as any).__SLOTWIRE_CONFIG__;
+          const resolvedProvider =
+            (typeof process !== 'undefined' && (process.env?.CMS_PROVIDER || process.env?.PUBLIC_CMS_PROVIDER)) ||
+            globalConfig?.cms?.provider ||
+            'cms';
+          return renderInspectorHtml({
+            adminUrl: '/admin',
+            envTag: 'DEV',
+            provider: resolvedProvider,
+            showCloseBtn: false,
+            showRequestSlotBtn: true,
+          });
+        })()}
       `;
 
       canvas.appendChild(windowElement);
 
+      // Defensively strip Astro's default 24px padding, gradient background, border, and restrictive 480px max-height from the Shadow DOM
+      if (windowElement.shadowRoot) {
+        const shadowOverride = document.createElement('style');
+        shadowOverride.textContent = `
+          :host {
+            padding: 0 !important;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            width: 480px !important;
+            max-width: calc(100vw - 32px) !important;
+            max-height: calc(100vh - 100px) !important;
+            overflow: visible !important;
+          }
+        `;
+        windowElement.shadowRoot.appendChild(shadowOverride);
+      }
+
+      const globalConfig = (globalThis as any).__SLOTWIRE_CONFIG__;
+      const resolvedProvider =
+        (typeof process !== 'undefined' && (process.env?.CMS_PROVIDER || process.env?.PUBLIC_CMS_PROVIDER)) ||
+        globalConfig?.cms?.provider ||
+        'cms';
+
       initInspector(windowElement, {
         adminUrl: '/admin',
         envTag: 'DEV',
-        provider: 'slottd',
+        provider: resolvedProvider,
         showRequestSlotBtn: true,
         onRequestSlot: () => {
           // 1. Dispatch official toggle-app event to close Astro toolbar

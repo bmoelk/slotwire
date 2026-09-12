@@ -5,13 +5,18 @@ export interface SlotWireIntegrationOptions {
   config: SlotWireConfig;
   strict?: boolean;
   devToolbar?: boolean;
+  injectEndpoints?: {
+    scaffold?: boolean;
+    quickSave?: boolean;
+    revalidate?: boolean;
+  };
 }
 
 export function slotwire(options: SlotWireIntegrationOptions) {
   return {
     name: 'astro-slotwire',
     hooks: {
-      'astro:config:setup': async ({ addDevToolbarApp, updateConfig, injectRoute, isRestart }: any) => {
+      'astro:config:setup': async ({ config, addDevToolbarApp, updateConfig, injectRoute, isRestart }: any) => {
         (globalThis as any).__SLOTWIRE_CONFIG__ = options.config;
 
         if (!isRestart) {
@@ -19,19 +24,41 @@ export function slotwire(options: SlotWireIntegrationOptions) {
         }
 
         if (injectRoute) {
-          injectRoute({
-            pattern: '/api/slotwire/scaffold',
-            entrypoint: fileURLToPath(new URL('./endpoints/scaffold.js', import.meta.url)),
-          });
-          injectRoute({
-            pattern: '/api/slotwire/quick-save',
-            entrypoint: fileURLToPath(new URL('./endpoints/quick-save.js', import.meta.url)),
-          });
+          const endpoints = options.injectEndpoints || {};
+          if (endpoints.scaffold !== false) {
+            injectRoute({
+              pattern: '/api/slotwire/scaffold',
+              entrypoint: fileURLToPath(new URL('./endpoints/scaffold.js', import.meta.url)),
+            });
+          }
+          if (endpoints.quickSave !== false) {
+            injectRoute({
+              pattern: '/api/slotwire/quick-save',
+              entrypoint: fileURLToPath(new URL('./endpoints/quick-save.js', import.meta.url)),
+            });
+          }
+          if (endpoints.revalidate !== false) {
+            injectRoute({
+              pattern: '/api/slotwire/revalidate',
+              entrypoint: fileURLToPath(new URL('./endpoints/revalidate.js', import.meta.url)),
+            });
+          }
         }
 
         if (updateConfig) {
+          const packageDir = fileURLToPath(new URL('..', import.meta.url));
+          const projectRoot = fileURLToPath(config.root);
+          const parentDir = fileURLToPath(new URL('..', config.root));
+          const codeDir = fileURLToPath(new URL('../..', config.root));
+          const allowPaths = Array.from(new Set([codeDir, parentDir, projectRoot, process.cwd(), packageDir]));
+
           updateConfig({
             vite: {
+              server: {
+                fs: {
+                  allow: allowPaths,
+                },
+              },
               optimizeDeps: {
                 exclude: ['astro-slotwire', '@slotwire/core'],
               },
@@ -39,7 +66,7 @@ export function slotwire(options: SlotWireIntegrationOptions) {
           });
         }
 
-        if (addDevToolbarApp && options.devToolbar === true) {
+        if (addDevToolbarApp && options.devToolbar !== false) {
           addDevToolbarApp({
             id: 'slotwire',
             name: 'SlotWire',

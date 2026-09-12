@@ -4,7 +4,9 @@ import GhostSlot from './GhostSlot.astro';
 import { buildCmsDeepLink } from './deep-link.js';
 
 export interface Props {
-  slot: string;
+  slot?: string;
+  name?: string;
+  slotKey?: string;
   archetype?: SlotArchetype;
   collection?: string;
   pageSlug?: string;
@@ -22,9 +24,11 @@ export interface Props {
 }
 
 const {
-  slot,
+  slot: propSlot,
+  name: propName,
+  slotKey: propSlotKey,
   archetype,
-  collection = slot,
+  collection: propCollection,
   pageSlug,
   sectionKey,
   documentId,
@@ -38,6 +42,15 @@ const {
   class: className = '',
   badgePosition: propBadgePosition,
 } = Astro.props;
+
+const slot = propSlot || propName || propSlotKey;
+if (!slot) {
+  throw new Error(
+    '[SlotWire] Missing required prop "slot" (or "name" / "slotKey"). A valid slot identifier is required.'
+  );
+}
+
+const collection = propCollection || slot;
 
 const resolvedProvider =
   propProvider ||
@@ -69,7 +82,9 @@ const isTaggingEnabled =
 const envVar =
   (typeof process !== 'undefined' && process.env?.ENVIRONMENT) ||
   (import.meta as any).env?.ENVIRONMENT ||
-  (typeof process !== 'undefined' && process.env?.ASTRO_STAGING);
+  (typeof process !== 'undefined' && process.env?.ASTRO_STAGING) ||
+  (typeof process !== 'undefined' && process.env?.SLOTWIRE_PREVIEW) ||
+  (import.meta as any).env?.SLOTWIRE_PREVIEW;
 const isStaging = envVar === 'staging' || envVar === 'true';
 
 // Dynamic Preview / Assist Mode Detection (Local Dev, Staging, or Query Params)
@@ -78,8 +93,12 @@ const isPreview =
   isStaging ||
   Astro.url.searchParams.get('slotwire_assist') === 'true' ||
   Astro.url.searchParams.get('slotwire_preview') === 'true' ||
+  Astro.url.searchParams.get('slotwire_highlight') === 'true' ||
+  Astro.url.searchParams.get('slots') === 'true' ||
   Astro.url.hostname.startsWith('edit.') ||
-  Astro.url.hostname.includes('staging');
+  Astro.url.hostname.includes('staging') ||
+  Astro.url.hostname === 'localhost' ||
+  Astro.url.hostname === '127.0.0.1';
 
 // Determine if data payload is missing or empty
 const isMissing =
@@ -112,13 +131,15 @@ if (typeof globalThis !== 'undefined') {
 
 // Determine cardinality and resolve document ID
 const isArray = Array.isArray(data);
-const resolvedDocId = documentId || (!isArray ? (data?.id || data?.rootId || data?.root_id) : undefined);
+const resolvedDocId =
+  documentId ||
+  (!isArray ? (data?.id || data?.rootId || data?.root_id || data?.slug || pageSlug || sectionKey || slot) : undefined);
 const resolvedCollection = collection || archetype || slot;
 
 // Introspect Child Documents for Composite Slots
 const childItems = isArray
   ? (data as any[]).map((item: any, idx: number) => {
-      const id = item?.id || item?.rootId || item?.slug || item?._id || `item-${idx + 1}`;
+      const id = item?.id || item?.rootId || item?.root_id || item?.slug || item?._id || '';
       const label = item?.title || item?.name || item?.heading || item?.badgeText || item?.slug || `Item #${idx + 1}`;
       const rawThumb = item?.imageUrl || item?.image || item?.avatarUrl || item?.src || item?.url || item?.coverImage || (item?.localImg?.src) || undefined;
       let thumbnail = rawThumb;
@@ -136,7 +157,11 @@ const childItems = isArray
         pageSlug,
         sectionKey,
       });
-      return { id, label, thumbnail, order, editUrl };
+      let serializedData: string | undefined;
+      try {
+        serializedData = JSON.stringify(item);
+      } catch {}
+      return { id, label, thumbnail, order, editUrl, data: item, serializedData };
     })
   : [];
 
@@ -181,7 +206,13 @@ const isCollectionSlot =
   archetype === 'table' ||
   isArray;
 
-const actionLabel = isCollectionSlot ? '✏️ List ↗' : '✏️ Edit ↗';
+const actionLabel = isCollectionSlot ? 'CMS Table ↗' : 'CMS ↗';
+let serializedSlotData: string | undefined;
+if (data && typeof data === 'object') {
+  try {
+    serializedSlotData = JSON.stringify(data);
+  } catch {}
+}
 const serializedItems = childItems.length > 0 ? JSON.stringify(childItems.map(c => ({ id: c.id, label: c.label, thumbnail: c.thumbnail }))) : undefined;
 
 const rawDraftStatus = (data as any)?.draft_status;
@@ -244,7 +275,9 @@ const resolvedBadgeCorner = propBadgePosition
       </slot>
     </GhostSlot>
   ) : (
-    <slot name="fallback" />
+    <slot name="fallback">
+      <slot />
+    </slot>
   )
 ) : isPreview ? (
   <div
@@ -308,17 +341,27 @@ const resolvedBadgeCorner = propBadgePosition
             <div class="slotwire-composite-popover">
               <div class="slotwire-popover-header">
                 <span class="slotwire-popover-title">📦 {resolvedCollection}</span>
-                <span class="slotwire-popover-badge">{childItems.length} items</span>
+                <div class="slotwire-popover-header-actions">
+                  <span class="slotwire-popover-badge">{childItems.length} items</span>
+                  <button
+                    type="button"
+                    class="slotwire-badge-refresh-btn slotwire-popover-refresh-btn"
+                    title={`Refresh '${slot}' from CMS without reloading page`}
+                    aria-label={`Refresh ${slot}`}
+                    data-slot={slot}
+                  >
+                    <svg class="sw-refresh-icon" width="10" height="10" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                      <path d="M1.705 8.001a6.3 6.3 0 0 1 10.77-4.472l.447-.447a.75.75 0 0 1 1.28.53v3.136a.75.75 0 0 1-.75.75H10.32a.75.75 0 0 1-.53-1.28l.496-.496a4.8 4.8 0 0 0-8.21 2.269.75.75 0 0 1-.371.01Zm12.59 0a6.3 6.3 0 0 1-10.77 4.472l-.447.447a.75.75 0 0 1-1.28-.53V8.854a.75.75 0 0 1 .75-.75h3.132a.75.75 0 0 1 .53 1.28l-.496.496a4.8 4.8 0 0 0 8.21-2.269.75.75 0 0 1 .371-.01Z"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               <div class="slotwire-popover-list">
                 {childItems.map((child, idx) => (
-                  <a
-                    href={child.editUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <div
                     class="slotwire-popover-item"
-                    title={`Edit ${child.label} (${child.id}) in CMS`}
+                    title={`Item: ${child.label} (${child.id})`}
                   >
                     {child.thumbnail ? (
                       <img
@@ -331,11 +374,41 @@ const resolvedBadgeCorner = propBadgePosition
                       <span class="slotwire-popover-item-idx">#{idx + 1}</span>
                     )}
                     <div class="slotwire-popover-item-info">
-                      <span class="slotwire-popover-item-label">{child.label}</span>
+                      <span class="slotwire-popover-item-label" title={child.label}>{child.label}</span>
                       <span class="slotwire-popover-item-id">{child.id}</span>
                     </div>
-                    <span class="slotwire-popover-item-action">✏️ Edit ↗</span>
-                  </a>
+                    <div class="slotwire-popover-item-actions">
+                      <button
+                        type="button"
+                        class={`slotwire-popover-quick-btn slotwire-badge-quick-edit-btn ${!child.id ? 'sw-disabled' : ''}`}
+                        title={!child.id ? `Cannot quick-edit: No document ID linked to ${child.label}` : `Quick edit ${child.label} in-situ`}
+                        aria-label={`Quick Edit ${child.label}`}
+                        disabled={!child.id}
+                        data-slot={slot}
+                        data-collection={resolvedCollection}
+                        data-document-id={child.id}
+                        data-slot-data={child.serializedData}
+                        data-edit-url={child.editUrl}
+                        data-item-index={idx}
+                        data-item-slug={child.data?.slug || ''}
+                        data-item-title={child.label || ''}
+                      >
+                        <svg class="sw-quick-icon" width="10" height="10" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                          <path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.25a1.75 1.75 0 0 1 .445-.758l8.61-8.61Zm1.414 1.06a.25.25 0 0 0-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 0 0 0-.354l-1.086-1.086ZM11.189 6.25 9.75 4.81l-6.286 6.287a.25.25 0 0 0-.064.108l-.558 1.953 1.953-.558a.249.249 0 0 0 .108-.064l6.286-6.286Z"/>
+                        </svg>
+                        <span>Quick Edit</span>
+                      </button>
+                      <a
+                        href={child.editUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="slotwire-popover-cms-link"
+                        title={`Open ${child.label} in full CMS`}
+                      >
+                        CMS ↗
+                      </a>
+                    </div>
+                  </div>
                 ))}
               </div>
 
@@ -384,19 +457,38 @@ const resolvedBadgeCorner = propBadgePosition
           </a>
         )}
 
-        <!-- Quick Edit In-Situ Button -->
+        <!-- Quick Edit In-Situ Button (only for single-document slots) -->
+        {!isArray && childItems.length === 0 && (
+          <button
+            type="button"
+            class={`slotwire-badge-quick-edit-btn ${!resolvedDocId ? 'sw-disabled' : ''}`}
+            title={!resolvedDocId ? `Cannot quick-edit: No document ID linked to ${slot}. Use 'CMS ↗' to create it.` : `Quick Edit: ${slot}`}
+            aria-label={`Quick Edit: ${slot}`}
+            disabled={!resolvedDocId}
+            data-slot={slot}
+            data-collection={resolvedCollection}
+            data-document-id={resolvedDocId}
+            data-slot-data={serializedSlotData}
+            data-edit-url={isCollectionSlot ? listUrl : singleEditUrl}
+          >
+            <svg class="sw-quick-icon" width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.25a1.75 1.75 0 0 1 .445-.758l8.61-8.61Zm1.414 1.06a.25.25 0 0 0-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 0 0 0-.354l-1.086-1.086ZM11.189 6.25 9.75 4.81l-6.286 6.287a.25.25 0 0 0-.064.108l-.558 1.953 1.953-.558a.249.249 0 0 0 .108-.064l6.286-6.286Z"/>
+            </svg>
+            <span>Quick Edit</span>
+          </button>
+        )}
+
+        <!-- Manual Slot Refresh Button -->
         <button
           type="button"
-          class="slotwire-badge-quick-edit-btn"
-          title={`Quick Edit: ${slot}`}
-          aria-label={`Quick Edit: ${slot}`}
+          class="slotwire-badge-refresh-btn"
+          title={`Refresh '${slot}' from CMS without reloading page`}
+          aria-label={`Refresh ${slot}`}
           data-slot={slot}
-          data-collection={collection}
-          data-document-id={documentId || (data && (data.id || data.slug))}
-          data-slot-data={data ? JSON.stringify(data) : undefined}
-          data-edit-url={isCollectionSlot ? listUrl : singleEditUrl}
         >
-          ⚡ Edit
+          <svg class="sw-refresh-icon" width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M1.705 8.001a6.3 6.3 0 0 1 10.77-4.472l.447-.447a.75.75 0 0 1 1.28.53v3.136a.75.75 0 0 1-.75.75H10.32a.75.75 0 0 1-.53-1.28l.496-.496a4.8 4.8 0 0 0-8.21 2.269.75.75 0 0 1-.371.01Zm12.59 0a6.3 6.3 0 0 1-10.77 4.472l-.447.447a.75.75 0 0 1-1.28-.53V8.854a.75.75 0 0 1 .75-.75h3.132a.75.75 0 0 1 .53 1.28l-.496.496a4.8 4.8 0 0 0 8.21-2.269.75.75 0 0 1 .371-.01Z"/>
+          </svg>
         </button>
 
         <!-- Minimize / Collapse Button -->
@@ -511,6 +603,25 @@ const resolvedBadgeCorner = propBadgePosition
   }
 
   /* Pinned / Force-Visible Overlays (Triggered via Assist Bubble / Inspector) */
+  :global(.slotwire-highlight-slots) .slotwire-slot-container,
+  :global(.slotwire-highlight-slots) [data-slotwire-slot] {
+    outline: 2px dashed #10b981 !important;
+    outline-offset: 4px !important;
+    border-radius: 8px !important;
+    position: relative !important;
+    z-index: 25 !important;
+  }
+  :global(.slotwire-highlight-slots) .slotwire-in-situ-badge {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: translateY(0) !important;
+  }
+  :global(.slotwire-highlight-slots) .slotwire-in-situ-badge .slotwire-badge-card {
+    pointer-events: auto !important;
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.45) !important;
+    border-color: #10b981 !important;
+  }
+
   .slotwire-in-situ-badge.sw-force-visible {
     opacity: 1 !important;
     pointer-events: auto !important;
@@ -578,8 +689,10 @@ const resolvedBadgeCorner = propBadgePosition
   .slotwire-badge-quick-edit-btn {
     display: inline-flex;
     align-items: center;
-    gap: 3px;
-    padding: 2px 7px;
+    gap: 4px;
+    height: 22px;
+    box-sizing: border-box;
+    padding: 0 8px;
     background: rgba(16, 185, 129, 0.15);
     border: 1px solid rgba(16, 185, 129, 0.4);
     border-radius: 4px;
@@ -587,8 +700,13 @@ const resolvedBadgeCorner = propBadgePosition
     font-size: 11px;
     font-weight: 700;
     cursor: pointer;
-    line-height: 1.2;
+    line-height: 1;
     transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  }
+  .slotwire-badge-quick-edit-btn .sw-quick-icon {
+    width: 11px;
+    height: 11px;
+    flex-shrink: 0;
   }
   .slotwire-badge-quick-edit-btn:hover {
     background: rgba(16, 185, 129, 0.3);
@@ -596,13 +714,72 @@ const resolvedBadgeCorner = propBadgePosition
     color: #ffffff;
     transform: scale(1.03);
   }
+  .slotwire-badge-quick-edit-btn:disabled,
+  .slotwire-badge-quick-edit-btn.sw-disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+
+  .slotwire-badge-refresh-btn {
+    background: #18181b;
+    border: 1px solid #27272a;
+    color: #a1a1aa;
+    border-radius: 4px;
+    height: 22px;
+    width: 22px;
+    box-sizing: border-box;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    line-height: 1;
+    transition: all 0.15s ease;
+    user-select: none;
+    flex-shrink: 0;
+  }
+  .slotwire-badge-refresh-btn:hover {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    border-color: rgba(56, 189, 248, 0.4);
+    transform: scale(1.05);
+  }
+  .slotwire-popover-refresh-btn {
+    height: 18px !important;
+    width: 18px !important;
+    padding: 0 !important;
+    font-size: 9px !important;
+  }
+  .slotwire-badge-refresh-btn.sw-spinning svg,
+  .sw-slot-refresh-btn.sw-spinning svg,
+  #sw-btn-refresh-all.sw-spinning svg {
+    animation: sw-badge-spin 0.75s linear infinite !important;
+  }
+  @keyframes sw-badge-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .slotwire-popover-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
 
   .slotwire-badge-minimize-btn {
     background: #18181b;
     border: 1px solid #27272a;
     color: #a1a1aa;
     border-radius: 4px;
-    padding: 2px 5px;
+    height: 22px;
+    box-sizing: border-box;
+    padding: 0 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     font-size: 10px;
     font-weight: 700;
     cursor: pointer;
@@ -648,7 +825,9 @@ const resolvedBadgeCorner = propBadgePosition
     background-color: transparent !important;
     color: #34d399 !important;
     border: none !important;
-    padding: 2px 6px;
+    height: 22px;
+    box-sizing: border-box;
+    padding: 0 6px;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 11px;
     font-weight: 500;
@@ -657,6 +836,7 @@ const resolvedBadgeCorner = propBadgePosition
     border-radius: 4px;
     transition: all 0.15s ease;
     white-space: nowrap;
+    line-height: 1;
   }
 
   .slotwire-status-tag {
@@ -720,8 +900,8 @@ const resolvedBadgeCorner = propBadgePosition
     position: absolute;
     top: 100%;
     right: 0;
-    width: 350px;
-    max-width: 90vw;
+    width: 380px;
+    max-width: 92vw;
     background-color: #09090b;
     border: 1px solid rgba(16, 185, 129, 0.5);
     border-radius: 10px;
@@ -778,7 +958,7 @@ const resolvedBadgeCorner = propBadgePosition
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    padding: 6px 8px;
+    padding: 5px 8px;
     border-radius: 6px;
     background-color: #18181b;
     border: 1px solid #27272a;
@@ -787,7 +967,7 @@ const resolvedBadgeCorner = propBadgePosition
   }
   .slotwire-popover-item:hover {
     background-color: #27272a;
-    border-color: #10b981;
+    border-color: #3f3f46;
   }
   .slotwire-popover-thumb {
     width: 32px;
@@ -828,8 +1008,65 @@ const resolvedBadgeCorner = propBadgePosition
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .slotwire-badge-edit-action,
-  .slotwire-popover-item-action {
+  .slotwire-popover-item-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+  }
+  .slotwire-popover-quick-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    height: 20px;
+    box-sizing: border-box;
+    padding: 0 6px;
+    background: rgba(16, 185, 129, 0.15) !important;
+    border: 1px solid rgba(16, 185, 129, 0.5) !important;
+    color: #34d399 !important;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    line-height: 1;
+    text-decoration: none;
+    user-select: none;
+  }
+  .slotwire-popover-quick-btn:hover {
+    background: #059669 !important;
+    border-color: #10b981 !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+  }
+  .slotwire-popover-cms-link {
+    background: #451a03 !important;
+    border: 1px solid #d97706 !important;
+    color: #fb923c !important;
+    font-weight: 700 !important;
+    padding: 0 6px !important;
+    border-radius: 4px !important;
+    font-size: 10px !important;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 2px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4) !important;
+    text-decoration: none !important;
+    transition: all 0.15s ease-in-out !important;
+    white-space: nowrap !important;
+    height: 20px;
+    box-sizing: border-box;
+    line-height: 1;
+  }
+  .slotwire-popover-cms-link:hover {
+    background: #78350f !important;
+    border-color: #f97316 !important;
+    color: #fdba74 !important;
+    box-shadow: 0 0 10px rgba(217, 119, 6, 0.45) !important;
+  }
+  .slotwire-badge-edit-action {
     background: #451a03 !important;
     border: 1px solid #d97706 !important;
     color: #fb923c !important;
@@ -846,8 +1083,7 @@ const resolvedBadgeCorner = propBadgePosition
     transition: all 0.15s ease-in-out !important;
     white-space: nowrap !important;
   }
-  .slotwire-edit-btn:hover .slotwire-badge-edit-action,
-  .slotwire-popover-item:hover .slotwire-popover-item-action {
+  .slotwire-edit-btn:hover .slotwire-badge-edit-action {
     background: #78350f !important;
     border-color: #f97316 !important;
     color: #fdba74 !important;
@@ -971,8 +1207,7 @@ const resolvedBadgeCorner = propBadgePosition
         badge.classList.remove('is-minimized');
         if (slotKey) sessionStorage.setItem(`sw_min_${slotKey}`, 'false');
       });
-
-      // B. Free Drag Handler
+      // Free Drag Handler
       const dragHandle = badge.querySelector<HTMLElement>('.slotwire-badge-drag');
       if (dragHandle) {
         let isDragging = false;

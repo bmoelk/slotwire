@@ -1,53 +1,99 @@
 ---
 export interface Props {
   adminUrl?: string;
+  apiUrl?: string;
+  provider?: string;
+  editor?: 'markdown' | 'html';
 }
 
-const { adminUrl = '/admin' } = Astro.props;
+const globalConfig = (globalThis as any).__SLOTWIRE_CONFIG__;
+const resolvedProvider =
+  Astro.props.provider ||
+  globalConfig?.cms?.provider ||
+  (typeof process !== 'undefined' && (process.env?.CMS_PROVIDER || process.env?.PUBLIC_CMS_PROVIDER)) ||
+  'slottd';
+
+const defaultPort = resolvedProvider === 'slottd' ? '8787' : '8055';
+const resolvedApiUrl =
+  Astro.props.apiUrl ||
+  globalConfig?.cms?.apiUrl ||
+  (typeof process !== 'undefined' && (process.env?.CMS_API_URL || process.env?.PUBLIC_CMS_API_URL)) ||
+  (Boolean(import.meta.env.DEV) ? `http://localhost:${defaultPort}` : '');
+
+const { adminUrl = resolvedApiUrl || '/admin', editor = 'markdown' } = Astro.props;
+
+const envVar =
+  (typeof process !== 'undefined' && process.env?.ENVIRONMENT) ||
+  (import.meta as any).env?.ENVIRONMENT ||
+  (typeof process !== 'undefined' && process.env?.ASTRO_STAGING);
+const isStaging = envVar === 'staging' || envVar === 'true';
 
 const isPreview =
   Boolean(import.meta.env.DEV) ||
-  Astro.url.searchParams.get('slotwire_preview') === 'true';
+  isStaging ||
+  Astro.url.searchParams.get('slotwire_assist') === 'true' ||
+  Astro.url.searchParams.get('slotwire_preview') === 'true' ||
+  Astro.url.hostname.startsWith('edit.') ||
+  Astro.url.hostname.includes('staging');
 ---
 
 {isPreview && (
-  <div id="slotwire-quick-drawer-root" data-admin-url={adminUrl}>
+  <div
+    id="slotwire-quick-drawer-root"
+    data-admin-url={adminUrl}
+    data-api-url={resolvedApiUrl}
+    data-provider={resolvedProvider}
+    data-editor={editor}
+  >
     <!-- Semi-transparent backdrop -->
     <div
       id="slotwire-quick-drawer-backdrop"
-      class="fixed inset-0 z-[999990] bg-black/50 backdrop-blur-xs hidden transition-opacity pointer-events-auto"
+      class="sw-quick-backdrop"
       aria-hidden="true"
     ></div>
 
     <!-- Slide-over Edit Drawer -->
     <aside
       id="slotwire-quick-edit-drawer"
-      class="fixed top-0 right-0 z-[999995] h-full w-full max-w-md bg-zinc-950 border-l border-zinc-800 text-zinc-100 shadow-2xl flex flex-col translate-x-full transition-transform duration-300 ease-in-out font-sans text-xs pointer-events-auto"
+      class="sw-quick-drawer"
       aria-label="SlotWire Quick Edit"
     >
+      <!-- Horizontal Resize Drag Handle -->
+      <div
+        id="sw-quick-resize-handle"
+        class="sw-quick-resize-handle"
+        title="Drag left/right to resize drawer"
+        aria-label="Resize drawer"
+      >
+        <div class="sw-quick-resize-bar"></div>
+      </div>
       <!-- Drawer Header -->
-      <div class="flex items-center justify-between px-5 py-4 border-b border-zinc-800 bg-zinc-900/60">
-        <div class="flex items-center gap-2">
-          <span class="inline-flex size-6 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-xs font-bold">
-            ⚡
+      <div class="sw-quick-header">
+        <div class="sw-quick-header-title">
+          <span class="sw-quick-icon-badge">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.25a1.75 1.75 0 0 1 .445-.758l8.61-8.61Zm1.414 1.06a.25.25 0 0 0-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 0 0 0-.354l-1.086-1.086ZM11.189 6.25 9.75 4.81l-6.286 6.287a.25.25 0 0 0-.064.108l-.558 1.953 1.953-.558a.249.249 0 0 0 .108-.064l6.286-6.286Z"/>
+            </svg>
           </span>
           <div>
-            <div class="flex items-center gap-1.5">
-              <h2 class="text-xs font-bold text-white uppercase tracking-wider">Quick Edit</h2>
-              <span id="sw-quick-slot-badge" class="font-mono text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300">
-                slot
-              </span>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <h2 class="sw-quick-h2">Quick Edit</h2>
+              <span id="sw-quick-slot-badge" class="sw-quick-badge">slot</span>
             </div>
-            <p id="sw-quick-doc-id" class="text-[11px] text-zinc-400 truncate max-w-[240px]">
-              doc: --
-            </p>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+              <p id="sw-quick-doc-id" class="sw-quick-doc-id" style="margin: 0;">doc: --</p>
+              <div id="sw-quick-user-chip" class="sw-quick-user-chip hidden">
+                <span>👤</span> <span id="sw-quick-user-email"></span>
+                <button type="button" id="sw-quick-signout-btn" class="sw-quick-signout-btn" title="Sign out of CMS">Sign Out</button>
+              </div>
+            </div>
           </div>
         </div>
 
         <button
           id="sw-quick-close-btn"
           type="button"
-          class="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors"
+          class="sw-quick-close-btn"
           aria-label="Close drawer"
         >
           ✕
@@ -55,38 +101,56 @@ const isPreview =
       </div>
 
       <!-- Drawer Form -->
-      <form id="sw-quick-edit-form" class="flex-1 flex flex-col overflow-hidden">
+      <form id="sw-quick-edit-form" class="sw-quick-form">
+        <!-- CMS Auth Prompt Card (Shown when unauthenticated) -->
+        <div id="sw-quick-auth-card" class="sw-quick-auth-card hidden">
+          <div class="sw-quick-auth-icon">🔒</div>
+          <div class="sw-quick-auth-content">
+            <h4 class="sw-quick-auth-title">CMS Authentication Required</h4>
+            <p class="sw-quick-auth-desc">
+              You must sign in to the CMS to edit and publish changes directly to this slot.
+            </p>
+            <button
+              type="button"
+              id="sw-quick-login-btn"
+              class="sw-quick-login-btn"
+            >
+              🔑 Sign in to CMS ↗
+            </button>
+          </div>
+        </div>
+
         <!-- Scrollable Fields Area -->
-        <div id="sw-quick-fields-container" class="flex-1 overflow-y-auto p-5 space-y-4">
-          <div class="text-zinc-500 text-center py-8">
-            Click [⚡ Quick Edit] on any slot overlay to edit in-situ.
+        <div id="sw-quick-fields-container" class="sw-quick-fields">
+          <div style="color: #71717a; text-align: center; padding: 32px 0;">
+            Click [Quick Edit] on any slot overlay to edit in-situ.
           </div>
         </div>
 
         <!-- Error Banner -->
         <div
           id="sw-quick-error"
-          class="hidden mx-5 mb-2 rounded-lg bg-rose-500/10 border border-rose-500/30 p-2.5 text-xs text-rose-400"
+          class="sw-quick-error hidden"
         ></div>
 
         <!-- Drawer Footer -->
-        <div class="px-5 py-3.5 border-t border-zinc-800 bg-zinc-900/40 flex items-center justify-between gap-3">
+        <div class="sw-quick-footer">
           <a
             id="sw-quick-escape-hatch"
             href={`${adminUrl.replace(/\/+$/, '')}/content`}
             target="_blank"
             rel="noopener noreferrer"
-            class="text-[11px] text-zinc-400 hover:text-emerald-400 underline underline-offset-2 flex items-center gap-1"
-            title="Open full CMS studio for advanced layout, tables, or relational editing"
+            class="sw-quick-escape"
+            title="Open full CMS for advanced layout, tables, or relational editing"
           >
-            <span>Open Full Studio ↗</span>
+            <span>Open Full CMS ↗</span>
           </a>
 
-          <div class="flex items-center gap-2">
+          <div style="display: flex; align-items: center; gap: 8px;">
             <button
               type="button"
               id="sw-quick-cancel-btn"
-              class="rounded-lg bg-zinc-800 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors"
+              class="sw-quick-cancel-btn"
             >
               Cancel
             </button>
@@ -94,13 +158,376 @@ const isPreview =
             <button
               type="submit"
               id="sw-quick-save-btn"
-              class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500 transition-transform active:scale-[0.98]"
+              class="sw-quick-save-btn"
             >
-              <span>💾 Save Draft</span>
+              <span>🚀 Publish Changes</span>
             </button>
           </div>
         </div>
       </form>
     </aside>
   </div>
+
+  <style is:global>
+    #slotwire-quick-drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 999990;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(4px);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.25s ease, visibility 0.25s ease;
+      display: none;
+    }
+    #slotwire-quick-drawer-backdrop.sw-open {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      display: block !important;
+    }
+
+    #slotwire-quick-edit-drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      z-index: 999995;
+      height: 100vh;
+      width: 440px;
+      max-width: calc(100vw - 32px);
+      min-width: 320px;
+      background: #09090b !important;
+      border-left: 1px solid #27272a;
+      color: #f4f4f5;
+      box-shadow: -10px 0 35px rgba(0, 0, 0, 0.85);
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%) !important;
+      visibility: hidden;
+      pointer-events: none;
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.3s ease;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 12px;
+      box-sizing: border-box;
+    }
+    #slotwire-quick-edit-drawer.sw-open {
+      transform: translateX(0) !important;
+      visibility: visible !important;
+      pointer-events: auto !important;
+    }
+
+    .sw-quick-resize-handle {
+      position: absolute;
+      top: 0;
+      left: -5px;
+      width: 10px;
+      height: 100%;
+      cursor: col-resize;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: none;
+      user-select: none;
+    }
+    .sw-quick-resize-bar {
+      width: 2px;
+      height: 100%;
+      background: transparent;
+      transition: background 0.15s ease;
+    }
+    .sw-quick-resize-handle:hover .sw-quick-resize-bar,
+    .sw-quick-resize-handle:active .sw-quick-resize-bar,
+    .sw-quick-resize-handle.sw-resizing .sw-quick-resize-bar {
+      background: #10b981;
+      box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);
+    }
+
+    #slotwire-quick-edit-drawer * {
+      box-sizing: border-box;
+    }
+
+    .sw-quick-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: 1px solid #27272a;
+      background: rgba(24, 24, 27, 0.7);
+    }
+    .sw-quick-header-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .sw-quick-icon-badge {
+      display: inline-flex;
+      width: 24px;
+      height: 24px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .sw-quick-h2 {
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin: 0;
+    }
+    .sw-quick-badge {
+      font-family: ui-monospace, monospace;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #27272a;
+      color: #d4d4d8;
+    }
+    .sw-quick-doc-id {
+      font-size: 11px;
+      color: #a1a1aa;
+      margin: 2px 0 0 0;
+      max-width: 240px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .sw-quick-close-btn {
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 8px;
+      color: #a1a1aa;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      transition: background 0.15s, color 0.15s;
+    }
+    .sw-quick-close-btn:hover {
+      background: #27272a;
+      color: #fff;
+    }
+    .sw-quick-form {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .sw-quick-fields {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .sw-quick-fields input[type="text"],
+    .sw-quick-fields textarea {
+      width: 100%;
+      background: #18181b;
+      border: 1px solid #3f3f46;
+      border-radius: 6px;
+      padding: 8px 10px;
+      color: #f4f4f5;
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s;
+      box-sizing: border-box;
+    }
+    .sw-quick-fields textarea {
+      font-family: ui-monospace, monospace;
+      line-height: 1.5;
+      resize: vertical;
+    }
+    .sw-quick-fields input[type="text"]:focus,
+    .sw-quick-fields textarea:focus {
+      border-color: #10b981;
+    }
+    .sw-quick-error {
+      margin: 0 18px 10px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      background: rgba(244, 63, 94, 0.1);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+      color: #fb7185;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .sw-quick-error.hidden {
+      display: none !important;
+    }
+    .sw-quick-footer {
+      padding: 12px 18px;
+      border-top: 1px solid #27272a;
+      background: rgba(24, 24, 27, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .sw-quick-escape {
+      font-size: 11px;
+      color: #a1a1aa;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .sw-quick-escape:hover {
+      color: #34d399;
+    }
+    .sw-quick-cancel-btn {
+      background: #27272a;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #d4d4d8;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .sw-quick-cancel-btn:hover {
+      background: #3f3f46;
+      color: #fff;
+    }
+    .sw-quick-save-btn {
+      background: #059669;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #fff;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+      transition: background 0.15s, transform 0.1s;
+    }
+    .sw-quick-save-btn:hover {
+      background: #10b981;
+    }
+    .sw-quick-save-btn:active {
+      transform: scale(0.98);
+    }
+    .sw-quick-save-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .sw-quick-save-btn.sw-published {
+      background: #10b981;
+    }
+    .sw-quick-auth-card {
+      margin: 16px;
+      padding: 16px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      border-radius: 8px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+    .sw-quick-auth-card.hidden {
+      display: none !important;
+    }
+    .sw-quick-auth-icon {
+      font-size: 22px;
+      line-height: 1;
+      padding-top: 2px;
+    }
+    .sw-quick-auth-content {
+      flex: 1;
+    }
+    .sw-quick-auth-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #f8fafc;
+      margin: 0 0 4px 0;
+    }
+    .sw-quick-auth-desc {
+      font-size: 12px;
+      color: #94a3b8;
+      margin: 0 0 12px 0;
+      line-height: 1.4;
+    }
+    .sw-quick-login-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      background: #10b981;
+      color: #ffffff;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+      transition: background 0.15s, transform 0.1s;
+    }
+    .sw-quick-login-btn:hover {
+      background: #059669;
+    }
+    .sw-quick-login-btn:active {
+      transform: scale(0.98);
+    }
+    .sw-quick-user-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: #10b981;
+      background: rgba(16, 185, 129, 0.1);
+      padding: 1px 7px;
+      border-radius: 12px;
+      border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+    .sw-quick-user-chip.hidden {
+      display: none !important;
+    }
+    .sw-quick-signout-btn {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 10px;
+      cursor: pointer;
+      text-decoration: underline;
+      padding: 0 0 0 2px;
+    }
+    .sw-quick-signout-btn:hover {
+      color: #ef4444;
+    }
+  </style>
+
+  <script>
+    import { initQuickEditDrawer } from './client.js';
+
+    function setupQuickDrawer() {
+      const root = document.getElementById('slotwire-quick-drawer-root');
+      if (!root) return;
+      const adminUrl = root.dataset.adminUrl || '/admin';
+      const apiUrl = root.dataset.apiUrl || '';
+      const provider = root.dataset.provider || 'slottd';
+      const editor = (root.dataset.editor as 'markdown' | 'html') || 'markdown';
+      initQuickEditDrawer({ adminUrl, apiUrl, provider, editor });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', setupQuickDrawer);
+    } else {
+      setupQuickDrawer();
+    }
+    document.addEventListener('astro:page-load', setupQuickDrawer);
+    document.addEventListener('astro:after-swap', setupQuickDrawer);
+  </script>
 )}

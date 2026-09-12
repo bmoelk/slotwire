@@ -1,6 +1,7 @@
 import type { SlotWireConfig, SlotMetadata } from '@slotwire/core';
 import { buildCmsDeepLink } from './deep-link.js';
 import './vendor/markdown-toolbar.js';
+import { initPell } from './vendor/pell.js';
 
 export class SlotWireClient {
   private config: SlotWireConfig;
@@ -97,10 +98,10 @@ export function introspectPageSlots(): IntrospectedSlot[] {
  * - Pre-Create Page Blueprint Cloner
  * - Live EventStream / SSE Slot Morphing
  */
-export function initSlotWirePreview(options: { adminUrl?: string; provider?: string } = {}) {
+export function initSlotWirePreview(options: { adminUrl?: string; provider?: string; editor?: 'markdown' | 'html' } = {}) {
   if (typeof window === 'undefined') return;
 
-  const { adminUrl = '/admin', provider = 'slottd' } = options;
+  const { adminUrl = '/admin', provider = 'slottd', editor } = options;
 
   function updateHud() {
     const slots = introspectPageSlots();
@@ -327,22 +328,24 @@ export function initSlotWirePreview(options: { adminUrl?: string; provider?: str
   function openDrawer() {
     drawer?.classList.remove('hidden');
     drawer?.classList.add('flex');
+    drawer?.classList.add('open');
   }
 
   function closeDrawer() {
     drawer?.classList.remove('flex');
+    drawer?.classList.remove('open');
     drawer?.classList.add('hidden');
   }
 
   pill?.addEventListener('click', (e) => {
     if ((e.target as HTMLElement).id !== 'slotwire-hud-toggle-btn') {
-      drawer?.classList.contains('hidden') ? openDrawer() : closeDrawer();
+      (drawer?.classList.contains('hidden') || !drawer?.classList.contains('open')) ? openDrawer() : closeDrawer();
     }
   });
 
   toggleBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
-    drawer?.classList.contains('hidden') ? openDrawer() : closeDrawer();
+    (drawer?.classList.contains('hidden') || !drawer?.classList.contains('open')) ? openDrawer() : closeDrawer();
   });
 
   closeBtn?.addEventListener('click', closeDrawer);
@@ -445,13 +448,13 @@ export function initSlotWirePreview(options: { adminUrl?: string; provider?: str
     applyOverlayVisibility(getOverlayHiddenState());
     initInSituBadges();
     updateHud();
-    initQuickEditDrawer({ adminUrl, provider });
+    initQuickEditDrawer({ adminUrl, provider, editor });
   });
   document.addEventListener('astro:after-swap', () => {
     applyOverlayVisibility(getOverlayHiddenState());
     initInSituBadges();
     updateHud();
-    initQuickEditDrawer({ adminUrl, provider });
+    initQuickEditDrawer({ adminUrl, provider, editor });
   });
 
   // Pre-Create Modal Handler
@@ -582,7 +585,7 @@ export function initSlotWirePreview(options: { adminUrl?: string; provider?: str
   window.addEventListener('slotwire:recompiled', updateHud);
 
   // Initialize Quick Edit Drawer
-  initQuickEditDrawer({ adminUrl, provider });
+  initQuickEditDrawer({ adminUrl, provider, editor });
 }
 
 export interface QuickEditDrawerParams {
@@ -592,7 +595,137 @@ export interface QuickEditDrawerParams {
   data?: any;
   editUrl?: string;
   slotElement?: HTMLElement | null;
+  itemIndex?: number;
+  itemSlug?: string;
+  itemTitle?: string;
 }
+
+export interface SlotWireAuthUser {
+  email: string;
+  name?: string;
+  provider?: string;
+}
+
+export const SlotWireAuthManager = {
+  getStorageKey(apiUrl: string): string {
+    const clean = (apiUrl || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/[:.]/g, '_');
+    return `slotwire_auth_${clean || 'default'}`;
+  },
+
+  getToken(apiUrl: string): string | null {
+    try {
+      return localStorage.getItem(this.getStorageKey(apiUrl)) || null;
+    } catch {
+      return null;
+    }
+  },
+
+  getUser(apiUrl: string): SlotWireAuthUser | null {
+    try {
+      const raw = localStorage.getItem(`${this.getStorageKey(apiUrl)}_user`);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  setAuth(apiUrl: string, token: string, user: SlotWireAuthUser) {
+    try {
+      localStorage.setItem(this.getStorageKey(apiUrl), token);
+      localStorage.setItem(`${this.getStorageKey(apiUrl)}_user`, JSON.stringify(user));
+    } catch {}
+  },
+
+  clearAuth(apiUrl: string) {
+    try {
+      localStorage.removeItem(this.getStorageKey(apiUrl));
+      localStorage.removeItem(`${this.getStorageKey(apiUrl)}_user`);
+    } catch {}
+  },
+
+  async checkAuth(apiUrl: string, provider: string): Promise<{ authenticated: boolean; user?: SlotWireAuthUser }> {
+    const token = this.getToken(apiUrl);
+    if (!token) {
+      return { authenticated: false };
+    }
+
+    const cleanApi = (apiUrl || '').replace(/\/+$/, '');
+    const probeUrl = provider === 'wordpress' ? `${cleanApi}/wp-json/wp/v2/users/me` : `${cleanApi}/ext/auth/me`;
+
+    try {
+      const res = await fetch(probeUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (res.ok) {
+        const json: any = await res.json().catch(() => ({}));
+        const user = json.user || { email: json.email || json.name || 'operator' };
+        this.setAuth(apiUrl, token, user);
+        return { authenticated: true, user };
+      } else {
+        this.clearAuth(apiUrl);
+        return { authenticated: false };
+      }
+    } catch {
+      const cachedUser = this.getUser(apiUrl);
+      if (cachedUser) {
+        return { authenticated: true, user: cachedUser };
+      }
+      return { authenticated: false };
+    }
+  },
+
+  openAuthPopup(apiUrl: string, provider: string): Promise<{ token: string; user: SlotWireAuthUser }> {
+    return new Promise((resolve, reject) => {
+      const cleanApi = (apiUrl || '').replace(/\/+$/, '');
+      const returnOrigin = window.location.origin;
+      const loginUrl =
+        provider === 'wordpress'
+          ? `${cleanApi}/wp-login.php?slotwire_auth=1&origin=${encodeURIComponent(returnOrigin)}`
+          : `${cleanApi}/admin/login?slotwire_auth=1&origin=${encodeURIComponent(returnOrigin)}`;
+
+      const w = 500;
+      const h = 650;
+      const left = Math.max(0, (window.screen.width - w) / 2);
+      const top = Math.max(0, (window.screen.height - h) / 2);
+
+      const popup = window.open(
+        loginUrl,
+        'slotwire_cms_auth',
+        `width=${w},height=${h},top=${top},left=${left},status=no,resizable=yes,scrollbars=yes`
+      );
+
+      if (!popup) {
+        alert('Please allow popups for this site to sign in to the CMS.');
+        return reject(new Error('Popup blocked'));
+      }
+
+      const onMessage = (event: MessageEvent) => {
+        if (event.data && event.data.type === 'slotwire:auth_success') {
+          window.removeEventListener('message', onMessage);
+          const token = event.data.token;
+          const user: SlotWireAuthUser = {
+            email: event.data.email || 'operator',
+            name: event.data.name,
+            provider: event.data.provider || provider,
+          };
+          SlotWireAuthManager.setAuth(apiUrl, token, user);
+          resolve({ token, user });
+        }
+      };
+
+      window.addEventListener('message', onMessage);
+
+      const timer = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(timer);
+          window.removeEventListener('message', onMessage);
+        }
+      }, 500);
+    });
+  },
+};
 
 /**
  * Initializes the 80/20 in-situ Quick Edit slide-over drawer:
@@ -602,7 +735,7 @@ export interface QuickEditDrawerParams {
  * - Direct mutation dispatcher to POST /api/slotwire/quick-save
  * - Zero-latency optimistic DOM update on save
  */
-export function initQuickEditDrawer(options: { adminUrl?: string; provider?: string } = {}) {
+export function initQuickEditDrawer(options: { adminUrl?: string; apiUrl?: string; provider?: string; editor?: 'markdown' | 'html' } = {}) {
   if (typeof window === 'undefined') return;
 
   const { adminUrl = '/admin' } = options;
@@ -635,6 +768,25 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
   }
 
   const root = document.getElementById('slotwire-quick-drawer-root');
+  const configuredApiUrl =
+    root?.getAttribute('data-api-url') ||
+    options.apiUrl ||
+    (options.provider === 'slottd' ? 'http://localhost:8787' : '');
+  const configuredProvider =
+    root?.getAttribute('data-provider') ||
+    options.provider ||
+    'slottd';
+  const configuredAdminUrl =
+    root?.getAttribute('data-admin-url') ||
+    options.adminUrl ||
+    adminUrl ||
+    configuredApiUrl ||
+    '/admin';
+
+  const configuredEditor: 'markdown' | 'html' =
+    (root?.getAttribute('data-editor') as any) ||
+    options.editor ||
+    (configuredProvider === 'wordpress' ? 'html' : 'markdown');
   const backdrop = document.getElementById('slotwire-quick-drawer-backdrop');
   const drawer = document.getElementById('slotwire-quick-edit-drawer');
   const closeBtn = document.getElementById('sw-quick-close-btn');
@@ -652,39 +804,325 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
   let currentDocId = '';
   let currentSlotEl: HTMLElement | null = null;
 
+  async function updateDrawerAuthState() {
+    const authCard = document.getElementById('sw-quick-auth-card');
+    const userChip = document.getElementById('sw-quick-user-chip');
+    const userEmailSpan = document.getElementById('sw-quick-user-email');
+    const loginBtn = document.getElementById('sw-quick-login-btn');
+    const signoutBtn = document.getElementById('sw-quick-signout-btn');
+    const sBtn = (document.getElementById('sw-quick-save-btn') as HTMLButtonElement | null) || saveBtn;
+    const activeFc = document.getElementById('sw-quick-fields-container') || fieldsContainer;
+
+    if (loginBtn && (loginBtn as any).dataset.swBound !== 'true') {
+      (loginBtn as any).dataset.swBound = 'true';
+      loginBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        try {
+          loginBtn.textContent = 'Connecting...';
+          await SlotWireAuthManager.openAuthPopup(configuredApiUrl, configuredProvider);
+          await updateDrawerAuthState();
+        } catch (err: any) {
+          console.error('[SlotWire Auth] Login failed:', err);
+        } finally {
+          loginBtn.innerHTML = '🔑 Sign in to CMS ↗';
+        }
+      });
+    }
+
+    if (signoutBtn && (signoutBtn as any).dataset.swBound !== 'true') {
+      (signoutBtn as any).dataset.swBound = 'true';
+      signoutBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        SlotWireAuthManager.clearAuth(configuredApiUrl);
+        await updateDrawerAuthState();
+      });
+    }
+
+    const authStatus = await SlotWireAuthManager.checkAuth(configuredApiUrl, configuredProvider);
+
+    if (authStatus.authenticated && authStatus.user) {
+      authCard?.classList.add('hidden');
+      userChip?.classList.remove('hidden');
+      if (userEmailSpan) {
+        userEmailSpan.textContent = authStatus.user.email;
+      }
+
+      activeFc?.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input, textarea').forEach((input) => {
+        input.disabled = false;
+      });
+
+      if (sBtn && currentDocId) {
+        sBtn.disabled = false;
+        sBtn.title = '';
+        sBtn.innerHTML = '<span>🚀 Publish Changes</span>';
+        sBtn.style.opacity = '';
+        sBtn.style.cursor = '';
+      }
+    } else {
+      authCard?.classList.remove('hidden');
+      userChip?.classList.add('hidden');
+
+      activeFc?.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('input, textarea').forEach((input) => {
+        input.disabled = true;
+      });
+
+      if (sBtn) {
+        sBtn.disabled = true;
+        sBtn.title = 'Sign in to CMS required to publish';
+        sBtn.innerHTML = '<span>🔒 Sign in to Publish</span>';
+        sBtn.style.opacity = '0.6';
+        sBtn.style.cursor = 'not-allowed';
+      }
+    }
+  }
+
+  function applySavedDrawerWidth(targetDrawer: HTMLElement | null) {
+    if (!targetDrawer) return;
+    try {
+      const savedWidth = localStorage.getItem('slotwire_drawer_width');
+      if (savedWidth) {
+        const w = parseInt(savedWidth, 10);
+        if (!isNaN(w) && w >= 320 && w <= window.innerWidth - 20) {
+          targetDrawer.style.width = `${w}px`;
+          targetDrawer.style.maxWidth = `${w}px`;
+        }
+      }
+    } catch {}
+  }
+
+  applySavedDrawerWidth(drawer);
+
   function closeDrawer() {
-    backdrop?.classList.add('hidden');
-    drawer?.classList.remove('translate-x-0');
-    drawer?.classList.add('translate-x-full');
+    const bd = document.getElementById('slotwire-quick-drawer-backdrop') || backdrop;
+    const dr = document.getElementById('slotwire-quick-edit-drawer') || drawer;
+    bd?.classList.remove('sw-open');
+    bd?.classList.add('hidden');
+    dr?.classList.remove('sw-open');
+    dr?.classList.remove('translate-x-0');
+    dr?.classList.add('translate-x-full');
+  }
+
+  /**
+   * Resolves the specific child card/item element within a composite slot container
+   * using a multi-tiered heuristic strategy:
+   * 1. Direct attribute match ([data-slotwire-item-id], [data-id], [id], [data-slug])
+   * 2. Original heading/title match before edit
+   * 3. Link URL / destinationUrl / githubUrl match
+   * 4. Index-based child resolution within grid/list container
+   */
+  function resolveChildCardElement(
+    container: HTMLElement,
+    docId: string,
+    originalData?: any,
+    itemIndex?: number,
+    itemSlug?: string,
+    originalTitle?: string
+  ): HTMLElement | null {
+    if (!container) return null;
+
+    // Helper: verify element is in rendered slot content, NOT inside the in-situ badge or popover
+    const isContentEl = (el: Element | null): el is HTMLElement => {
+      if (!el) return false;
+      return !el.closest('.slotwire-in-situ-badge') && !el.closest('.slotwire-composite-popover');
+    };
+
+    // 1. Direct attribute match on the item card or child element by ID
+    if (docId) {
+      const allMatches = Array.from(
+        container.querySelectorAll(`[data-slotwire-item-id="${docId}"], [data-id="${docId}"], [data-item-id="${docId}"], [id="${docId}"]`)
+      ).filter(isContentEl) as HTMLElement[];
+
+      for (const m of allMatches) {
+        const card = m.closest('[data-slotwire-item-id], [class*="card"], [class*="item"], article, li, a') as HTMLElement | null;
+        if (card && card !== container && isContentEl(card)) {
+          return card;
+        }
+        return m;
+      }
+    }
+
+    // 1b. Direct slug match
+    if (itemSlug) {
+      const allMatches = Array.from(
+        container.querySelectorAll(`[data-slotwire-item-slug="${itemSlug}"], [data-slug="${itemSlug}"], [data-item-slug="${itemSlug}"]`)
+      ).filter(isContentEl) as HTMLElement[];
+
+      for (const m of allMatches) {
+        const card = m.closest('[data-slotwire-item-id], [class*="card"], [class*="item"], article, li, a') as HTMLElement | null;
+        if (card && card !== container && isContentEl(card)) {
+          return card;
+        }
+        return m;
+      }
+    }
+
+    // 1c. Direct index attribute match
+    if (itemIndex !== undefined && !isNaN(itemIndex) && itemIndex >= 0) {
+      const indexMatch = container.querySelector(`[data-slotwire-item-index="${itemIndex}"]`) as HTMLElement | null;
+      if (indexMatch && isContentEl(indexMatch)) {
+        return indexMatch;
+      }
+    }
+
+    // 2. Heading text match against originalTitle / originalData.title / originalData.name
+    const testTitle = (originalTitle || originalData?.title || originalData?.name || originalData?.heading || '').trim().toLowerCase();
+    if (testTitle) {
+      const headings = (Array.from(container.querySelectorAll('h1, h2, h3, h4, h5, h6')) as HTMLElement[]).filter(isContentEl);
+      for (const h of headings) {
+        const hText = (h.textContent || '').trim().toLowerCase();
+        if (hText === testTitle || hText.startsWith(testTitle) || testTitle.startsWith(hText)) {
+          const card = h.closest('article, li, [class*="card"], [class*="rounded"], .grid > *, .flex > *, a') as HTMLElement | null;
+          if (card && card !== container && isContentEl(card)) {
+            return card;
+          }
+          return h.parentElement;
+        }
+      }
+    }
+
+    // 3. Link URL match against destinationUrl / githubUrl / slug / url
+    const testUrl = (originalData?.destinationUrl || originalData?.githubUrl || originalData?.url || originalData?.link || '').trim();
+    if (testUrl && testUrl !== '#') {
+      const links = (Array.from(container.querySelectorAll('a[href]')) as HTMLAnchorElement[]).filter(isContentEl);
+      for (const a of links) {
+        const href = a.getAttribute('href') || '';
+        if (href === testUrl || href.endsWith(testUrl) || testUrl.endsWith(href)) {
+          const card = a.closest('article, li, [class*="card"], [class*="rounded"], .grid > *, .flex > *') as HTMLElement | null;
+          if (card && card !== container && isContentEl(card)) {
+            return card;
+          }
+          return a;
+        }
+      }
+    }
+
+    // 4. Index-based child resolution
+    if (itemIndex !== undefined && !isNaN(itemIndex) && itemIndex >= 0) {
+      const listContainers = (Array.from(
+        container.querySelectorAll('.grid, [class*="grid-cols"], ul, ol, [class*="flex-wrap"], [class*="gap-"]')
+      ) as HTMLElement[]).filter(isContentEl);
+
+      for (const lc of listContainers) {
+        const children = (Array.from(lc.children) as HTMLElement[]).filter(isContentEl);
+        if (children.length > itemIndex) {
+          return children[itemIndex];
+        }
+      }
+
+      const directChildren = (Array.from(container.children) as HTMLElement[]).filter(isContentEl);
+      if (directChildren.length > itemIndex) {
+        return directChildren[itemIndex];
+      }
+    }
+
+    return null;
   }
 
   function openDrawer(params: QuickEditDrawerParams) {
+    const bd = document.getElementById('slotwire-quick-drawer-backdrop') || backdrop;
+    const dr = document.getElementById('slotwire-quick-edit-drawer') || drawer;
+    applySavedDrawerWidth(dr);
+    const sb = document.getElementById('sw-quick-slot-badge') || slotBadge;
+    const dl = document.getElementById('sw-quick-doc-id') || docIdLabel;
+    const eh = (document.getElementById('sw-quick-escape-hatch') as HTMLAnchorElement | null) || escapeHatch;
+    const fc = document.getElementById('sw-quick-fields-container') || fieldsContainer;
+    const eb = document.getElementById('sw-quick-error') || errorBox;
+    const sBtn = (document.getElementById('sw-quick-save-btn') as HTMLButtonElement | null) || saveBtn;
+
     currentSlot = params.slot;
-    currentCollection = params.collection || params.slot;
-    currentDocId = params.documentId || '';
     currentSlotEl = params.slotElement || document.querySelector<HTMLElement>(`[data-slotwire-slot="${params.slot}"]`);
+    currentCollection =
+      params.collection ||
+      currentSlotEl?.getAttribute('data-slotwire-collection') ||
+      params.slot;
+    currentDocId =
+      params.documentId ||
+      params.data?.id ||
+      params.data?.rootId ||
+      params.data?.root_id ||
+      params.data?.slug ||
+      currentSlotEl?.getAttribute('data-slotwire-id') ||
+      '';
 
-    if (slotBadge) slotBadge.textContent = currentSlot;
-    if (docIdLabel) {
-      docIdLabel.textContent = currentDocId
+    // Persist to form dataset and window global state to eliminate multi-instance closure drift
+    const activeFormEl = (document.getElementById('sw-quick-edit-form') as HTMLFormElement | null) || form;
+    if (activeFormEl) {
+      activeFormEl.dataset.slot = currentSlot;
+      activeFormEl.dataset.collection = currentCollection;
+      activeFormEl.dataset.documentId = currentDocId;
+      if (params.itemIndex !== undefined) activeFormEl.dataset.itemIndex = String(params.itemIndex);
+      else delete activeFormEl.dataset.itemIndex;
+      if (params.itemSlug) activeFormEl.dataset.itemSlug = params.itemSlug;
+      else delete activeFormEl.dataset.itemSlug;
+      if (params.itemTitle) activeFormEl.dataset.itemTitle = params.itemTitle;
+      else delete activeFormEl.dataset.itemTitle;
+    }
+    if (sBtn) {
+      sBtn.dataset.slot = currentSlot;
+      sBtn.dataset.collection = currentCollection;
+      sBtn.dataset.documentId = currentDocId;
+      if (params.itemIndex !== undefined) sBtn.dataset.itemIndex = String(params.itemIndex);
+      else delete sBtn.dataset.itemIndex;
+      if (params.itemSlug) sBtn.dataset.itemSlug = params.itemSlug;
+      else delete sBtn.dataset.itemSlug;
+      if (params.itemTitle) sBtn.dataset.itemTitle = params.itemTitle;
+      else delete sBtn.dataset.itemTitle;
+    }
+
+    (window as any).__slotwire_drawer_state = {
+      slot: currentSlot,
+      collection: currentCollection,
+      documentId: currentDocId,
+      data: params.data,
+      editUrl: params.editUrl || '',
+      slotElement: currentSlotEl,
+      itemIndex: params.itemIndex,
+      itemSlug: params.itemSlug,
+      itemTitle: params.itemTitle,
+    };
+
+    if (sb) {
+      const itemTitle = params.data?.title || params.data?.label || params.data?.name;
+      sb.textContent = itemTitle ? `${currentSlot} / ${itemTitle}` : currentSlot;
+    }
+    if (dl) {
+      dl.textContent = currentDocId
         ? `${currentCollection} • id: ${currentDocId}`
-        : `${currentCollection} • new`;
+        : `${currentCollection} • unlinked`;
     }
 
-    if (escapeHatch) {
+    if (eh) {
       const fallbackUrl = `${adminUrl.replace(/\/+$/, '')}/content/${currentCollection}`;
-      escapeHatch.href = params.editUrl || fallbackUrl;
+      eh.href = params.editUrl || fallbackUrl;
     }
 
-    if (errorBox) {
-      errorBox.textContent = '';
-      errorBox.classList.add('hidden');
-    }
-
-    if (saveBtn) {
-      saveBtn.disabled = false;
-      saveBtn.innerHTML = '<span>💾 Save Draft</span>';
-      saveBtn.className = 'inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-500 transition-transform active:scale-[0.98]';
+    if (!currentDocId) {
+      if (eb) {
+        eb.innerHTML = `<span>⚠️ This slot is using template fallback data and has not yet been linked to a CMS document. Quick edit requires an existing CMS record. Use <a href="${eh?.href || '#'}" target="_blank" rel="noopener noreferrer" style="color:#34d399;text-decoration:underline;">Open Full CMS ↗</a> to create it.</span>`;
+        eb.classList.remove('hidden');
+        eb.style.display = 'block';
+      }
+      if (sBtn) {
+        sBtn.disabled = true;
+        sBtn.title = 'Cannot publish: Document does not exist in CMS yet';
+        sBtn.innerHTML = '<span>⚠️ Unlinked Slot</span>';
+        sBtn.style.opacity = '0.5';
+        sBtn.style.cursor = 'not-allowed';
+      }
+    } else {
+      if (eb) {
+        eb.textContent = '';
+        eb.classList.add('hidden');
+        eb.style.display = 'none';
+      }
+      if (sBtn) {
+        sBtn.disabled = false;
+        sBtn.title = '';
+        sBtn.style.opacity = '';
+        sBtn.style.cursor = '';
+        sBtn.innerHTML = '<span>🚀 Publish Changes</span>';
+        sBtn.className = 'sw-quick-save-btn';
+      }
     }
 
     // Derive fields to render
@@ -760,12 +1198,23 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
     }
 
     // Render HTML fields into container
-    if (fieldsContainer) {
-      fieldsContainer.innerHTML = Object.entries(fieldMap)
+    if (fc) {
+      fc.innerHTML = Object.entries(fieldMap)
         .map(([name, f]) => {
           if (f.type === 'markdown') {
+            if (configuredEditor === 'html') {
+              return `
+              <div class="space-y-1.5 sw-field-group" data-field-type="html">
+                <label for="sw-field-${name}" class="block font-mono text-[11px] font-semibold text-zinc-300">
+                  ${f.label} <span class="text-zinc-500 font-normal">(HTML)</span>
+                </label>
+                <div id="sw-pell-${name}" class="sw-pell-container"></div>
+                <input type="hidden" id="sw-field-${name}" name="${name}" value="${escapeHtml(f.value)}" />
+              </div>
+              `;
+            }
             return `
-              <div class="space-y-1.5 sw-field-group">
+              <div class="space-y-1.5 sw-field-group" data-field-type="markdown">
                 <div class="flex items-center justify-between">
                   <label for="sw-field-${name}" class="font-mono text-[11px] font-semibold text-zinc-300">
                     ${f.label}
@@ -834,7 +1283,7 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
         .join('');
 
       // Wire Write / Preview tabs
-      fieldsContainer.querySelectorAll('.sw-field-group').forEach((group) => {
+      fc.querySelectorAll('.sw-field-group').forEach((group) => {
         const writeBtn = group.querySelector('.sw-tab-write');
         const prevBtn = group.querySelector('.sw-tab-preview');
         const writePane = group.querySelector('.sw-write-pane');
@@ -865,78 +1314,215 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
           });
         }
       });
+
+      // Initialize Pell for HTML fields when configuredEditor === 'html'
+      if (configuredEditor === 'html') {
+        Object.entries(fieldMap).forEach(([name, f]) => {
+          if (f.type === 'markdown') {
+            const pellEl = fc.querySelector<HTMLElement>(`#sw-pell-${name}`);
+            const hiddenInput = fc.querySelector<HTMLInputElement>(`#sw-field-${name}`);
+            if (pellEl && hiddenInput) {
+              initPell({
+                element: pellEl,
+                initialHtml: String(f.value || ''),
+                onChange: (html) => {
+                  hiddenInput.value = html;
+                },
+              });
+            }
+          }
+        });
+      }
     }
 
+    // Check and update CMS auth state
+    updateDrawerAuthState();
+
     // Open drawer
-    backdrop?.classList.remove('hidden');
-    drawer?.classList.remove('translate-x-full');
-    drawer?.classList.add('translate-x-0');
+    bd?.classList.add('sw-open');
+    bd?.classList.remove('hidden');
+    dr?.classList.add('sw-open');
+    dr?.classList.remove('translate-x-full');
+    dr?.classList.add('translate-x-0');
 
     // Auto-focus first input
     setTimeout(() => {
-      const firstInput = fieldsContainer?.querySelector<HTMLInputElement | HTMLTextAreaElement>('input, textarea');
+      const firstInput = fc?.querySelector<HTMLInputElement | HTMLTextAreaElement>('input, textarea');
       firstInput?.focus();
     }, 50);
   }
 
   // Attach elements handlers (once per drawer element)
-  if (root && root.dataset.swBound !== 'true') {
-    root.dataset.swBound = 'true';
+  const activeRoot = document.getElementById('slotwire-quick-drawer-root') || root;
+  if (activeRoot && activeRoot.dataset.swBound !== 'true') {
+    activeRoot.dataset.swBound = 'true';
 
-    closeBtn?.addEventListener('click', closeDrawer);
-    cancelBtn?.addEventListener('click', closeDrawer);
-    backdrop?.addEventListener('click', closeDrawer);
+    const activeClose = document.getElementById('sw-quick-close-btn') || closeBtn;
+    const activeCancel = document.getElementById('sw-quick-cancel-btn') || cancelBtn;
+    const activeBackdrop = document.getElementById('slotwire-quick-drawer-backdrop') || backdrop;
+    const resizeHandle = document.getElementById('sw-quick-resize-handle');
+
+    if (resizeHandle) {
+      let isResizing = false;
+      let startX = 0;
+      let startWidth = 0;
+
+      const onMouseDown = (e: MouseEvent) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        isResizing = true;
+        startX = e.clientX;
+        const activeDr = document.getElementById('slotwire-quick-edit-drawer') || drawer;
+        startWidth = activeDr ? activeDr.getBoundingClientRect().width : 440;
+        resizeHandle.classList.add('sw-resizing');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+
+        const onMouseMove = (moveEv: MouseEvent) => {
+          if (!isResizing) return;
+          const delta = startX - moveEv.clientX;
+          const minW = 320;
+          const maxW = Math.max(window.innerWidth - 32, minW);
+          const newWidth = Math.min(Math.max(startWidth + delta, minW), maxW);
+          const currentDr = document.getElementById('slotwire-quick-edit-drawer') || drawer;
+          if (currentDr) {
+            currentDr.style.width = `${Math.round(newWidth)}px`;
+            currentDr.style.maxWidth = `${Math.round(newWidth)}px`;
+          }
+        };
+
+        const onMouseUp = () => {
+          if (!isResizing) return;
+          isResizing = false;
+          resizeHandle.classList.remove('sw-resizing');
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+          window.removeEventListener('mousemove', onMouseMove);
+          window.removeEventListener('mouseup', onMouseUp);
+
+          const currentDr = document.getElementById('slotwire-quick-edit-drawer') || drawer;
+          if (currentDr) {
+            const finalWidth = Math.round(currentDr.getBoundingClientRect().width);
+            try {
+              localStorage.setItem('slotwire_drawer_width', String(finalWidth));
+            } catch {}
+          }
+        };
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+      };
+
+      resizeHandle.addEventListener('mousedown', onMouseDown);
+    }
+
+    activeClose?.addEventListener('click', closeDrawer);
+    activeCancel?.addEventListener('click', closeDrawer);
+    activeBackdrop?.addEventListener('click', closeDrawer);
 
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && drawer && !drawer.classList.contains('translate-x-full')) {
+      const activeDr = document.getElementById('slotwire-quick-edit-drawer') || drawer;
+      if (e.key === 'Escape' && activeDr && (activeDr.classList.contains('sw-open') || !activeDr.classList.contains('translate-x-full'))) {
         closeDrawer();
       }
     });
 
-    form?.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      if (!currentDocId) {
-        if (errorBox) {
-          errorBox.textContent = 'Cannot quick-save: No document ID associated with this slot. Use "Open Full Studio" to create or link the record.';
-          errorBox.classList.remove('hidden');
+    let isSaving = false;
+    const executeQuickSave = async (e?: Event) => {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      if (isSaving) return;
+
+      const state = (window as any).__slotwire_drawer_state || {};
+      const eb = document.getElementById('sw-quick-error') || errorBox;
+      const sBtn = (document.getElementById('sw-quick-save-btn') as HTMLButtonElement | null) || saveBtn;
+      const activeForm = (document.getElementById('sw-quick-edit-form') as HTMLFormElement | null) || form;
+
+      const resolvedSlot = activeForm?.dataset.slot || sBtn?.dataset.slot || state.slot || currentSlot || '';
+      const resolvedCollection = activeForm?.dataset.collection || sBtn?.dataset.collection || state.collection || currentCollection || resolvedSlot;
+      const resolvedDocId = activeForm?.dataset.documentId || sBtn?.dataset.documentId || state.documentId || currentDocId || '';
+      const targetSlotEl = state.slotElement || currentSlotEl || (resolvedSlot ? document.querySelector<HTMLElement>(`[data-slotwire-slot="${resolvedSlot}"]`) : null);
+
+      console.log('[SlotWire] Quick Save initiated:', { resolvedSlot, resolvedCollection, resolvedDocId });
+
+      if (!resolvedDocId) {
+        const msg = `Cannot publish: No document ID or slug associated with slot '${resolvedSlot}'. Use "Open Full CMS" to edit or link this record.`;
+        console.error('[SlotWire] ' + msg);
+        if (eb) {
+          eb.textContent = msg;
+          eb.classList.remove('hidden');
+          eb.style.display = 'block';
         }
         return;
       }
 
-      const formData = new FormData(form);
+      const formData = activeForm ? new FormData(activeForm) : new FormData();
       const patchData: Record<string, any> = {};
       formData.forEach((val, key) => {
         patchData[key] = val;
       });
 
-      if (saveBtn) {
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = '<span>💾 Saving...</span>';
+      patchData.status = 'published';
+
+      if (sBtn) {
+        sBtn.disabled = true;
+        sBtn.innerHTML = '<span>🚀 Publishing...</span>';
       }
-      if (errorBox) {
-        errorBox.classList.add('hidden');
-        errorBox.textContent = '';
+      if (eb) {
+        eb.classList.add('hidden');
+        eb.style.display = 'none';
+        eb.textContent = '';
       }
 
+      isSaving = true;
       try {
+        let token = SlotWireAuthManager.getToken(configuredApiUrl);
+        if (!token) {
+          try {
+            const authRes = await SlotWireAuthManager.openAuthPopup(configuredApiUrl, configuredProvider);
+            token = authRes.token;
+            await updateDrawerAuthState();
+          } catch {
+            isSaving = false;
+            if (sBtn) {
+              sBtn.disabled = false;
+              sBtn.innerHTML = '<span>🚀 Publish Changes</span>';
+            }
+            return;
+          }
+        }
+
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          'x-slotwire-action': 'quick-save',
+        };
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
         const res = await fetch('/api/slotwire/quick-save', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-slotwire-action': 'quick-save',
-          },
+          headers,
           body: JSON.stringify({
-            collection: currentCollection,
-            documentId: currentDocId,
+            collection: resolvedCollection,
+            documentId: resolvedDocId,
+            publish: true,
             data: patchData,
           }),
         });
 
         if (!res.ok) {
-          let errMsg = `Save failed (${res.status})`;
+          if (res.status === 401) {
+            SlotWireAuthManager.clearAuth(configuredApiUrl);
+            await updateDrawerAuthState();
+          }
+          let errMsg = `Publish failed (${res.status})`;
           try {
             const json = await res.json();
             if (json.error) errMsg = json.error;
+            if (json.message) errMsg = `${errMsg}: ${json.message}`;
           } catch {
             const text = await res.text();
             if (text) errMsg = text;
@@ -944,36 +1530,185 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
           throw new Error(errMsg);
         }
 
-        if (saveBtn) {
-          saveBtn.innerHTML = '<span>✓ Saved!</span>';
-          saveBtn.classList.remove('bg-emerald-600');
-          saveBtn.classList.add('bg-emerald-500');
+        console.log('[SlotWire] Quick Save succeeded:', { resolvedSlot, resolvedDocId });
+
+        if (sBtn) {
+          sBtn.innerHTML = '<span>✓ Published!</span>';
+          sBtn.classList.add('sw-published');
         }
 
         // Optimistic DOM Updates
-        if (currentSlotEl) {
-          Object.entries(patchData).forEach(([k, v]) => {
-            const fieldEl = currentSlotEl!.querySelector(`[data-slotwire-field="${k}"]`);
-            if (fieldEl) {
-              fieldEl.textContent = String(v);
+        if (targetSlotEl) {
+          const rawIndex = activeForm?.dataset.itemIndex || state.itemIndex;
+          const itemIndex = rawIndex !== undefined && rawIndex !== '' ? parseInt(String(rawIndex), 10) : undefined;
+          const itemSlug = activeForm?.dataset.itemSlug || state.itemSlug || state.data?.slug || '';
+          const originalTitle = activeForm?.dataset.itemTitle || state.itemTitle || state.data?.title || state.data?.name || '';
+          const originalData = state.data;
+
+          // Check if this is a composite slot item
+          const popoverBtn = (targetSlotEl as HTMLElement).querySelector(`.slotwire-popover-quick-btn[data-document-id="${resolvedDocId}"]`) as HTMLButtonElement | null;
+          const isCompositeItem = Boolean(popoverBtn || itemIndex !== undefined || (targetSlotEl as HTMLElement).hasAttribute('data-slotwire-items'));
+
+          let targetItemEl: HTMLElement | null = targetSlotEl;
+          if (isCompositeItem) {
+            const resolvedCard = resolveChildCardElement(targetSlotEl, resolvedDocId, originalData, itemIndex, itemSlug, originalTitle);
+            if (resolvedCard) {
+              targetItemEl = resolvedCard;
+            } else {
+              targetItemEl = null;
+              console.warn('[SlotWire] Could not resolve specific composite item card for optimistic update:', { resolvedDocId, itemIndex, itemSlug });
             }
-          });
-
-          if (patchData.title) {
-            const heading = currentSlotEl.querySelector('h1, h2, h3, h4');
-            if (heading) heading.textContent = String(patchData.title);
           }
 
-          const bodyVal = patchData.content || patchData.body || patchData.description;
-          if (bodyVal) {
-            const p = currentSlotEl.querySelector('p, .prose');
-            if (p) p.textContent = String(bodyVal);
+          // If this is a composite slot item, update the popover item label and stored data
+          if (popoverBtn) {
+            const popoverItem = popoverBtn.closest('.slotwire-popover-item');
+            const labelEl = popoverItem?.querySelector('.slotwire-popover-item-label');
+            const newLabel = patchData.title || patchData.label || patchData.name || patchData.heading || patchData.authorName;
+            if (labelEl && newLabel) {
+              labelEl.textContent = String(newLabel);
+              (labelEl as HTMLElement).title = String(newLabel);
+            }
+            if (newLabel) {
+              popoverBtn.setAttribute('data-item-title', String(newLabel));
+            }
+            try {
+              const existingRaw = popoverBtn.getAttribute('data-slot-data');
+              const existingData = existingRaw ? JSON.parse(existingRaw) : {};
+              const merged = { ...existingData, ...patchData };
+              popoverBtn.setAttribute('data-slot-data', JSON.stringify(merged));
+            } catch {}
           }
 
-          const statusTag = currentSlotEl.querySelector('.slotwire-status-tag');
-          if (statusTag) {
-            statusTag.textContent = 'Draft Modified';
-            statusTag.className = 'slotwire-status-tag sw-status-modified';
+          // Apply optimistic DOM updates if target item/card was resolved
+          if (targetItemEl) {
+            const handledFields = new Set<string>();
+
+            // 1. Update explicit data-slotwire-field attributes within targetItemEl
+            Object.entries(patchData).forEach(([k, v]) => {
+              const fieldEl = targetItemEl!.querySelector(`[data-slotwire-field="${k}"]`) ||
+                (targetItemEl!.getAttribute('data-slotwire-field') === k ? targetItemEl : null);
+              if (fieldEl) {
+                handledFields.add(k);
+                if (configuredEditor === 'html' || /<[a-z][\s\S]*>/i.test(String(v))) {
+                  fieldEl.innerHTML = String(v);
+                } else {
+                  fieldEl.textContent = String(v);
+                }
+              }
+            });
+
+            // 2. Update Heading (Title / Name / Heading / Author)
+            const newHeading = patchData.title || patchData.name || patchData.heading || patchData.authorName;
+            const headingHandled = ['title', 'name', 'heading', 'authorName'].some((f) => handledFields.has(f));
+            if (newHeading && !headingHandled) {
+              const heading = targetItemEl.querySelector('h1, h2, h3, h4, h5, h6') || (targetItemEl.matches('h1, h2, h3, h4, h5, h6') ? targetItemEl : null);
+              if (heading && !heading.closest('.slotwire-in-situ-badge')) {
+                heading.textContent = String(newHeading);
+              }
+            }
+
+            // 3. Update Body / Paragraph / Description / Content / Quote
+            const bodyVal = patchData.content || patchData.body || patchData.description || patchData.summary || patchData.excerpt || patchData.quoteText || patchData.quote;
+            const bodyHandled = ['content', 'body', 'description', 'summary', 'excerpt', 'quoteText', 'quote'].some((f) => handledFields.has(f));
+            if (bodyVal !== undefined && !bodyHandled) {
+              const p = targetItemEl.querySelector('p, .prose, [class*="description"], [class*="summary"]') || (targetItemEl.matches('p') ? targetItemEl : null);
+              if (p && !p.closest('.slotwire-in-situ-badge')) {
+                if (configuredEditor === 'html' || /<[a-z][\s\S]*>/i.test(String(bodyVal))) {
+                  p.innerHTML = String(bodyVal);
+                } else {
+                  p.textContent = String(bodyVal);
+                }
+              }
+            }
+
+            // 4. Update Badge Text / Category
+            const badgeVal = patchData.badgeText || patchData.badge;
+            const badgeHandled = ['badgeText', 'badge'].some((f) => handledFields.has(f));
+            if (badgeVal !== undefined && !badgeHandled) {
+              const badgeEl = targetItemEl.querySelector('[class*="badge"], [class*="rounded-full"]');
+              if (badgeEl && !badgeEl.closest('.slotwire-in-situ-badge')) {
+                const textChild = badgeEl.querySelector('span, [class*="label"], [class*="text"]');
+                if (textChild) {
+                  textChild.textContent = String(badgeVal);
+                } else {
+                  const icon = badgeEl.querySelector('svg, img');
+                  if (icon) {
+                    let foundText = false;
+                    for (const node of Array.from(badgeEl.childNodes)) {
+                      if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
+                        node.textContent = ` ${badgeVal}`;
+                        foundText = true;
+                        break;
+                      }
+                    }
+                    if (!foundText) {
+                      badgeEl.appendChild(document.createTextNode(` ${badgeVal}`));
+                    }
+                  } else {
+                    badgeEl.textContent = String(badgeVal);
+                  }
+                }
+              }
+            }
+
+            // 5. Update Destination URL / Links
+            const newUrl = patchData.destinationUrl || patchData.githubUrl || patchData.url || patchData.href;
+            const urlHandled = ['destinationUrl', 'githubUrl', 'url', 'href'].some((f) => handledFields.has(f));
+            if (newUrl && !urlHandled) {
+              if (targetItemEl.tagName === 'A') {
+                (targetItemEl as HTMLAnchorElement).href = String(newUrl);
+              } else {
+                const a = targetItemEl.querySelector<HTMLAnchorElement>('a[href]');
+                if (a && !a.closest('.slotwire-in-situ-badge')) {
+                  a.href = String(newUrl);
+                }
+              }
+            }
+
+            // 6. Update Author Role / Subtitle
+            const roleVal = patchData.authorRole || patchData.role || patchData.subtitle;
+            const roleHandled = ['authorRole', 'role', 'subtitle'].some((f) => handledFields.has(f));
+            if (roleVal !== undefined && !roleHandled) {
+              const roleEl = targetItemEl.querySelector('[class*="role"], [class*="subtitle"], a[href*="http"]');
+              if (roleEl && !roleEl.closest('.slotwire-in-situ-badge')) {
+                roleEl.textContent = String(roleVal);
+              }
+            }
+
+            // 7. Status Badge Tag (for single slots)
+            if (!isCompositeItem) {
+              const statusTag = targetSlotEl.querySelector('.slotwire-status-tag');
+              if (statusTag) {
+                statusTag.textContent = 'Published';
+                statusTag.className = 'slotwire-status-tag sw-status-published';
+              }
+            }
+
+            // 8. Visual Feedback: subtle emerald pulse highlight on the updated card/element
+            const prevTransition = targetItemEl.style.transition;
+            const prevOutline = targetItemEl.style.outline;
+            const prevShadow = targetItemEl.style.boxShadow;
+            targetItemEl.style.transition = 'all 0.35s ease';
+            targetItemEl.style.outline = '2px solid #10b981';
+            targetItemEl.style.outlineOffset = '2px';
+            targetItemEl.style.boxShadow = '0 0 16px rgba(16, 185, 129, 0.4)';
+            setTimeout(() => {
+              if (targetItemEl) {
+                targetItemEl.style.outline = prevOutline;
+                targetItemEl.style.outlineOffset = '';
+                targetItemEl.style.boxShadow = prevShadow;
+                targetItemEl.style.transition = prevTransition;
+              }
+            }, 2400);
+
+            try {
+              const rect = targetItemEl.getBoundingClientRect();
+              const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+              if (!isVisible) {
+                targetItemEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+              }
+            } catch {}
           }
         }
 
@@ -981,9 +1716,10 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
         window.dispatchEvent(new CustomEvent('slotwire:recompiled'));
         window.dispatchEvent(new CustomEvent('slotwire:quick-saved', {
           detail: {
-            slot: currentSlot,
-            collection: currentCollection,
-            documentId: currentDocId,
+            slot: resolvedSlot,
+            collection: resolvedCollection,
+            documentId: resolvedDocId,
+            status: 'published',
             data: patchData,
           },
         }));
@@ -992,16 +1728,26 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
           closeDrawer();
         }, 800);
       } catch (err: any) {
-        if (errorBox) {
-          errorBox.textContent = `Save Error: ${err.message}`;
-          errorBox.classList.remove('hidden');
+        console.error('[SlotWire] Quick Save error:', err);
+        if (eb) {
+          eb.textContent = `Publish Error: ${err.message}`;
+          eb.classList.remove('hidden');
+          eb.style.display = 'block';
         }
-        if (saveBtn) {
-          saveBtn.disabled = false;
-          saveBtn.innerHTML = '<span>💾 Save Draft</span>';
+        if (sBtn) {
+          sBtn.disabled = false;
+          sBtn.innerHTML = '<span>🚀 Publish Changes</span>';
         }
+      } finally {
+        isSaving = false;
       }
-    });
+    };
+
+    const activeForm = (document.getElementById('sw-quick-edit-form') as HTMLFormElement | null) || form;
+    const activeSaveBtn = (document.getElementById('sw-quick-save-btn') as HTMLButtonElement | null) || saveBtn;
+
+    activeForm?.addEventListener('submit', executeQuickSave);
+    activeSaveBtn?.addEventListener('click', executeQuickSave);
   }
 
   // Global Click Delegate (runs once across whole page lifecycle)
@@ -1009,8 +1755,8 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
     (window as any).__slotwire_quick_edit_delegate_bound = true;
 
     document.addEventListener('click', (e) => {
-      // 1. Badge "⚡ Edit" button
-      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.slotwire-badge-quick-edit-btn');
+      // 1. Badge "Quick Edit" button
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.slotwire-badge-quick-edit-btn, .slotwire-popover-quick-btn');
       if (btn) {
         e.preventDefault();
         e.stopPropagation();
@@ -1018,17 +1764,22 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
         const collection = btn.getAttribute('data-collection') || slot;
         const documentId = btn.getAttribute('data-document-id') || '';
         const editUrl = btn.getAttribute('data-edit-url') || '';
+        const rawIndex = btn.getAttribute('data-item-index');
+        const itemIndex = rawIndex !== null && rawIndex !== '' ? parseInt(rawIndex, 10) : undefined;
+        const itemSlug = btn.getAttribute('data-item-slug') || '';
+        const itemTitle = btn.getAttribute('data-item-title') || '';
         let data: any = null;
         try {
           const raw = btn.getAttribute('data-slot-data');
           if (raw) data = JSON.parse(raw);
         } catch {}
         const container = btn.closest<HTMLElement>('.slotwire-slot-container') || document.querySelector<HTMLElement>(`[data-slotwire-slot="${slot}"]`);
-        openDrawer({ slot, collection, documentId, data, editUrl, slotElement: container });
+        const openFn = (window as any).__slotwire_open_quick_drawer || openDrawer;
+        openFn({ slot, collection, documentId, data, editUrl, slotElement: container, itemIndex, itemSlug, itemTitle });
         return;
       }
 
-      // 2. Inspector "⚡ Quick" button
+      // 2. Inspector "Quick Edit" button
       const inspectorBtn = (e.target as HTMLElement).closest<HTMLButtonElement>('.sw-quick-edit-trigger');
       if (inspectorBtn) {
         e.preventDefault();
@@ -1038,33 +1789,260 @@ export function initQuickEditDrawer(options: { adminUrl?: string; provider?: str
         const slotName = (nameEl?.textContent || '').replace(/^#/, '').trim();
         if (slotName) {
           const container = document.querySelector<HTMLElement>(`[data-slotwire-slot="${slotName}"]`);
-          const badgeBtn = container?.querySelector<HTMLButtonElement>('.slotwire-badge-quick-edit-btn');
+          // Only click the main badge quick edit button if it exists directly on the badge card (single slots)
+          const badgeBtn = container?.querySelector<HTMLButtonElement>('.slotwire-badge-card > .slotwire-badge-quick-edit-btn');
           if (badgeBtn) {
             badgeBtn.click();
           } else if (container) {
+            if (container.hasAttribute('data-slotwire-items')) {
+              container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              return;
+            }
             const collection = container.getAttribute('data-slotwire-collection') || slotName;
             const documentId = container.getAttribute('data-slotwire-id') || '';
             const editUrl = container.getAttribute('data-slotwire-edit-url') || '';
-            openDrawer({ slot: slotName, collection, documentId, data: null, editUrl, slotElement: container });
+            const openFn = (window as any).__slotwire_open_quick_drawer || openDrawer;
+            openFn({ slot: slotName, collection, documentId, data: null, editUrl, slotElement: container });
           }
         }
+        return;
+      }
+
+      // 3. Manual Slot Refresh Button (.slotwire-badge-refresh-btn or .sw-slot-refresh-btn)
+      const refreshBtn = (e.target as HTMLElement).closest<HTMLButtonElement>(
+        '.slotwire-badge-refresh-btn, .sw-slot-refresh-btn'
+      );
+      if (refreshBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const slotName = refreshBtn.getAttribute('data-slot') || refreshBtn.getAttribute('data-slot-name');
+        if (slotName) {
+          refreshSlot(slotName);
+        }
+        return;
+      }
+
+      // 4. Refresh All Slots Button (#sw-btn-refresh-all)
+      const refreshAllBtn = (e.target as HTMLElement).closest<HTMLButtonElement>('#sw-btn-refresh-all');
+      if (refreshAllBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        refreshAllSlots();
         return;
       }
     });
 
     window.addEventListener('slotwire:open-quick-edit', (e: any) => {
       if (e.detail) {
-        openDrawer(e.detail);
+        const openFn = (window as any).__slotwire_open_quick_drawer || openDrawer;
+        openFn(e.detail);
       }
     });
   }
 
   (window as any).__slotwire_open_quick_drawer = openDrawer;
+  (window as any).__slotwire_refresh_slot = refreshSlot;
+  (window as any).__slotwire_refresh_all = refreshAllSlots;
 
   return {
     open: openDrawer,
     close: closeDrawer,
+    refreshSlot,
+    refreshAllSlots,
   };
+}
+
+/**
+ * In-Situ Manual Slot Refresh (No Page Reload)
+ * Fetches fresh SSR markup from the server and swaps slot content in-place with an emerald pulse.
+ */
+export async function refreshSlot(slotName: string): Promise<boolean> {
+  const targetSlotEl =
+    document.querySelector<HTMLElement>(`.slotwire-slot-container[data-slotwire-slot="${slotName}"]`) ||
+    document.querySelector<HTMLElement>(`[data-slotwire-slot="${slotName}"]`);
+  if (!targetSlotEl) {
+    console.warn(`[SlotWire] Cannot refresh: slot '${slotName}' not found in DOM`);
+    return false;
+  }
+
+  const refreshBtns = Array.from(
+    document.querySelectorAll<HTMLElement>(
+      `.slotwire-badge-refresh-btn[data-slot="${slotName}"], .sw-slot-refresh-btn[data-slot-name="${slotName}"]`
+    )
+  );
+  refreshBtns.forEach((b) => b.classList.add('sw-spinning'));
+
+  try {
+    const refreshUrl = new URL(window.location.href);
+    refreshUrl.searchParams.set('_sw_t', Date.now().toString());
+    const res = await fetch(refreshUrl.toString(), {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'x-slotwire-refresh': '1',
+      },
+    });
+    if (!res.ok) throw new Error(`Server returned HTTP ${res.status}`);
+    const html = await res.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const freshSlot =
+      doc.querySelector<HTMLElement>(`.slotwire-slot-container[data-slotwire-slot="${slotName}"]`) ||
+      doc.querySelector<HTMLElement>(`[data-slotwire-slot="${slotName}"]`);
+
+    if (!freshSlot) {
+      throw new Error(`Slot '${slotName}' missing from server response`);
+    }
+
+    const isSystemEl = (el: Element) =>
+      el.matches('.slotwire-in-situ-badge, .slotwire-inspector-modal, .slotwire-assist-container, aside#slotwire-quick-edit-drawer, [id*="slotwire-quick"]');
+
+    const oldContentNodes = Array.from(targetSlotEl.children).filter((c) => !isSystemEl(c));
+    const freshContentNodes = Array.from(freshSlot.children).filter((c) => !isSystemEl(c));
+
+    if (freshContentNodes.length > 0) {
+      if (oldContentNodes.length > 0) {
+        const adoptedFresh = document.importNode(freshContentNodes[0], true);
+        oldContentNodes[0].replaceWith(adoptedFresh);
+        for (let i = 1; i < oldContentNodes.length; i++) {
+          oldContentNodes[i].remove();
+        }
+      } else {
+        const adoptedFresh = document.importNode(freshContentNodes[0], true);
+        targetSlotEl.appendChild(adoptedFresh);
+      }
+
+      // Update container attributes if present
+      if (freshSlot.hasAttribute('data-slotwire-items')) {
+        targetSlotEl.setAttribute('data-slotwire-items', freshSlot.getAttribute('data-slotwire-items') || '');
+      }
+      if (freshSlot.hasAttribute('data-slotwire-status')) {
+        targetSlotEl.setAttribute('data-slotwire-status', freshSlot.getAttribute('data-slotwire-status') || '');
+      }
+
+      // Reconcile and update in-situ badge if present so composite item lists & counts update
+      const oldBadge = targetSlotEl.querySelector('.slotwire-in-situ-badge');
+      const freshBadge = freshSlot.querySelector('.slotwire-in-situ-badge');
+      if (oldBadge && freshBadge) {
+        oldBadge.replaceWith(document.importNode(freshBadge, true));
+      }
+
+      // ── CRITICAL: Re-activate and reveal elements with scroll-reveal animations (mos, aos, sal) ──
+      const revealSelectors = '[data-mos], [data-aos], [data-sal], .fade-in, .animate-on-scroll';
+      targetSlotEl.querySelectorAll<HTMLElement>(revealSelectors).forEach((el) => {
+        el.classList.add('mos-animate', 'aos-animate', 'sal-animate');
+        el.style.opacity = '1';
+        el.style.transform = 'none';
+        el.style.visibility = 'visible';
+      });
+      if (targetSlotEl.matches(revealSelectors)) {
+        targetSlotEl.classList.add('mos-animate', 'aos-animate', 'sal-animate');
+        targetSlotEl.style.opacity = '1';
+        targetSlotEl.style.transform = 'none';
+        targetSlotEl.style.visibility = 'visible';
+      }
+
+      // Dispatch standard Astro lifecycle events so any page-level scripts and observers re-bind
+      window.dispatchEvent(new CustomEvent('astro:page-load'));
+      window.dispatchEvent(new CustomEvent('astro:after-swap'));
+
+      // Visual pulse feedback
+      targetSlotEl.style.transition = 'outline 0.25s ease, box-shadow 0.25s ease';
+      targetSlotEl.style.outline = '2px solid #10b981';
+      targetSlotEl.style.boxShadow = '0 0 20px rgba(16, 185, 129, 0.45)';
+      setTimeout(() => {
+        targetSlotEl.style.outline = '';
+        targetSlotEl.style.boxShadow = '';
+      }, 1600);
+
+      console.log(`[SlotWire] Slot '${slotName}' refreshed from CMS in-situ.`);
+      window.dispatchEvent(new CustomEvent('slotwire:slot-refreshed', { detail: { slot: slotName } }));
+      return true;
+    }
+  } catch (err) {
+    console.error(`[SlotWire] Failed to refresh slot '${slotName}':`, err);
+  } finally {
+    refreshBtns.forEach((b) => b.classList.remove('sw-spinning'));
+  }
+  return false;
+}
+
+/**
+ * In-Situ Refresh for All Slots on the Page
+ */
+export async function refreshAllSlots(): Promise<void> {
+  const slots = Array.from(document.querySelectorAll<HTMLElement>('.slotwire-slot-container[data-slotwire-slot], [data-slotwire-slot]'));
+  if (slots.length === 0) return;
+
+  const refreshAllBtn = document.getElementById('sw-btn-refresh-all');
+  if (refreshAllBtn) refreshAllBtn.classList.add('sw-spinning');
+
+  try {
+    const refreshUrl = new URL(window.location.href);
+    refreshUrl.searchParams.set('_sw_t', Date.now().toString());
+    const res = await fetch(refreshUrl.toString(), {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'x-slotwire-refresh': '1',
+      },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const html = await res.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+
+    const isSystemEl = (el: Element) =>
+      el.matches('.slotwire-in-situ-badge, .slotwire-inspector-modal, .slotwire-assist-container, aside#slotwire-quick-edit-drawer, [id*="slotwire-quick"]');
+
+    const processedSlots = new Set<string>();
+
+    for (const slotEl of slots) {
+      const slotName = slotEl.getAttribute('data-slotwire-slot');
+      if (!slotName || processedSlots.has(slotName)) continue;
+      processedSlots.add(slotName);
+
+      const freshSlot =
+        doc.querySelector<HTMLElement>(`.slotwire-slot-container[data-slotwire-slot="${slotName}"]`) ||
+        doc.querySelector<HTMLElement>(`[data-slotwire-slot="${slotName}"]`);
+
+      if (freshSlot) {
+        const oldContent = Array.from(slotEl.children).find((c) => !isSystemEl(c));
+        const freshContent = Array.from(freshSlot.children).find((c) => !isSystemEl(c));
+        if (oldContent && freshContent) {
+          oldContent.replaceWith(document.importNode(freshContent, true));
+        }
+        if (freshSlot.hasAttribute('data-slotwire-items')) {
+          slotEl.setAttribute('data-slotwire-items', freshSlot.getAttribute('data-slotwire-items') || '');
+        }
+        if (freshSlot.hasAttribute('data-slotwire-status')) {
+          slotEl.setAttribute('data-slotwire-status', freshSlot.getAttribute('data-slotwire-status') || '');
+        }
+        const oldBadge = slotEl.querySelector('.slotwire-in-situ-badge');
+        const freshBadge = freshSlot.querySelector('.slotwire-in-situ-badge');
+        if (oldBadge && freshBadge) {
+          oldBadge.replaceWith(document.importNode(freshBadge, true));
+        }
+
+        const revealSelectors = '[data-mos], [data-aos], [data-sal], .fade-in, .animate-on-scroll';
+        slotEl.querySelectorAll<HTMLElement>(revealSelectors).forEach((el) => {
+          el.classList.add('mos-animate', 'aos-animate', 'sal-animate');
+          el.style.opacity = '1';
+          el.style.transform = 'none';
+          el.style.visibility = 'visible';
+        });
+      }
+    }
+
+    window.dispatchEvent(new CustomEvent('astro:page-load'));
+    window.dispatchEvent(new CustomEvent('astro:after-swap'));
+    console.log(`[SlotWire] All ${processedSlots.size} slots refreshed in-situ.`);
+    window.dispatchEvent(new CustomEvent('slotwire:all-refreshed'));
+  } catch (err) {
+    console.error('[SlotWire] Failed to refresh all slots:', err);
+  } finally {
+    if (refreshAllBtn) refreshAllBtn.classList.remove('sw-spinning');
+  }
 }
 
 /**

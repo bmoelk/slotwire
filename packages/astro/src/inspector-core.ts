@@ -24,7 +24,7 @@ export const INSPECTOR_CSS = `
     flex-direction: column;
     gap: 10px;
     box-sizing: border-box;
-    width: 440px;
+    width: 480px;
     max-width: calc(100vw - 32px);
     max-height: calc(100vh - 32px);
     border-radius: 12px;
@@ -121,6 +121,23 @@ export const INSPECTOR_CSS = `
   .sw-btn-cms.sw-provider-directus:hover {
     background: #818cf8 !important;
     box-shadow: 0 0 14px rgba(99, 102, 241, 0.45);
+  }
+
+  .sw-slot-refresh-btn {
+    padding: 4px 6px !important;
+  }
+  .sw-slot-refresh-btn:hover {
+    color: #38bdf8 !important;
+    border-color: rgba(56, 189, 248, 0.4) !important;
+    background: rgba(56, 189, 248, 0.1) !important;
+  }
+  .sw-slot-refresh-btn.sw-spinning svg,
+  #sw-btn-refresh-all.sw-spinning svg {
+    animation: sw-badge-spin 0.75s linear infinite !important;
+  }
+  @keyframes sw-badge-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
   }
 
   .sw-btn-cms.sw-provider-sonicjs {
@@ -543,15 +560,12 @@ export function renderInspectorHtml(options: InspectorOptions = {}) {
   const adminUrl = options.adminUrl || '/admin';
   const envTag = options.envTag || 'DEV';
   const showCloseBtn = Boolean(options.showCloseBtn);
-  const provider = (options.provider || 'slottd').toLowerCase();
-  const providerLabel =
-    provider === 'slottd'
-      ? 'SlottD'
-      : provider === 'directus'
-      ? 'Directus'
-      : provider === 'sonicjs'
-      ? 'SonicJS'
-      : provider.charAt(0).toUpperCase() + provider.slice(1);
+  const rawProvider =
+    options.provider ||
+    (typeof process !== 'undefined' && (process.env?.CMS_PROVIDER || process.env?.PUBLIC_CMS_PROVIDER)) ||
+    (globalThis as any)?.__SLOTWIRE_CONFIG__?.cms?.provider ||
+    'cms';
+  const provider = String(rawProvider).toLowerCase();
 
   return `
     <div class="sw-inspector">
@@ -574,6 +588,9 @@ export function renderInspectorHtml(options: InspectorOptions = {}) {
         <div class="sw-header-actions">
           <button id="sw-btn-toggle-overlays" class="sw-btn" title="Toggle hover overlays to inspect clean page">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Overlays: ON
+          </button>
+          <button id="sw-btn-toggle-highlights" class="sw-btn" title="Toggle slot outlines and contracts (Shortcut: Alt+S)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="3 3"/><circle cx="12" cy="12" r="3"/></svg>Highlight Slots: OFF
           </button>
           <button id="sw-btn-rescan" class="sw-btn" title="Rescan page DOM">↻</button>
           ${showCloseBtn ? '<button id="sw-btn-close" class="sw-btn" style="padding:4px 7px;" title="Close Inspector">✕</button>' : ''}
@@ -630,12 +647,15 @@ export function renderInspectorHtml(options: InspectorOptions = {}) {
           <button id="slotwire-precreate-trigger-btn" class="sw-btn" title="Create a new page from archetype blueprints" style="color:#10b981; border-color:rgba(16,185,129,0.3); background:rgba(16,185,129,0.08);">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><rect x="3" y="3" width="18" height="18" rx="4"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>+ New Page
           </button>
-          <button id="sw-btn-highlight-all" class="sw-btn">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Highlight All
+          <button id="sw-btn-refresh-all" class="sw-btn" title="Refresh all slots from CMS without reloading page" style="display:inline-flex; align-items:center; gap:4px;">
+            <svg class="sw-refresh-icon" width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M1.705 8.001a6.3 6.3 0 0 1 10.77-4.472l.447-.447a.75.75 0 0 1 1.28.53v3.136a.75.75 0 0 1-.75.75H10.32a.75.75 0 0 1-.53-1.28l.496-.496a4.8 4.8 0 0 0-8.21 2.269.75.75 0 0 1-.371.01Zm12.59 0a6.3 6.3 0 0 1-10.77 4.472l-.447.447a.75.75 0 0 1-1.28-.53V8.854a.75.75 0 0 1 .75-.75h3.132a.75.75 0 0 1 .53 1.28l-.496.496a4.8 4.8 0 0 0 8.21-2.269.75.75 0 0 1 .371-.01Z"/>
+            </svg>
+            Refresh
           </button>
           ${options.showRequestSlotBtn ? '<button id="sw-btn-request-slot" class="sw-btn" title="Visually select an element to request a slot"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>Request Slot</button>' : ''}
           <a href="${adminUrl}" target="_blank" rel="noopener noreferrer" class="sw-btn sw-btn-cms sw-provider-${provider}">
-            Open ${providerLabel} Studio ↗
+            Open CMS ↗
           </a>
         </div>
       </div>
@@ -721,7 +741,9 @@ export function initInspector(containerEl: HTMLElement, options: InspectorOption
   const adminUrl = options.adminUrl || '/admin';
 
   let areOverlaysVisible = sessionStorage.getItem('slotwire_hide_overlays') !== 'true';
-  let isHighlightActive = false;
+  let isHighlightActive =
+    (typeof document !== 'undefined' && document.documentElement.classList.contains('slotwire-highlight-slots')) ||
+    sessionStorage.getItem('slotwire_highlight_slots') === 'true';
   let activeFilter = 'all';
   let searchQuery = '';
 
@@ -749,35 +771,52 @@ export function initInspector(containerEl: HTMLElement, options: InspectorOption
     }
   }
 
-  // 2. Highlight All Controller
-  function toggleHighlightAll() {
-    isHighlightActive = !isHighlightActive;
-    const slotElements = document.querySelectorAll<HTMLElement>(
-      '[data-slotwire-slot], .slotwire-slot-container, .slotwire-ghost-slot, .slotwire-ghost-card'
-    );
+  // 2. Highlight Slots Controller (Co-located with Overlays, Consistent ON/OFF State)
+  function syncHighlightState(active: boolean) {
+    isHighlightActive = active;
+    sessionStorage.setItem('slotwire_highlight_slots', active ? 'true' : 'false');
 
-    slotElements.forEach((el) => {
-      if (isHighlightActive) {
-        el.setAttribute('data-sw-prev-outline', el.style.outline || '');
-        el.style.outline = '3px dashed #10b981';
-        el.style.outlineOffset = '4px';
-      } else {
-        el.style.outline = el.getAttribute('data-sw-prev-outline') || '';
-        el.removeAttribute('data-sw-prev-outline');
+    if (active) {
+      document.documentElement.classList.add('slotwire-highlight-slots');
+    } else {
+      document.documentElement.classList.remove('slotwire-highlight-slots');
+    }
+
+    // Dynamic Overlay Badges for Static Elements (where SlotWire in-situ badge is not rendered)
+    const staticSlots = document.querySelectorAll<HTMLElement>('[data-slotwire-slot]:not(.slotwire-slot-container)');
+    staticSlots.forEach((el) => {
+      let badge = el.querySelector<HTMLElement>(':scope > .slotwire-static-badge');
+      if (active) {
+        if (!badge) {
+          badge = document.createElement('div');
+          badge.className = 'slotwire-static-badge';
+          const slot = el.getAttribute('data-slotwire-slot') || 'slot';
+          const arch = el.getAttribute('data-slotwire-archetype') || '';
+          badge.innerHTML = `<span>✓ <strong>${slot}</strong></span>${arch ? `<span class="sw-badge-arch">${arch}</span>` : ''}`;
+          if (getComputedStyle(el).position === 'static') {
+            el.style.position = 'relative';
+          }
+          el.prepend(badge);
+        }
+        badge.style.display = 'inline-flex';
+      } else if (badge) {
+        badge.style.display = 'none';
       }
     });
 
-    const highlightBtn = containerEl.querySelector('#sw-btn-highlight-all');
+    const highlightBtn = containerEl.querySelector('#sw-btn-toggle-highlights');
     if (highlightBtn) {
-      highlightBtn.innerHTML = isHighlightActive
-        ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Clear Highlights'
-        : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Highlight All';
-      if (isHighlightActive) {
+      highlightBtn.innerHTML = active
+        ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="3"/></svg>Highlight Slots: ON'
+        : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="3 3"/><circle cx="12" cy="12" r="3"/></svg>Highlight Slots: OFF';
+      if (active) {
         highlightBtn.classList.add('sw-btn-active');
       } else {
         highlightBtn.classList.remove('sw-btn-active');
       }
     }
+
+    window.dispatchEvent(new CustomEvent('slotwire:highlight-change', { detail: { active } }));
   }
 
   // 3. Scan DOM & Render Slot Items
@@ -985,10 +1024,15 @@ export function initInspector(containerEl: HTMLElement, options: InspectorOption
             </div>
           </div>
           <div class="sw-slot-actions">
-            <button class="sw-btn sw-quick-edit-trigger" data-slot-idx="${item.idx}" style="color:#10b981; border-color:rgba(16,185,129,0.4); background:rgba(16,185,129,0.1);" title="Edit in-situ">⚡ Quick</button>
+            <button class="sw-btn sw-quick-edit-trigger" data-slot-idx="${item.idx}" ${item.statusType === 'missing' ? 'disabled' : ''} style="${item.statusType === 'missing' ? 'opacity:0.4; cursor:not-allowed;' : 'color:#10b981; border-color:rgba(16,185,129,0.4); background:rgba(16,185,129,0.1);'} display:inline-flex; align-items:center; gap:4px;" title="${item.statusType === 'missing' ? `Cannot quick-edit: No document in CMS yet. Use 'CMS ↗' to create it.` : 'Quick edit in-situ'}"><svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.25a1.75 1.75 0 0 1 .445-.758l8.61-8.61Zm1.414 1.06a.25.25 0 0 0-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 0 0 0-.354l-1.086-1.086ZM11.189 6.25 9.75 4.81l-6.286 6.287a.25.25 0 0 0-.064.108l-.558 1.953 1.953-.558a.249.249 0 0 0 .108-.064l6.286-6.286Z"/></svg> Quick Edit</button>
             <button class="sw-btn sw-locate-btn" data-locate-idx="${item.idx}">Locate</button>
+            <button class="sw-btn sw-slot-refresh-btn" data-slot-name="${item.slot}" title="Refresh #${item.slot} from CMS without reloading page">
+              <svg class="sw-refresh-icon" width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M1.705 8.001a6.3 6.3 0 0 1 10.77-4.472l.447-.447a.75.75 0 0 1 1.28.53v3.136a.75.75 0 0 1-.75.75H10.32a.75.75 0 0 1-.53-1.28l.496-.496a4.8 4.8 0 0 0-8.21 2.269.75.75 0 0 1-.371.01Zm12.59 0a6.3 6.3 0 0 1-10.77 4.472l-.447.447a.75.75 0 0 1-1.28-.53V8.854a.75.75 0 0 1 .75-.75h3.132a.75.75 0 0 1 .53 1.28l-.496.496a4.8 4.8 0 0 0 8.21-2.269.75.75 0 0 1 .371-.01Z"/>
+              </svg>
+            </button>
             <a href="${item.editUrl}" target="_blank" rel="noopener noreferrer" class="sw-btn sw-btn-cms sw-slot-edit-btn">
-              Studio ↗
+              CMS ↗
             </a>
           </div>
         </div>
@@ -1066,7 +1110,15 @@ export function initInspector(containerEl: HTMLElement, options: InspectorOption
     syncOverlayState(!areOverlaysVisible);
   });
 
-  containerEl.querySelector('#sw-btn-highlight-all')?.addEventListener('click', toggleHighlightAll);
+  containerEl.querySelector('#sw-btn-toggle-highlights')?.addEventListener('click', () => {
+    syncHighlightState(!isHighlightActive);
+  });
+
+  window.addEventListener('slotwire:highlight-change', ((e: CustomEvent) => {
+    if (e.detail?.active !== undefined && e.detail.active !== isHighlightActive) {
+      syncHighlightState(e.detail.active);
+    }
+  }) as EventListener);
 
   containerEl.querySelector('#sw-btn-rescan')?.addEventListener('click', scanAndRender);
 
@@ -1138,8 +1190,9 @@ export function initInspector(containerEl: HTMLElement, options: InspectorOption
     });
   });
 
-  // Apply initial overlay state from storage
+  // Apply initial overlay and highlight state from storage
   syncOverlayState(areOverlaysVisible);
+  syncHighlightState(isHighlightActive);
 
   // Run initial scan
   scanAndRender();

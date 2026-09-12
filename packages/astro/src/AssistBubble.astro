@@ -6,29 +6,53 @@ import QuickEditDrawer from './QuickEditDrawer.astro';
 export interface Props {
   adminUrl?: string;
   assistActive?: boolean;
+  editor?: 'markdown' | 'html';
 }
 
 const {
   adminUrl = '/admin',
   assistActive = true,
+  editor: propEditor,
 } = Astro.props;
+
+const globalConfig = (globalThis as any).__SLOTWIRE_CONFIG__;
+const resolvedProvider =
+  (typeof process !== 'undefined' && (process.env?.CMS_PROVIDER || process.env?.PUBLIC_CMS_PROVIDER)) ||
+  (import.meta as any).env?.CMS_PROVIDER ||
+  (import.meta as any).env?.PUBLIC_CMS_PROVIDER ||
+  globalConfig?.cms?.provider ||
+  'cms';
+const resolvedEditor =
+  propEditor ||
+  globalConfig?.ui?.editor ||
+  (resolvedProvider === 'wordpress' ? 'html' : 'markdown');
 
 const envVar =
   (typeof process !== 'undefined' && process.env?.ENVIRONMENT) ||
   (import.meta as any).env?.ENVIRONMENT ||
-  (typeof process !== 'undefined' && process.env?.ASTRO_STAGING);
+  (typeof process !== 'undefined' && process.env?.ASTRO_STAGING) ||
+  (typeof process !== 'undefined' && process.env?.SLOTWIRE_PREVIEW) ||
+  (import.meta as any).env?.SLOTWIRE_PREVIEW;
 const isStaging = envVar === 'staging' || envVar === 'true';
+
+const isDev = Boolean(import.meta.env.DEV);
+const hasPreviewCookie = Boolean(Astro.cookies?.get('slotwire_preview')?.value);
 
 const isAssistMode =
   assistActive &&
-  (isStaging ||
+  (isDev ||
+    isStaging ||
+    hasPreviewCookie ||
     Astro.url.searchParams.get('slotwire_assist') === 'true' ||
     Astro.url.searchParams.get('slotwire_preview') === 'true' ||
+    Astro.url.searchParams.get('slotwire_highlight') === 'true' ||
+    Astro.url.searchParams.get('slots') === 'true' ||
     Astro.url.hostname.startsWith('edit.') ||
     Astro.url.hostname.includes('staging') ||
-    Boolean(import.meta.env.DEV));
+    Astro.url.hostname === 'localhost' ||
+    Astro.url.hostname === '127.0.0.1');
 
-const envTag = isStaging ? 'STAGING' : 'DEV';
+const envTag = isDev ? 'DEV' : isStaging ? 'STAGING' : 'PREVIEW';
 
 // ── Server-Side Page Boundary Finalizer ────────────────────────────────────────
 const g = typeof globalThis !== 'undefined' ? (globalThis as any) : null;
@@ -70,13 +94,18 @@ if (session && session.route === Astro.url.pathname) {
     id="slotwire-assist-container"
     class="slotwire-assist-container"
     data-admin-url={adminUrl}
+    data-provider={resolvedProvider}
     data-env-tag={envTag}
     data-ssr-slot-count={ssrSlotCount}
     data-ssr-render-ms={ssrRenderMs}
     data-ssr-slots={JSON.stringify(ssrSlots)}
   >
     <!-- Compact Draggable Assist Pill -->
-    <div id="slotwire-assist-bubble" class="slotwire-assist-bubble" title="SlotWire Assist (Hover or click to inspect)">
+    <div
+      id="slotwire-assist-bubble"
+      class="slotwire-assist-bubble"
+      title="SlotWire Assist (Hover or click to inspect)"
+    >
       <span id="sw-pill-drag" class="sw-pill-drag" title="Drag to reposition">⋮⋮</span>
       <span class="sw-pulse-dot"></span>
       <span class="sw-assist-label">SlotWire</span>
@@ -85,14 +114,14 @@ if (session && session.route === Astro.url.pathname) {
 
     <!-- Unified Inspector Drawer / Popup -->
     <div id="slotwire-inspector-modal" class="slotwire-inspector-modal">
-      <Fragment set:html={renderInspectorHtml({ adminUrl, envTag, provider: 'slottd', showCloseBtn: true, showRequestSlotBtn: true })} />
+      <Fragment set:html={renderInspectorHtml({ adminUrl, envTag, provider: resolvedProvider, showCloseBtn: true, showRequestSlotBtn: true })} />
     </div>
 
     <!-- Visual Archetype Cloner / Pre-Create Modal -->
     <PreCreateModal adminUrl={adminUrl} />
 
     <!-- In-Situ 80/20 Quick Edit Drawer -->
-    <QuickEditDrawer adminUrl={adminUrl} />
+    <QuickEditDrawer adminUrl={adminUrl} editor={resolvedEditor} />
   </div>
 )}
 
@@ -101,6 +130,9 @@ if (session && session.route === Astro.url.pathname) {
 
   .slotwire-assist-container {
     position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
     z-index: 999990;
     pointer-events: none;
   }
@@ -127,6 +159,9 @@ if (session && session.route === Astro.url.pathname) {
     cursor: pointer;
     user-select: none;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  body:has(astro-dev-toolbar) .slotwire-assist-bubble {
+    display: none !important;
   }
   .slotwire-assist-bubble:hover {
     border-color: #10b981;
@@ -186,23 +221,43 @@ if (session && session.route === Astro.url.pathname) {
     pointer-events: none;
     opacity: 0;
     visibility: hidden;
-    transform: translateY(8px) scale(0.98);
-    transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-                transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-                visibility 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    left: 50% !important;
+    right: auto !important;
+    bottom: 32px;
+    top: auto !important;
+    transform: translateX(-50%) translateY(8px) scale(0.98);
+    transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                visibility 0.22s cubic-bezier(0.16, 1, 0.3, 1);
     will-change: transform, opacity;
   }
 
   .slotwire-inspector-modal.sw-open {
     opacity: 1;
     visibility: visible;
-    transform: translateY(0) scale(1);
+    transform: translateX(-50%) translateY(0) scale(1) !important;
     pointer-events: auto;
+  }
+
+  .slotwire-inspector-modal .sw-inspector {
+    width: 480px !important;
+    max-width: calc(100vw - 32px) !important;
+    margin: 0 auto !important;
+  }
+
+  /* Seamless hover bridge between pill and modal to prevent mouseleave flicker */
+  .slotwire-inspector-modal::before {
+    content: '';
+    position: absolute;
+    inset: -12px;
+    pointer-events: auto;
+    z-index: -1;
   }
 `} />
 
 <script>
   import { initInspector, startVisualElementPicker } from './inspector-core.js';
+  import { initQuickEditDrawer } from './client.js';
 
   function setupAssistPill() {
     const container = document.getElementById('slotwire-assist-container');
@@ -211,9 +266,19 @@ if (session && session.route === Astro.url.pathname) {
     const dragHandle = document.getElementById('sw-pill-drag');
     const countBadge = document.getElementById('sw-slot-count');
 
+    if (container) {
+      const adminUrl = container.dataset.adminUrl || '/admin';
+      initQuickEditDrawer({ adminUrl });
+    }
+
     if (!container || !bubble || !modal) return;
+    if ((bubble as any).dataset.swInitialized === 'true') return;
+    (bubble as any).dataset.swInitialized = 'true';
+
+    bubble.style.display = '';
 
     const adminUrl = container.dataset.adminUrl || '/admin';
+    const provider = container.dataset.provider || 'cms';
     const envTag = container.dataset.envTag || 'DEV';
 
     let isLockedOpen = false;
@@ -221,44 +286,22 @@ if (session && session.route === Astro.url.pathname) {
     let hoverTimer: any = null;
     let hideTimer: any = null;
 
-    // 1. Position Modal cleanly above or below bubble (Never Overlapping)
+    // 1. Position Modal cleanly centered in viewport (never shifted, skewed or off-screen)
     function updateModalPosition() {
-      if (!bubble || !modal) return;
-      const rect = bubble.getBoundingClientRect();
-      const modalWidth = 440;
-      const gap = 12;
+      if (!modal) return;
+      const margin = 16;
+      const modalWidth = Math.min(480, window.innerWidth - margin * 2);
+      const hasDevToolbar = Boolean(document.querySelector('astro-dev-toolbar'));
+      const bottomDistance = hasDevToolbar ? 72 : 32;
 
-      // Horizontal positioning: align right edge with bubble, stay within screen
-      let left = rect.right - modalWidth;
-      if (left < 16) left = 16;
-      if (left + modalWidth > window.innerWidth - 16) {
-        left = window.innerWidth - modalWidth - 16;
-      }
-      modal.style.left = `${Math.round(left)}px`;
+      modal.style.left = '50%';
       modal.style.right = 'auto';
-
-      // Vertical positioning:
-      // If pill is in bottom half of viewport -> dock ABOVE pill (never overlaps)
-      if (rect.top > window.innerHeight / 2) {
-        const bottomDistance = window.innerHeight - rect.top + gap;
-        modal.style.bottom = `${Math.round(bottomDistance)}px`;
-        modal.style.top = 'auto';
-        const modalHeight = modal.offsetHeight || 570;
-        if (window.innerHeight - bottomDistance - modalHeight < 16) {
-          modal.style.bottom = 'auto';
-          modal.style.top = '16px';
-        }
-      } else {
-        // Pill is in top half -> dock BELOW pill
-        const topDistance = rect.bottom + gap;
-        modal.style.top = `${Math.round(topDistance)}px`;
-        modal.style.bottom = 'auto';
-        const modalHeight = modal.offsetHeight || 570;
-        if (topDistance + modalHeight > window.innerHeight - 16) {
-          modal.style.top = 'auto';
-          modal.style.bottom = '16px';
-        }
-      }
+      modal.style.bottom = `${bottomDistance}px`;
+      modal.style.top = 'auto';
+      modal.style.width = `${modalWidth}px`;
+      modal.style.transform = 'translateX(-50%)';
+      const maxAvailableH = window.innerHeight - bottomDistance - 28;
+      modal.style.maxHeight = `${Math.max(280, Math.round(maxAvailableH))}px`;
     }
 
     function openInspector() {
@@ -397,7 +440,7 @@ if (session && session.route === Astro.url.pathname) {
     initInspector(modal, {
       adminUrl,
       envTag,
-      provider: 'slottd',
+      provider,
       showCloseBtn: true,
       showRequestSlotBtn: true,
       onRequestSlot: () => {
@@ -412,6 +455,13 @@ if (session && session.route === Astro.url.pathname) {
       onSlotCountChange: (count) => {
         if (countBadge) countBadge.textContent = String(count);
       },
+    });
+
+    // Reposition modal on window resize
+    window.addEventListener('resize', () => {
+      if (modal.classList.contains('sw-open')) {
+        updateModalPosition();
+      }
     });
 
     // Close on Escape key

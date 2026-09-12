@@ -8,13 +8,16 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./SlotWire.astro": "./src/SlotWire.astro",
+    "./SlotWireProvider.astro": "./src/SlotWireProvider.astro",
     "./AssistBubble.astro": "./src/AssistBubble.astro",
     "./GhostSlot.astro": "./src/GhostSlot.astro",
     "./ChecklistHUD.astro": "./src/ChecklistHUD.astro",
     "./PreCreateModal.astro": "./src/PreCreateModal.astro",
+    "./QuickEditDrawer.astro": "./src/QuickEditDrawer.astro",
     "./toolbar": {
       "types": "./dist/toolbar.d.ts",
       "import": "./dist/toolbar.js"

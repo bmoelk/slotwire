@@ -28,11 +28,13 @@ const {
   class: className = '',
 } = Astro.props;
 
+const globalConfig = (globalThis as any).__SLOTWIRE_CONFIG__;
 const resolvedProvider =
   propProvider ||
+  globalConfig?.cms?.provider ||
   (typeof import.meta !== 'undefined' && (import.meta as any).env?.CMS_PROVIDER) ||
   (typeof process !== 'undefined' && process.env?.CMS_PROVIDER) ||
-  'slottd';
+  'cms';
 
 const resolvedApiUrl =
   (typeof import.meta !== 'undefined' && (import.meta as any).env?.CMS_API_URL) ||
