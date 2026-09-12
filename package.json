@@ -4,7 +4,8 @@
   "private": true,
   "description": "2-way schema contract, build-time validator, and visual in-situ inspector bridging Astro with Headless CMSs",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "plugins/*"
   ],
   "scripts": {
     "build": "npm run --workspaces --if-present build",

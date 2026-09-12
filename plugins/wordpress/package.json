@@ -1,0 +1,21 @@
+{
+  "name": "@slotwire/wordpress-plugin",
+  "version": "0.2.0",
+  "description": "WordPress Headless Companion Plugin for SlotWire and Astro",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-zip.js",
+    "build:zip": "node scripts/build-zip.js",
+    "test": "node --test tests/**/*.test.js"
+  },
+  "keywords": [
+    "wordpress",
+    "headless",
+    "slotwire",
+    "astro",
+    "cms",
+    "plugin"
+  ],
+  "author": "SlotWire Core Team",
+  "license": "MIT"
+}
