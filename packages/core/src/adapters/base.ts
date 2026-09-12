@@ -8,6 +8,16 @@ export abstract class BaseCmsAdapter implements SlotWireCmsAdapter {
 
   resolveDocumentContext?(context: unknown): DocumentContext;
 
+  getAuthLoginUrl(apiUrl: string, returnOrigin: string): string {
+    const base = this.cleanBaseUrl(apiUrl);
+    return `${base}/admin/login?slotwire_auth=1&origin=${encodeURIComponent(returnOrigin)}`;
+  }
+
+  getAuthMeUrl(apiUrl: string): string {
+    const base = this.cleanBaseUrl(apiUrl);
+    return `${base}/ext/auth/me`;
+  }
+
   protected cleanBaseUrl(url: string): string {
     return (url || '').replace(/\/+$/, '');
   }
@@ -146,13 +156,14 @@ export abstract class BaseCmsAdapter implements SlotWireCmsAdapter {
     collection: string,
     id: string,
     data: Record<string, any>,
-    credentials?: { apiUrl?: string; apiKey?: string }
+    credentials?: { apiUrl?: string; apiKey?: string; headers?: Record<string, string> }
   ): Promise<{ success: boolean; data?: any; error?: string }> {
     const apiUrl = this.cleanBaseUrl(credentials?.apiUrl || '');
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      ...(credentials?.headers || {}),
     };
-    if (credentials?.apiKey) {
+    if (credentials?.apiKey && !headers['Authorization'] && !headers['authorization']) {
       headers['Authorization'] = `Bearer ${credentials.apiKey}`;
     }
 

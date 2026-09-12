@@ -68,6 +68,8 @@ export async function signPreviewToken(
   return `${dataToSign}.${signatureB64}`;
 }
 
+export const generatePreviewToken = signPreviewToken;
+
 /**
  * Cryptographically verifies an HMAC-SHA256 preview token and checks expiration.
  */

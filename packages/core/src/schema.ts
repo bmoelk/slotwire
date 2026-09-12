@@ -7,6 +7,7 @@ import type {
   ScaffoldBundle,
   ScaffoldRecord,
   EditableFieldDescriptor,
+  SlotTransformer,
 } from './types.js';
 import { generateBlueprint } from './blueprint.js';
 
@@ -49,6 +50,12 @@ class FieldBuilder {
       ...(this.def.mediaOptions || {}),
       allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'svg', 'gif', 'avif'],
     };
+    return this;
+  }
+
+  or(other: z.ZodTypeAny | FieldBuilder) {
+    const otherZod = other instanceof FieldBuilder ? (other as any).def.zodSchema : other;
+    this.def.zodSchema = this.def.zodSchema?.or(otherZod);
     return this;
   }
 
@@ -104,7 +111,22 @@ export const s = {
     return builder;
   },
 
-  object: (props: Record<string, FieldBuilder>) => {
+  nestedObject: (props: Record<string, FieldBuilder>) => {
+    const properties: Record<string, FieldDefinition> = {};
+    const shape: Record<string, z.ZodTypeAny> = {};
+    for (const [key, builder] of Object.entries(props)) {
+      properties[key] = builder.build();
+      shape[key] = properties[key].zodSchema;
+    }
+    const builder = new FieldBuilder('object', z.object(shape));
+    (builder as any).def.properties = properties;
+    return builder;
+  },
+
+  object: (
+    props: Record<string, FieldBuilder>,
+    options: { transform?: SlotTransformer; editor?: 'markdown' | 'html' } = {}
+  ) => {
     const properties: Record<string, FieldDefinition> = {};
     const shape: Record<string, z.ZodTypeAny> = {};
     for (const [key, builder] of Object.entries(props)) {
@@ -116,6 +138,8 @@ export const s = {
       properties,
       zodSchema: z.object(shape),
       previewRoute: undefined,
+      transform: options.transform,
+      editor: options.editor,
     };
     def.previewRoute = (route: string | ((doc: any) => string)) => {
       def.previewRoutePattern = route;
@@ -124,7 +148,11 @@ export const s = {
     return def;
   },
 
-  collection: (collectionName: string, props: Record<string, FieldBuilder>) => {
+  collection: (
+    collectionName: string,
+    props: Record<string, FieldBuilder>,
+    options: { transform?: SlotTransformer; editor?: 'markdown' | 'html' } = {}
+  ) => {
     const properties: Record<string, FieldDefinition> = {};
     const shape: Record<string, z.ZodTypeAny> = {};
     for (const [key, builder] of Object.entries(props)) {
@@ -137,6 +165,8 @@ export const s = {
       properties,
       zodSchema: z.array(z.object(shape)),
       previewRoute: undefined,
+      transform: options.transform,
+      editor: options.editor,
     };
     def.previewRoute = (route: string | ((doc: any) => string)) => {
       def.previewRoutePattern = route;
@@ -193,19 +223,25 @@ export const s = {
     defaultDescription?: string;
     defaultPrimaryCtaText?: string;
     defaultPrimaryCtaUrl?: string;
+    transform?: SlotTransformer;
+    editor?: 'markdown' | 'html';
   }) => ({
     kind: 'section' as const,
     collection: options.collection || 'page_sections',
     key: options.key,
     strategy: options.strategy || 'cascade',
-    children: options.children && !options.children.collection
-      ? options.children
-      : (options.children ? { items: options.children } : undefined),
+    children: options.children
+      ? (options.children.kind === 'collection' || options.children.collectionName || options.children.collection
+          ? { [options.children.collectionName || options.children.collection || 'items']: options.children }
+          : options.children)
+      : undefined,
     defaultData: options.defaultData,
     defaultTitle: options.defaultTitle,
     defaultDescription: options.defaultDescription,
     defaultPrimaryCtaText: options.defaultPrimaryCtaText,
     defaultPrimaryCtaUrl: options.defaultPrimaryCtaUrl,
+    transform: options.transform,
+    editor: options.editor,
   }),
 
   singleton: (collectionName: string, options: { strategy?: 'reference' } = {}) => ({
@@ -513,3 +549,82 @@ export function getSlotEditableFields(
   return fields;
 }
 
+/**
+ * Resolves the transformer function for a given slot or collection:
+ * 1. Checks slot definition's explicit `transform` function.
+ * 2. Checks `config.transformers[slotKey]` or `config.transformers['slots.' + slotKey]`.
+ * 3. Checks `config.transformers[collection]` or `config.transformers['collections.' + collection]`.
+ * 4. Checks `config.transformers[provider]`.
+ * 5. Falls back to identity transformer `(x) => x`.
+ */
+export function resolveSlotTransformer(
+  config?: SlotWireConfig,
+  slotKeyOrCollection: string = '',
+  context?: { archetype?: string; collection?: string; provider?: string }
+): SlotTransformer {
+  if (!config) return (item: any) => item;
+
+  const key = slotKeyOrCollection.toLowerCase();
+  const provider = (context?.provider || config.cms?.provider || 'directus').toLowerCase();
+  const collection = (context?.collection || slotKeyOrCollection).toLowerCase();
+
+  // 1. Direct slot definition transform
+  const slotDef = config.slots?.[slotKeyOrCollection] || config.slots?.[key];
+  if (slotDef && (slotDef as any).transform && typeof (slotDef as any).transform === 'function') {
+    return (slotDef as any).transform;
+  }
+
+  // Check archetype slot children or slots
+  if (config.archetypes) {
+    for (const arch of Object.values(config.archetypes)) {
+      const archSlot = arch.slots?.[slotKeyOrCollection] || arch.slots?.[key];
+      if (archSlot && (archSlot as any).transform && typeof (archSlot as any).transform === 'function') {
+        return (archSlot as any).transform;
+      }
+    }
+  }
+
+  // 2. Config transformers registry
+  if (config.transformers) {
+    const t = config.transformers;
+    if (typeof t[slotKeyOrCollection] === 'function') return t[slotKeyOrCollection];
+    if (typeof t[key] === 'function') return t[key];
+    if (typeof t[`slots.${slotKeyOrCollection}`] === 'function') return t[`slots.${slotKeyOrCollection}`];
+    if (typeof t[`slots.${key}`] === 'function') return t[`slots.${key}`];
+    if (typeof t[collection] === 'function') return t[collection];
+    if (typeof t[`collections.${collection}`] === 'function') return t[`collections.${collection}`];
+    if (typeof t[provider] === 'function') return t[provider];
+  }
+
+  return (item: any) => item;
+}
+
+/**
+ * Resolves the editor widget type ('markdown' | 'html') for a given slot:
+ * 1. Checks slot definition's explicit `editor` property.
+ * 2. Checks `config.ui?.editor`.
+ * 3. Defaults to 'html' if provider is 'wordpress', otherwise 'markdown'.
+ */
+export function resolveSlotEditor(
+  config?: SlotWireConfig,
+  slotKeyOrCollection: string = ''
+): 'markdown' | 'html' {
+  if (!config) return 'markdown';
+
+  const key = slotKeyOrCollection.toLowerCase();
+  const slotDef = config.slots?.[slotKeyOrCollection] || config.slots?.[key];
+  if (slotDef && (slotDef as any).editor) {
+    return (slotDef as any).editor;
+  }
+
+  if (config.ui?.editor) {
+    return config.ui.editor;
+  }
+
+  const provider = (config.cms?.provider || '').toLowerCase();
+  if (provider === 'wordpress') {
+    return 'html';
+  }
+
+  return 'markdown';
+}
