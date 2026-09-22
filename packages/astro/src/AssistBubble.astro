@@ -221,11 +221,7 @@ if (session && session.route === Astro.url.pathname) {
     pointer-events: none;
     opacity: 0;
     visibility: hidden;
-    left: 50% !important;
-    right: auto !important;
-    bottom: 32px;
-    top: auto !important;
-    transform: translateX(-50%) translateY(8px) scale(0.98);
+    transform: translateY(8px) scale(0.98);
     transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
                 transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
                 visibility 0.22s cubic-bezier(0.16, 1, 0.3, 1);
@@ -235,13 +231,13 @@ if (session && session.route === Astro.url.pathname) {
   .slotwire-inspector-modal.sw-open {
     opacity: 1;
     visibility: visible;
-    transform: translateX(-50%) translateY(0) scale(1) !important;
+    transform: translateY(0) scale(1) !important;
     pointer-events: auto;
   }
 
   .slotwire-inspector-modal .sw-inspector {
     width: 480px !important;
-    max-width: calc(100vw - 32px) !important;
+    max-width: calc(100vw - 24px) !important;
     margin: 0 auto !important;
   }
 
@@ -249,7 +245,7 @@ if (session && session.route === Astro.url.pathname) {
   .slotwire-inspector-modal::before {
     content: '';
     position: absolute;
-    inset: -12px;
+    inset: -20px;
     pointer-events: auto;
     z-index: -1;
   }
@@ -286,22 +282,43 @@ if (session && session.route === Astro.url.pathname) {
     let hoverTimer: any = null;
     let hideTimer: any = null;
 
-    // 1. Position Modal cleanly centered in viewport (never shifted, skewed or off-screen)
+    // 1. Position Modal anchored directly to floating pill (never skewed or off-screen)
     function updateModalPosition() {
-      if (!modal) return;
-      const margin = 16;
+      if (!modal || !bubble) return;
+      const margin = 12;
       const modalWidth = Math.min(480, window.innerWidth - margin * 2);
-      const hasDevToolbar = Boolean(document.querySelector('astro-dev-toolbar'));
-      const bottomDistance = hasDevToolbar ? 72 : 32;
+      const bubbleRect = bubble.getBoundingClientRect();
 
-      modal.style.left = '50%';
-      modal.style.right = 'auto';
-      modal.style.bottom = `${bottomDistance}px`;
-      modal.style.top = 'auto';
       modal.style.width = `${modalWidth}px`;
-      modal.style.transform = 'translateX(-50%)';
-      const maxAvailableH = window.innerHeight - bottomDistance - 28;
-      modal.style.maxHeight = `${Math.max(280, Math.round(maxAvailableH))}px`;
+      modal.style.transform = 'translateY(0)';
+
+      // Horizontal Anchoring relative to pill
+      const isRightAligned = (bubbleRect.left + bubbleRect.width / 2) > (window.innerWidth / 2);
+      if (isRightAligned) {
+        const rightOffset = Math.max(margin, Math.min(window.innerWidth - modalWidth - margin, window.innerWidth - bubbleRect.right));
+        modal.style.right = `${rightOffset}px`;
+        modal.style.left = 'auto';
+      } else {
+        const leftOffset = Math.max(margin, Math.min(window.innerWidth - modalWidth - margin, bubbleRect.left));
+        modal.style.left = `${leftOffset}px`;
+        modal.style.right = 'auto';
+      }
+
+      // Vertical Anchoring relative to pill (prefer above pill if in bottom half)
+      const isBottomAligned = (bubbleRect.top + bubbleRect.height / 2) > (window.innerHeight / 2);
+      if (isBottomAligned) {
+        const bottomOffset = window.innerHeight - bubbleRect.top + 10;
+        modal.style.bottom = `${bottomOffset}px`;
+        modal.style.top = 'auto';
+        const maxAvailableH = bubbleRect.top - margin - 10;
+        modal.style.maxHeight = `${Math.max(260, Math.round(maxAvailableH))}px`;
+      } else {
+        const topOffset = bubbleRect.bottom + 10;
+        modal.style.top = `${topOffset}px`;
+        modal.style.bottom = 'auto';
+        const maxAvailableH = window.innerHeight - bubbleRect.bottom - margin - 10;
+        modal.style.maxHeight = `${Math.max(260, Math.round(maxAvailableH))}px`;
+      }
     }
 
     function openInspector() {

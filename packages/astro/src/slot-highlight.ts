@@ -118,10 +118,11 @@ export function injectHighlightStyles() {
     html.slotwire-highlight-slots .slotwire-ghost-slot,
     html.slotwire-highlight-slots .slotwire-ghost-card {
       outline: 2px dashed #10b981 !important;
-      outline-offset: 4px !important;
+      outline-offset: -2px !important;
       border-radius: 8px !important;
       position: relative !important;
       z-index: 25 !important;
+      box-shadow: inset 0 0 0 2px rgba(16, 185, 129, 0.4), 0 0 16px rgba(16, 185, 129, 0.2) !important;
       transition: outline 0.15s ease-in-out !important;
     }
 

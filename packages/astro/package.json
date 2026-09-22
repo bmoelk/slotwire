@@ -34,7 +34,7 @@
     "test": "node --test tests/**/*.test.js"
   },
   "dependencies": {
-    "@slotwire/core": "file:../core"
+    "@slotwire/core": "github:bmoelk/slotwire#path:packages/core"
   },
   "peerDependencies": {
     "astro": "^4.0.0 || ^5.0.0 || ^7.0.0"
