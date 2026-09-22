@@ -1,0 +1,321 @@
+---
+import type { SlotArchetype } from '@slotwire/core';
+import { buildCmsDeepLink } from './deep-link.js';
+
+export interface Props {
+  slot: string;
+  archetype?: SlotArchetype;
+  collection?: string;
+  pageSlug?: string;
+  sectionKey?: string;
+  documentId?: string;
+  required?: boolean;
+  adminUrl?: string;
+  provider?: string;
+  class?: string;
+}
+
+const {
+  slot,
+  archetype,
+  collection = slot,
+  pageSlug,
+  sectionKey,
+  documentId,
+  required = false,
+  adminUrl: propAdminUrl,
+  provider: propProvider,
+  class: className = '',
+} = Astro.props;
+
+const globalConfig = (globalThis as any).__SLOTWIRE_CONFIG__;
+const resolvedProvider =
+  propProvider ||
+  globalConfig?.cms?.provider ||
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.CMS_PROVIDER) ||
+  (typeof process !== 'undefined' && process.env?.CMS_PROVIDER) ||
+  'cms';
+
+const resolvedApiUrl =
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.CMS_API_URL) ||
+  (typeof process !== 'undefined' && process.env?.CMS_API_URL);
+
+const defaultAdminUrl =
+  resolvedApiUrl ? `${resolvedApiUrl.replace(/\/+$/, '')}/admin` : '/admin';
+
+const adminUrl =
+  propAdminUrl ||
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.CMS_ADMIN_URL) ||
+  (typeof process !== 'undefined' && process.env?.CMS_ADMIN_URL) ||
+  defaultAdminUrl;
+
+const provider = resolvedProvider;
+
+const resolvedCollection = collection || archetype || slot;
+
+const isCollectionArchetype =
+  archetype === 'cards' ||
+  archetype === 'gallery' ||
+  archetype === 'testimonials' ||
+  archetype === 'endorsements' ||
+  archetype === 'qa' ||
+  archetype === 'faq' ||
+  archetype === 'table';
+
+const editUrl = buildCmsDeepLink({
+  provider,
+  adminUrl,
+  collection: resolvedCollection,
+  documentId,
+  pageSlug,
+  sectionKey,
+  action: documentId ? 'edit' : isCollectionArchetype ? 'list' : 'create',
+  archetype,
+});
+
+const hasFallback = Astro.slots.has('fallback') || Astro.slots.has('default');
+---
+
+<!-- SlotWire Ghost Wireframe with Translucent Adaptive Overlay and Solid Contrast Chips -->
+<div
+  class={`slotwire-ghost-card ${className}`}
+  data-slotwire-ghost="true"
+  data-slotwire-slot={slot}
+  data-slotwire-archetype={archetype}
+  data-slotwire-collection={collection}
+  data-slotwire-page={pageSlug}
+  data-slotwire-section={sectionKey}
+  data-slotwire-id={documentId}
+  data-slotwire-has-fallback={hasFallback ? "true" : "false"}
+>
+  <!-- Top Bar: Official SlotWire Logo, Slot Key, Badges, and Action Button -->
+  <div class="sw-ghost-header">
+    <div class="sw-ghost-meta-group">
+      <!-- Official SlotWire Logo Badge -->
+      <span class="sw-logo-badge">
+        <svg class="sw-logo-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="2" y="4" width="6" height="16" rx="2.5" fill="#0f172a" stroke="#10b981" stroke-width="1.8"/>
+          <rect x="16" y="4" width="6" height="16" rx="2.5" fill="#0f172a" stroke="#06b6d4" stroke-width="1.8"/>
+          <circle cx="5" cy="8.5" r="1.2" fill="#10b981"/>
+          <circle cx="5" cy="15.5" r="1.2" fill="#10b981"/>
+          <circle cx="19" cy="8.5" r="1.2" fill="#06b6d4"/>
+          <circle cx="19" cy="15.5" r="1.2" fill="#06b6d4"/>
+          <path d="M6.5 8.5H17.5" stroke="#10b981" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M6.5 15.5H17.5" stroke="#06b6d4" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        <span>Ghost Slot</span>
+      </span>
+
+      <span class="sw-slot-chip">
+        Slot: <code class="sw-slot-code">{slot}</code>
+      </span>
+
+      <span class={`sw-pill ${hasFallback ? 'sw-pill-fallback' : 'sw-pill-blank'}`}>
+        {hasFallback ? '⚠️ Template Fallback Active' : '✖ Completely Blank'}
+      </span>
+
+      {archetype && (
+        <span class="sw-pill sw-pill-archetype">
+          Archetype: {archetype}
+        </span>
+      )}
+
+      {required && (
+        <span class="sw-pill sw-pill-required">
+          Required
+        </span>
+      )}
+    </div>
+
+    <!-- Solid High-Contrast Action Button -->
+    <a
+      href={editUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      class="sw-ghost-btn"
+    >
+      <span>+ Add Content in CMS</span>
+      <svg class="sw-btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+      </svg>
+    </a>
+  </div>
+
+  <!-- Context Tags -->
+  <div class="sw-ghost-context-row">
+    {collection && <span class="sw-context-tag">Collection: <strong>{collection}</strong></span>}
+    {pageSlug && <span class="sw-context-tag">Page: <strong>{pageSlug}</strong></span>}
+    {sectionKey && <span class="sw-context-tag">Section: <strong>{sectionKey}</strong></span>}
+  </div>
+
+  <div class="sw-ghost-explainer-box">
+    This slot is unpopulated in the CMS. Preview mode renders this wireframe so you can view layout structure and add content in-situ without layout collapse.
+  </div>
+
+  <div class="sw-ghost-fallback">
+    <slot name="fallback">
+      <slot />
+    </slot>
+  </div>
+</div>
+
+<style>
+  .slotwire-ghost-card {
+    position: relative;
+    margin: 1.5rem 0;
+    padding: 1.25rem 1.5rem;
+    border-radius: 1rem;
+    border: 2px dashed rgba(245, 158, 11, 0.85);
+    background-color: rgba(245, 158, 11, 0.04);
+    box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.15);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    text-align: left;
+    box-sizing: border-box;
+  }
+  .sw-ghost-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+  .sw-ghost-meta-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .sw-logo-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: #09090b;
+    border: 1px solid rgba(245, 158, 11, 0.6);
+    color: #fcd34d;
+    border-radius: 9999px;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+  }
+  .sw-logo-svg {
+    width: 1.125rem;
+    height: 1.125rem;
+    flex-shrink: 0;
+  }
+  .sw-slot-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background-color: #09090b;
+    border: 1px solid #3f3f46;
+    color: #f4f4f5;
+    padding: 0.25rem 0.6rem;
+    border-radius: 0.5rem;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  }
+  .sw-slot-code {
+    color: #fbbf24;
+    font-weight: 700;
+  }
+  .sw-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  }
+  .sw-pill-fallback {
+    background-color: #09090b;
+    border: 1px solid #d97706;
+    color: #fbbf24;
+  }
+  .sw-pill-blank {
+    background-color: #09090b;
+    border: 1px solid #dc2626;
+    color: #fca5a5;
+  }
+  .sw-pill-archetype {
+    background-color: #09090b;
+    border: 1px solid #3f3f46;
+    color: #d4d4d8;
+  }
+  .sw-pill-required {
+    background-color: #450a0a;
+    border: 1px solid #ef4444;
+    color: #fca5a5;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  .sw-ghost-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: #059669 !important;
+    border: 1px solid #10b981 !important;
+    color: #ffffff !important;
+    border-radius: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 4px 8px -1px rgba(0, 0, 0, 0.3);
+    transition: all 0.15s ease-in-out;
+  }
+  .sw-ghost-btn:hover {
+    background-color: #10b981 !important;
+    color: #ffffff !important;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 12px -2px rgba(16, 185, 129, 0.4);
+  }
+  .sw-btn-icon {
+    width: 0.875rem;
+    height: 0.875rem;
+  }
+  .sw-ghost-context-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-size: 0.6875rem;
+  }
+  .sw-context-tag {
+    background-color: #09090b;
+    border: 1px solid #27272a;
+    color: #a1a1aa;
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.375rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  }
+  .sw-context-tag strong {
+    color: #fafafa;
+  }
+  .sw-ghost-explainer-box {
+    margin-top: 0.625rem;
+    display: inline-block;
+    background-color: rgba(9, 9, 11, 0.85);
+    border: 1px solid #27272a;
+    border-radius: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: #d4d4d8;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  }
+  .sw-ghost-fallback {
+    margin-top: 0.875rem;
+    padding-top: 0.75rem;
+    border-top: 1px dashed rgba(245, 158, 11, 0.3);
+    opacity: 0.7;
+  }
+</style>

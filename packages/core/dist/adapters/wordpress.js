@@ -1,0 +1,199 @@
+import { BaseCmsAdapter } from './base.js';
+export class WordPressAdapter extends BaseCmsAdapter {
+    provider = 'wordpress';
+    cleanBaseUrl(url) {
+        return (url || '')
+            .replace(/\/+$/, '')
+            .replace(/\/wp-json(\/.*)?$/, '');
+    }
+    buildAdminLink(options) {
+        const { adminUrl = 'https://cms.example.com/wp-admin', collection = 'pages', documentId, archetype, } = options;
+        const base = this.cleanBaseUrl(adminUrl);
+        const wpAdminBase = base.endsWith('/wp-admin') ? base : `${base}/wp-admin`;
+        // 1. Single Post / Page / Custom Post Type Edit
+        if (documentId) {
+            return `${wpAdminBase}/post.php?post=${encodeURIComponent(documentId)}&action=edit`;
+        }
+        // 2. New Record Creation
+        if (options.action === 'create') {
+            const postType = collection === 'pages' ? 'page' : collection === 'posts' ? 'post' : collection;
+            return `${wpAdminBase}/post-new.php?post_type=${encodeURIComponent(postType)}`;
+        }
+        // 3. Navigation Menus
+        if (collection === 'site_navigation' || archetype === 'navigation') {
+            return `${wpAdminBase}/nav-menus.php`;
+        }
+        // 4. Collection List Views (Posts, Pages, or CPTs)
+        const postType = collection === 'pages' ? 'page' : collection === 'posts' ? 'post' : collection;
+        return `${wpAdminBase}/edit.php?post_type=${encodeURIComponent(postType)}`;
+    }
+    getAuthLoginUrl(apiUrl, returnOrigin) {
+        const base = this.cleanBaseUrl(apiUrl);
+        return `${base}/wp-login.php?slotwire_auth=1&origin=${encodeURIComponent(returnOrigin)}`;
+    }
+    getAuthMeUrl(apiUrl) {
+        const base = this.cleanBaseUrl(apiUrl);
+        return `${base}/wp-json/wp/v2/users/me`;
+    }
+    getSlotwireContentEndpoint(apiUrl, collection, id) {
+        const base = this.cleanBaseUrl(apiUrl);
+        const path = this.mapCollectionToWpRoute(collection);
+        return id
+            ? `${base}/wp-json/slotwire/v1/content/${path}/${encodeURIComponent(id)}`
+            : `${base}/wp-json/slotwire/v1/content/${path}`;
+    }
+    getItemEndpoint(apiUrl, collection, id) {
+        const base = this.cleanBaseUrl(apiUrl);
+        const path = this.mapCollectionToWpRoute(collection);
+        return id ? `${base}/wp-json/wp/v2/${path}/${encodeURIComponent(id)}` : `${base}/wp-json/wp/v2/${path}`;
+    }
+    getCollectionEndpoint(apiUrl, collection, options = {}) {
+        const base = this.cleanBaseUrl(apiUrl);
+        const path = this.mapCollectionToWpRoute(collection);
+        const params = new URLSearchParams();
+        params.set('per_page', String(options.limit || 100));
+        return `${base}/wp-json/wp/v2/${path}?${params.toString()}`;
+    }
+    mapCollectionToWpRoute(collection) {
+        const clean = (collection || '').toLowerCase().trim();
+        if (clean === 'pages' || clean === 'page')
+            return 'pages';
+        if (clean === 'posts' || clean === 'post' || clean === 'blog_posts' || clean === 'blog_post' || clean === 'blog')
+            return 'posts';
+        if (clean === 'categories' || clean === 'category')
+            return 'categories';
+        if (clean === 'tags' || clean === 'tag')
+            return 'tags';
+        if (clean === 'media' || clean === 'attachment' || clean === 'attachments')
+            return 'media';
+        if (clean === 'site_navigation' || clean === 'menu' || clean === 'menus' || clean === 'navigation')
+            return 'menu-items';
+        return clean;
+    }
+    async fetchCollection(collection, options = {}) {
+        const apiUrl = this.cleanBaseUrl(options.credentials?.apiUrl || '');
+        const headers = {
+            'Content-Type': 'application/json',
+        };
+        if (options.credentials?.apiKey) {
+            if (options.credentials.apiKey.includes(':')) {
+                const encoded = Buffer.from(options.credentials.apiKey).toString('base64');
+                headers['Authorization'] = `Basic ${encoded}`;
+            }
+            else {
+                headers['Authorization'] = `Bearer ${options.credentials.apiKey}`;
+                headers['x-slotwire-secret'] = options.credentials.apiKey;
+            }
+        }
+        if (options.credentials?.previewToken) {
+            headers['x-slotwire-token'] = options.credentials.previewToken;
+        }
+        const path = this.mapCollectionToWpRoute(collection);
+        const params = new URLSearchParams();
+        params.set('per_page', String(options.limit || 100));
+        // Handle slug filter
+        if (options.filter?.slug) {
+            const slugVal = typeof options.filter.slug === 'object'
+                ? options.filter.slug.equals || options.filter.slug['='] || options.filter.slug.slug
+                : options.filter.slug;
+            if (slugVal) {
+                params.set('slug', String(slugVal));
+            }
+        }
+        if (options.credentials?.previewToken) {
+            params.set('token', options.credentials.previewToken);
+        }
+        // 1. Try dedicated high-performance SlotWire route if plugin is installed
+        const slotwireEndpoint = `${apiUrl}/wp-json/slotwire/v1/content/${path}?${params.toString()}`;
+        try {
+            const res = await fetch(slotwireEndpoint, { headers });
+            if (res.ok) {
+                const json = await res.json();
+                return Array.isArray(json) ? json : json.data || [];
+            }
+        }
+        catch {
+            // SlotWire plugin endpoint not available or network error, fall back to core REST
+        }
+        // 2. Fall back to standard WordPress core REST API
+        const coreEndpoint = `${apiUrl}/wp-json/wp/v2/${path}?${params.toString()}`;
+        const res = await fetch(coreEndpoint, { headers });
+        if (!res.ok) {
+            const err = await res.text().catch(() => '');
+            throw new Error(`[SlotWire] WordPress fetch failed for '${collection}' (${res.status}): ${err}`);
+        }
+        const json = await res.json();
+        return Array.isArray(json) ? json : json.data || [];
+    }
+    async updateItem(collection, id, data, credentials) {
+        const apiUrl = this.cleanBaseUrl(credentials?.apiUrl || '');
+        const headers = {
+            'Content-Type': 'application/json',
+            ...(credentials?.headers || {}),
+        };
+        if (credentials?.apiKey && !headers['Authorization'] && !headers['authorization']) {
+            if (credentials.apiKey.includes(':')) {
+                const encoded = Buffer.from(credentials.apiKey).toString('base64');
+                headers['Authorization'] = `Basic ${encoded}`;
+            }
+            else {
+                headers['Authorization'] = `Bearer ${credentials.apiKey}`;
+                headers['x-slotwire-secret'] = credentials.apiKey;
+            }
+        }
+        // 1. Determine primary and secondary endpoints:
+        // If apiKey contains ':' (Application Password), primary is core WP REST /wp-json/wp/v2/
+        // Otherwise, primary is SlotWire companion route /wp-json/slotwire/v1/content/
+        const isAppPassword = Boolean(credentials?.apiKey && credentials.apiKey.includes(':'));
+        const primaryEndpoint = isAppPassword
+            ? this.getItemEndpoint(apiUrl, collection, id)
+            : this.getSlotwireContentEndpoint(apiUrl, collection, id);
+        const secondaryEndpoint = isAppPassword
+            ? this.getSlotwireContentEndpoint(apiUrl, collection, id)
+            : this.getItemEndpoint(apiUrl, collection, id);
+        try {
+            const res = await fetch(primaryEndpoint, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(data),
+            });
+            if (res.ok) {
+                const json = await res.json().catch(() => ({}));
+                return {
+                    success: true,
+                    data: json,
+                };
+            }
+        }
+        catch {
+            // Fall through to secondary
+        }
+        // 2. Fall back to secondary endpoint
+        try {
+            const res = await fetch(secondaryEndpoint, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(data),
+            });
+            if (!res.ok) {
+                const errText = await res.text().catch(() => '');
+                return {
+                    success: false,
+                    error: `WordPress update failed for '${collection}/${id}' (${res.status}): ${errText}`,
+                };
+            }
+            const json = await res.json().catch(() => ({}));
+            return {
+                success: true,
+                data: json,
+            };
+        }
+        catch (err) {
+            return {
+                success: false,
+                error: err.message || 'Network error during WordPress update',
+            };
+        }
+    }
+}
+//# sourceMappingURL=wordpress.js.map

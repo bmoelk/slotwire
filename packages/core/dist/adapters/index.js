@@ -1,0 +1,40 @@
+import { SonicJsAdapter } from './sonicjs.js';
+import { KeystaticAdapter, DecapAdapter } from './git.js';
+import { StrapiAdapter } from './strapi.js';
+import { PayloadAdapter } from './payload.js';
+import { DirectusAdapter } from './directus.js';
+import { WordPressAdapter } from './wordpress.js';
+import { DefaultAdapter } from './default.js';
+export * from './types.js';
+export * from './base.js';
+export * from './sonicjs.js';
+export * from './git.js';
+export * from './strapi.js';
+export * from './payload.js';
+export * from './directus.js';
+export * from './wordpress.js';
+export * from './default.js';
+const adapterRegistry = new Map([
+    ['sonicjs', new SonicJsAdapter()],
+    ['keystatic', new KeystaticAdapter()],
+    ['decap', new DecapAdapter()],
+    ['sveltia', new DecapAdapter()],
+    ['strapi', new StrapiAdapter()],
+    ['payload', new PayloadAdapter()],
+    ['directus', new DirectusAdapter()],
+    ['slottd', new DirectusAdapter()],
+    ['wordpress', new WordPressAdapter()],
+    ['default', new DefaultAdapter()],
+]);
+export function registerCmsAdapter(adapter) {
+    adapterRegistry.set(adapter.provider.toLowerCase(), adapter);
+}
+export function getCmsAdapter(provider = 'sonicjs') {
+    const normalized = (provider || 'sonicjs').toLowerCase();
+    return adapterRegistry.get(normalized) || adapterRegistry.get('default');
+}
+export function buildCmsDeepLink(options) {
+    const adapter = getCmsAdapter(options.provider);
+    return adapter.buildAdminLink(options);
+}
+//# sourceMappingURL=index.js.map
