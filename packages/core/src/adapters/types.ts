@@ -20,6 +20,6 @@ export interface SlotWireCmsAdapter {
     collection: string,
     id: string,
     data: Record<string, any>,
-    credentials?: { apiUrl?: string; apiKey?: string; headers?: Record<string, string> }
+    credentials?: { apiUrl?: string; apiKey?: string; siteId?: string; headers?: Record<string, string> }
   ): Promise<{ success: boolean; data?: any; error?: string }>;
 }

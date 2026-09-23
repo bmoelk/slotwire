@@ -7,7 +7,7 @@ export declare abstract class BaseCmsAdapter implements SlotWireCmsAdapter {
     getAuthLoginUrl(apiUrl: string, returnOrigin: string): string;
     getAuthMeUrl(apiUrl: string): string;
     protected cleanBaseUrl(url: string): string;
-    protected buildQueryParams(pageSlug?: string, sectionKey?: string): string;
+    protected buildQueryParams(pageSlug?: string, sectionKey?: string, siteId?: string): string;
     /**
      * Returns the item endpoint for creating, updating, or deleting single records.
      * Default implementation follows the Directus/SlottD /items/:collection standard.
@@ -53,6 +53,7 @@ export declare abstract class BaseCmsAdapter implements SlotWireCmsAdapter {
     updateItem(collection: string, id: string, data: Record<string, any>, credentials?: {
         apiUrl?: string;
         apiKey?: string;
+        siteId?: string;
         headers?: Record<string, string>;
     }): Promise<{
         success: boolean;

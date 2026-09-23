@@ -12,6 +12,7 @@ export interface Props {
   required?: boolean;
   adminUrl?: string;
   provider?: string;
+  siteId?: string;
   class?: string;
 }
 
@@ -25,28 +26,44 @@ const {
   required = false,
   adminUrl: propAdminUrl,
   provider: propProvider,
+  siteId: propSiteId,
   class: className = '',
 } = Astro.props;
 
 const globalConfig = (globalThis as any).__SLOTWIRE_CONFIG__;
+const globalCms = globalConfig?.cms;
+
+const siteId =
+  propSiteId ||
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.CMS_SITE_ID) ||
+  (typeof process !== 'undefined' && process.env?.CMS_SITE_ID) ||
+  globalConfig?.siteId ||
+  globalCms?.siteId ||
+  (typeof Astro !== 'undefined' && Astro.site ? new URL(Astro.site).hostname : undefined);
+
 const resolvedProvider =
   propProvider ||
-  globalConfig?.cms?.provider ||
+  globalCms?.provider ||
   (typeof import.meta !== 'undefined' && (import.meta as any).env?.CMS_PROVIDER) ||
   (typeof process !== 'undefined' && process.env?.CMS_PROVIDER) ||
-  'cms';
+  'slottd';
 
 const resolvedApiUrl =
   (typeof import.meta !== 'undefined' && (import.meta as any).env?.CMS_API_URL) ||
-  (typeof process !== 'undefined' && process.env?.CMS_API_URL);
+  (typeof process !== 'undefined' && process.env?.CMS_API_URL) ||
+  globalCms?.apiUrl ||
+  (import.meta.env.DEV ? 'http://127.0.0.1:8787' : undefined);
 
 const defaultAdminUrl =
-  resolvedApiUrl ? `${resolvedApiUrl.replace(/\/+$/, '')}/admin` : '/admin';
+  resolvedApiUrl
+    ? `${resolvedApiUrl.replace(/\/+$/, '')}/admin`
+    : (import.meta.env.DEV ? 'http://127.0.0.1:8787/admin' : '/admin');
 
 const adminUrl =
   propAdminUrl ||
   (typeof import.meta !== 'undefined' && (import.meta as any).env?.CMS_ADMIN_URL) ||
   (typeof process !== 'undefined' && process.env?.CMS_ADMIN_URL) ||
+  globalCms?.adminUrl ||
   defaultAdminUrl;
 
 const provider = resolvedProvider;
@@ -71,6 +88,7 @@ const editUrl = buildCmsDeepLink({
   sectionKey,
   action: documentId ? 'edit' : isCollectionArchetype ? 'list' : 'create',
   archetype,
+  siteId,
 });
 
 const hasFallback = Astro.slots.has('fallback') || Astro.slots.has('default');

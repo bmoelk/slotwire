@@ -4,6 +4,7 @@
  */
 export interface InspectorOptions {
     adminUrl?: string;
+    siteId?: string;
     envTag?: string;
     provider?: string;
     showCloseBtn?: boolean;

@@ -10,12 +10,15 @@ export class BaseCmsAdapter {
     cleanBaseUrl(url) {
         return (url || '').replace(/\/+$/, '');
     }
-    buildQueryParams(pageSlug, sectionKey) {
+    buildQueryParams(pageSlug, sectionKey, siteId) {
         const params = new URLSearchParams();
         if (pageSlug)
             params.set('pageSlug', pageSlug);
         if (sectionKey)
             params.set('sectionKey', sectionKey);
+        if (siteId) {
+            params.set('site_id', siteId);
+        }
         return params.toString() ? `?${params.toString()}` : '';
     }
     /**
@@ -143,12 +146,14 @@ export class BaseCmsAdapter {
         if (credentials?.apiKey && !headers['Authorization'] && !headers['authorization']) {
             headers['Authorization'] = `Bearer ${credentials.apiKey}`;
         }
-        const endpoint = this.getItemEndpoint(apiUrl, collection, id);
+        const siteQuery = credentials?.siteId ? `?site=${encodeURIComponent(credentials.siteId)}` : '';
+        const endpoint = `${this.getItemEndpoint(apiUrl, collection, id)}${siteQuery}`;
+        const payload = credentials?.siteId ? { ...data, site_id: credentials.siteId } : data;
         try {
             const res = await fetch(endpoint, {
                 method: 'PATCH',
                 headers,
-                body: JSON.stringify(data),
+                body: JSON.stringify(payload),
             });
             if (!res.ok) {
                 const errText = await res.text().catch(() => '');

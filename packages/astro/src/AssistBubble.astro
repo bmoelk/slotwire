@@ -10,7 +10,7 @@ export interface Props {
 }
 
 const {
-  adminUrl = '/admin',
+  adminUrl: propAdminUrl,
   assistActive = true,
   editor: propEditor,
 } = Astro.props;
@@ -21,7 +21,33 @@ const resolvedProvider =
   (import.meta as any).env?.CMS_PROVIDER ||
   (import.meta as any).env?.PUBLIC_CMS_PROVIDER ||
   globalConfig?.cms?.provider ||
-  'cms';
+  'slottd';
+
+const resolvedApiUrl =
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.CMS_API_URL) ||
+  (typeof process !== 'undefined' && process.env?.CMS_API_URL) ||
+  globalConfig?.cms?.apiUrl ||
+  (import.meta.env.DEV ? 'http://127.0.0.1:8787' : undefined);
+
+const defaultAdminUrl =
+  resolvedApiUrl
+    ? `${resolvedApiUrl.replace(/\/+$/, '')}/admin`
+    : (import.meta.env.DEV ? 'http://127.0.0.1:8787/admin' : '/admin');
+
+const adminUrl =
+  propAdminUrl ||
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.CMS_ADMIN_URL) ||
+  (typeof process !== 'undefined' && process.env?.CMS_ADMIN_URL) ||
+  globalConfig?.cms?.adminUrl ||
+  defaultAdminUrl;
+
+const siteId =
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.CMS_SITE_ID) ||
+  (typeof process !== 'undefined' && process.env?.CMS_SITE_ID) ||
+  globalConfig?.siteId ||
+  globalConfig?.cms?.siteId ||
+  (typeof Astro !== 'undefined' && Astro.site ? new URL(Astro.site).hostname : undefined);
+
 const resolvedEditor =
   propEditor ||
   globalConfig?.ui?.editor ||
@@ -94,6 +120,7 @@ if (session && session.route === Astro.url.pathname) {
     id="slotwire-assist-container"
     class="slotwire-assist-container"
     data-admin-url={adminUrl}
+    data-site-id={siteId}
     data-provider={resolvedProvider}
     data-env-tag={envTag}
     data-ssr-slot-count={ssrSlotCount}
@@ -114,14 +141,14 @@ if (session && session.route === Astro.url.pathname) {
 
     <!-- Unified Inspector Drawer / Popup -->
     <div id="slotwire-inspector-modal" class="slotwire-inspector-modal">
-      <Fragment set:html={renderInspectorHtml({ adminUrl, envTag, provider: resolvedProvider, showCloseBtn: true, showRequestSlotBtn: true })} />
+      <Fragment set:html={renderInspectorHtml({ adminUrl, siteId, envTag, provider: resolvedProvider, showCloseBtn: true, showRequestSlotBtn: true })} />
     </div>
 
     <!-- Visual Archetype Cloner / Pre-Create Modal -->
     <PreCreateModal adminUrl={adminUrl} />
 
     <!-- In-Situ 80/20 Quick Edit Drawer -->
-    <QuickEditDrawer adminUrl={adminUrl} editor={resolvedEditor} />
+    <QuickEditDrawer adminUrl={adminUrl} siteId={siteId} editor={resolvedEditor} />
   </div>
 )}
 
@@ -454,10 +481,12 @@ if (session && session.route === Astro.url.pathname) {
     }
 
     // 5. Initialize Shared Inspector Inside Modal
+    const siteId = container.dataset.siteId || '';
     initInspector(modal, {
       adminUrl,
       envTag,
       provider,
+      siteId,
       showCloseBtn: true,
       showRequestSlotBtn: true,
       onRequestSlot: () => {

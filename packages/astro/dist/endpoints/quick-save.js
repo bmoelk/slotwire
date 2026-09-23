@@ -58,6 +58,11 @@ export async function handleQuickSaveRequest(request, options = {}) {
     const apiUrl = config?.cms?.apiUrl ||
         (typeof process !== 'undefined' && (process.env?.CMS_API_URL || process.env?.PUBLIC_CMS_API_URL)) ||
         `http://localhost:${defaultPort}`;
+    const siteId = body.siteId ||
+        body.site_id ||
+        config?.siteId ||
+        config?.cms?.siteId ||
+        (typeof process !== 'undefined' && (process.env?.CMS_SITE_ID || process.env?.PUBLIC_CMS_SITE_ID));
     // Forward incoming client authentication credentials
     const forwardHeaders = {};
     const clientAuth = request.headers.get('authorization') || request.headers.get('Authorization');
@@ -104,6 +109,7 @@ export async function handleQuickSaveRequest(request, options = {}) {
         const result = await adapter.updateItem(collection, documentId, patchData, {
             apiUrl,
             apiKey,
+            siteId,
             headers: forwardHeaders,
         });
         if (!result.success) {

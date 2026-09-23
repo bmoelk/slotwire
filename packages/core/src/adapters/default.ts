@@ -12,10 +12,11 @@ export class DefaultAdapter extends BaseCmsAdapter {
       pageSlug,
       sectionKey,
       action = documentId ? 'edit' : 'create',
+      siteId,
     } = options;
 
     const base = this.cleanBaseUrl(adminUrl);
-    const queryStr = this.buildQueryParams(pageSlug, sectionKey);
+    const queryStr = this.buildQueryParams(pageSlug, sectionKey, siteId);
 
     if (action === 'edit' && documentId) {
       return `${base}/edit/${encodeURIComponent(documentId)}${queryStr}`;

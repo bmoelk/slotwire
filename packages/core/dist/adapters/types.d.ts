@@ -28,6 +28,7 @@ export interface SlotWireCmsAdapter {
     updateItem?(collection: string, id: string, data: Record<string, any>, credentials?: {
         apiUrl?: string;
         apiKey?: string;
+        siteId?: string;
         headers?: Record<string, string>;
     }): Promise<{
         success: boolean;

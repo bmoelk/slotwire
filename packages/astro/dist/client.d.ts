@@ -37,6 +37,7 @@ export declare function introspectPageSlots(): IntrospectedSlot[];
 export declare function initSlotWirePreview(options?: {
     adminUrl?: string;
     provider?: string;
+    siteId?: string;
     editor?: 'markdown' | 'html';
 }): void;
 export interface QuickEditDrawerParams {
@@ -82,6 +83,7 @@ export declare function initQuickEditDrawer(options?: {
     adminUrl?: string;
     apiUrl?: string;
     provider?: string;
+    siteId?: string;
     editor?: 'markdown' | 'html';
 }): {
     open: (params: QuickEditDrawerParams) => void;

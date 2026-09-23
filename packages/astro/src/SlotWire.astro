@@ -17,6 +17,7 @@ export interface Props {
   isFallback?: boolean;
   adminUrl?: string;
   provider?: string;
+  siteId?: string;
   staticTagging?: boolean;
   as?: string;
   class?: string;
@@ -37,6 +38,7 @@ const {
   isFallback = false,
   adminUrl: propAdminUrl,
   provider: propProvider,
+  siteId: propSiteId,
   staticTagging = true,
   as: Tag = 'div',
   class: className = '',
@@ -52,23 +54,40 @@ if (!slot) {
 
 const collection = propCollection || slot;
 
+const globalConfig = (globalThis as any).__SLOTWIRE_CONFIG__;
+const globalCms = globalConfig?.cms;
+
+const siteId =
+  propSiteId ||
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.CMS_SITE_ID) ||
+  (typeof process !== 'undefined' && process.env?.CMS_SITE_ID) ||
+  globalConfig?.siteId ||
+  globalCms?.siteId ||
+  (typeof Astro !== 'undefined' && Astro.site ? new URL(Astro.site).hostname : undefined);
+
 const resolvedProvider =
   propProvider ||
   (typeof import.meta !== 'undefined' && (import.meta as any).env?.CMS_PROVIDER) ||
   (typeof process !== 'undefined' && process.env?.CMS_PROVIDER) ||
+  globalCms?.provider ||
   'slottd';
 
 const resolvedApiUrl =
   (typeof import.meta !== 'undefined' && (import.meta as any).env?.CMS_API_URL) ||
-  (typeof process !== 'undefined' && process.env?.CMS_API_URL);
+  (typeof process !== 'undefined' && process.env?.CMS_API_URL) ||
+  globalCms?.apiUrl ||
+  (import.meta.env.DEV ? 'http://127.0.0.1:8787' : undefined);
 
 const defaultAdminUrl =
-  resolvedApiUrl ? `${resolvedApiUrl.replace(/\/+$/, '')}/admin` : '/admin';
+  resolvedApiUrl
+    ? `${resolvedApiUrl.replace(/\/+$/, '')}/admin`
+    : (import.meta.env.DEV ? 'http://127.0.0.1:8787/admin' : '/admin');
 
 const adminUrl =
   propAdminUrl ||
   (typeof import.meta !== 'undefined' && (import.meta as any).env?.CMS_ADMIN_URL) ||
   (typeof process !== 'undefined' && process.env?.CMS_ADMIN_URL) ||
+  globalCms?.adminUrl ||
   defaultAdminUrl;
 
 const provider = resolvedProvider;
@@ -156,6 +175,7 @@ const childItems = isArray
         archetype,
         pageSlug,
         sectionKey,
+        siteId,
       });
       let serializedData: string | undefined;
       try {
@@ -173,6 +193,7 @@ const createItemUrl = buildCmsDeepLink({
   archetype,
   pageSlug,
   sectionKey,
+  siteId,
 });
 
 const listUrl = buildCmsDeepLink({
@@ -183,6 +204,7 @@ const listUrl = buildCmsDeepLink({
   archetype,
   pageSlug,
   sectionKey,
+  siteId,
 });
 
 const singleEditUrl = buildCmsDeepLink({
@@ -194,6 +216,7 @@ const singleEditUrl = buildCmsDeepLink({
   sectionKey,
   action: isMissing ? 'create' : resolvedDocId ? 'edit' : 'list',
   archetype,
+  siteId,
 });
 
 const isCollectionSlot =
@@ -268,6 +291,7 @@ const resolvedBadgeCorner = propBadgePosition
       required={required}
       adminUrl={adminUrl}
       provider={provider}
+      siteId={siteId}
       class={className}
     >
       <slot name="fallback">

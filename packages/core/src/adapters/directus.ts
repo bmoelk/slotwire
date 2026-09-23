@@ -16,6 +16,7 @@ export class DirectusAdapter extends BaseCmsAdapter {
       pageSlug,
       sectionKey,
       archetype,
+      siteId,
     } = options;
 
     const isCollectionArchetype =
@@ -30,7 +31,7 @@ export class DirectusAdapter extends BaseCmsAdapter {
     const action = options.action || (documentId ? 'edit' : isCollectionArchetype ? 'list' : 'create');
 
     const base = this.cleanBaseUrl(adminUrl);
-    const queryStr = this.buildQueryParams(pageSlug, sectionKey);
+    const queryStr = this.buildQueryParams(pageSlug, sectionKey, siteId);
 
     // 1. Single Document Edit
     if (action === 'edit' && documentId && collection) {

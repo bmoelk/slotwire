@@ -137,6 +137,7 @@ export interface CmsDeepLinkOptions {
   sectionKey?: string;
   action?: 'create' | 'edit' | 'list';
   archetype?: string;
+  siteId?: string;
 }
 
 export type ArchetypeSlotStrategy = 'cascade' | 'reference' | 'reuse_shared';
@@ -325,11 +326,17 @@ export interface BookmarkletOptions {
 }
 
 export interface SlotWireConfig {
+  siteId?: string;
   cms: {
-    provider: 'sonicjs' | 'custom' | string;
+    provider: 'directus' | 'slottd' | 'sonicjs' | 'custom' | string;
     apiUrl: string;
+    adminUrl?: string;
+    siteId?: string;
     apiKey?: string;
     previewSecret?: string;
+    headers?: Record<string, string>;
+    filter?: Record<string, any>;
+    params?: Record<string, string>;
   };
   ui?: {
     editor?: 'markdown' | 'html';

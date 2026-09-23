@@ -4,6 +4,7 @@ export interface Props {
   apiUrl?: string;
   provider?: string;
   editor?: 'markdown' | 'html';
+  siteId?: string;
 }
 
 const globalConfig = (globalThis as any).__SLOTWIRE_CONFIG__;
@@ -21,6 +22,14 @@ const resolvedApiUrl =
   (Boolean(import.meta.env.DEV) ? `http://localhost:${defaultPort}` : '');
 
 const { adminUrl = resolvedApiUrl || '/admin', editor = 'markdown' } = Astro.props;
+
+const siteId =
+  Astro.props.siteId ||
+  (typeof import.meta !== 'undefined' && (import.meta as any).env?.CMS_SITE_ID) ||
+  (typeof process !== 'undefined' && (process.env?.CMS_SITE_ID || process.env?.PUBLIC_CMS_SITE_ID)) ||
+  globalConfig?.siteId ||
+  globalConfig?.cms?.siteId ||
+  (typeof Astro !== 'undefined' && Astro.site ? new URL(Astro.site).hostname : undefined);
 
 const envVar =
   (typeof process !== 'undefined' && process.env?.ENVIRONMENT) ||
@@ -44,6 +53,7 @@ const isPreview =
     data-api-url={resolvedApiUrl}
     data-provider={resolvedProvider}
     data-editor={editor}
+    data-site-id={siteId}
   >
     <!-- Semi-transparent backdrop -->
     <div
@@ -137,7 +147,7 @@ const isPreview =
         <div class="sw-quick-footer">
           <a
             id="sw-quick-escape-hatch"
-            href={`${adminUrl.replace(/\/+$/, '')}/content`}
+            href={`${adminUrl.replace(/\/+$/, '')}/content${siteId ? `?site=${encodeURIComponent(siteId)}` : ''}`}
             target="_blank"
             rel="noopener noreferrer"
             class="sw-quick-escape"

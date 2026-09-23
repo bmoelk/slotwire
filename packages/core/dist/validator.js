@@ -4,6 +4,13 @@ export async function validateContract(config, fetchFn = fetch, options = { veri
     const allRecommendations = [];
     const { apiUrl } = config.cms;
     const verifiedMediaPaths = new Map();
+    const requestHeaders = {
+        Accept: 'application/json',
+        ...(config.cms.headers || {}),
+    };
+    if (config.cms.apiKey) {
+        requestHeaders['Authorization'] = `Bearer ${config.cms.apiKey}`;
+    }
     async function checkMediaReachable(mediaPath) {
         if (!mediaPath || typeof mediaPath !== 'string')
             return true;
@@ -12,7 +19,7 @@ export async function validateContract(config, fetchFn = fetch, options = { veri
         }
         try {
             if (mediaPath.startsWith('http://') || mediaPath.startsWith('https://')) {
-                const headRes = await fetchFn(mediaPath, { method: 'HEAD', signal: AbortSignal.timeout(2500) }).catch(() => null);
+                const headRes = await fetchFn(mediaPath, { method: 'HEAD', headers: requestHeaders, signal: AbortSignal.timeout(2500) }).catch(() => null);
                 const reachable = headRes ? headRes.ok || headRes.status === 304 : false;
                 verifiedMediaPaths.set(mediaPath, reachable);
                 return reachable;
@@ -22,18 +29,18 @@ export async function validateContract(config, fetchFn = fetch, options = { veri
             const isDirectus = config.cms.provider === 'directus' || config.cms.provider === 'slottd';
             if (isDirectus) {
                 // Directus / SlottD: Try assets endpoint then files endpoint
-                const assetRes = await fetchFn(`${apiUrl}/assets/${cleanKey}`, { method: 'HEAD', signal: AbortSignal.timeout(2500) }).catch(() => null);
+                const assetRes = await fetchFn(`${apiUrl}/assets/${cleanKey}`, { method: 'HEAD', headers: requestHeaders, signal: AbortSignal.timeout(2500) }).catch(() => null);
                 if (assetRes && (assetRes.ok || assetRes.status === 304)) {
                     verifiedMediaPaths.set(mediaPath, true);
                     return true;
                 }
-                const fileRes = await fetchFn(`${apiUrl}/files/${cleanKey}`, { method: 'HEAD', signal: AbortSignal.timeout(2500) }).catch(() => null);
+                const fileRes = await fetchFn(`${apiUrl}/files/${cleanKey}`, { method: 'HEAD', headers: requestHeaders, signal: AbortSignal.timeout(2500) }).catch(() => null);
                 const reachable = fileRes ? fileRes.ok || fileRes.status === 304 : false;
                 verifiedMediaPaths.set(mediaPath, reachable);
                 return reachable;
             }
             else {
-                const fileRes = await fetchFn(`${apiUrl}/api/files/${cleanKey}`, { method: 'HEAD', signal: AbortSignal.timeout(2500) }).catch(() => null);
+                const fileRes = await fetchFn(`${apiUrl}/api/files/${cleanKey}`, { method: 'HEAD', headers: requestHeaders, signal: AbortSignal.timeout(2500) }).catch(() => null);
                 const reachable = fileRes ? fileRes.ok || fileRes.status === 304 : false;
                 verifiedMediaPaths.set(mediaPath, reachable);
                 return reachable;
@@ -48,37 +55,58 @@ export async function validateContract(config, fetchFn = fetch, options = { veri
         const totalFields = Object.keys(slotDef.properties).length;
         try {
             const isDirectus = config.cms.provider === 'directus' || config.cms.provider === 'slottd';
+            const siteId = config.cms.siteId || config.siteId;
             let endpoint = '';
             if (isDirectus) {
+                let collectionPath = '';
                 if (slotDef.kind === 'collection') {
-                    const col = slotDef.collectionName === 'blog_post' ? 'blog_posts' : slotDef.collectionName;
-                    endpoint = `${apiUrl}/items/${col}`;
+                    collectionPath = slotDef.collectionName === 'blog_post' ? 'blog_posts' : slotDef.collectionName;
                 }
                 else {
                     const targetCollection = slotDef.collectionName || slotKey;
-                    if (targetCollection === 'hero') {
-                        endpoint = `${apiUrl}/items/homepage_sections?filter[slug][_eq]=hero`;
-                    }
-                    else {
-                        endpoint = `${apiUrl}/items/${targetCollection}`;
+                    collectionPath = targetCollection === 'hero' ? 'homepage_sections' : targetCollection;
+                }
+                const url = new URL(`${apiUrl.replace(/\/+$/, '')}/items/${collectionPath}`);
+                // Directus standard multi-site scoping
+                if (siteId) {
+                    url.searchParams.set('filter[site_id][_eq]', siteId);
+                }
+                // Special singleton filter if applicable
+                if (slotDef.kind !== 'collection' && (slotDef.collectionName === 'hero' || slotKey === 'hero')) {
+                    url.searchParams.set('filter[slug][_eq]', 'hero');
+                }
+                // Optional custom query filters and params
+                if (config.cms.params) {
+                    for (const [k, v] of Object.entries(config.cms.params)) {
+                        url.searchParams.set(k, v);
                     }
                 }
+                if (config.cms.filter) {
+                    for (const [k, v] of Object.entries(config.cms.filter)) {
+                        url.searchParams.set(`filter[${k}][_eq]`, String(v));
+                    }
+                }
+                endpoint = url.toString();
             }
             else {
+                let collectionPath = '';
                 if (slotDef.kind === 'collection') {
-                    endpoint = `${apiUrl}/api/collections/${slotDef.collectionName}/content`;
+                    collectionPath = slotDef.collectionName;
                 }
                 else {
                     const targetCollection = slotDef.collectionName || slotKey;
-                    if (targetCollection === 'hero') {
-                        endpoint = `${apiUrl}/api/collections/homepage_sections/content?filter[slug][equals]=hero`;
-                    }
-                    else {
-                        endpoint = `${apiUrl}/api/collections/${targetCollection}/content`;
-                    }
+                    collectionPath = targetCollection === 'hero' ? 'homepage_sections' : targetCollection;
                 }
+                const url = new URL(`${apiUrl.replace(/\/+$/, '')}/api/collections/${collectionPath}/content`);
+                if (slotDef.kind !== 'collection' && (slotDef.collectionName === 'hero' || slotKey === 'hero')) {
+                    url.searchParams.set('filter[slug][equals]', 'hero');
+                }
+                endpoint = url.toString();
             }
-            const res = await fetchFn(endpoint, { signal: AbortSignal.timeout(3000) });
+            const res = await fetchFn(endpoint, {
+                headers: requestHeaders,
+                signal: AbortSignal.timeout(3000),
+            });
             if (!res.ok) {
                 results.push({
                     slotKey,

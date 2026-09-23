@@ -196,6 +196,22 @@ test('DirectusAdapter: generates create new item link with /+', () => {
   );
 });
 
+test('DirectusAdapter: generates item edit link with siteId query parameter', () => {
+  const url = buildCmsDeepLink({
+    provider: 'directus',
+    adminUrl: 'http://127.0.0.1:8787/admin',
+    collection: 'hero',
+    documentId: '1',
+    action: 'edit',
+    siteId: 'spectraflux.dev',
+  });
+
+  assert.equal(
+    url,
+    'http://127.0.0.1:8787/admin/content/hero/1?site_id=spectraflux.dev'
+  );
+});
+
 test('Custom Adapter Registration: registerCmsAdapter', () => {
   registerCmsAdapter({
     provider: 'custom_cms',

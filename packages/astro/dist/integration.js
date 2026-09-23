@@ -35,8 +35,16 @@ export function slotwire(options) {
                     const parentDir = fileURLToPath(new URL('..', config.root));
                     const codeDir = fileURLToPath(new URL('../..', config.root));
                     const allowPaths = Array.from(new Set([codeDir, parentDir, projectRoot, process.cwd(), packageDir]));
+                    const siteId = options.config.siteId || options.config.cms?.siteId || '';
+                    const apiUrl = options.config.cms?.apiUrl || '';
+                    const adminUrl = options.config.cms?.adminUrl || (apiUrl ? `${apiUrl.replace(/\/+$/, '')}/admin` : '');
                     updateConfig({
                         vite: {
+                            define: {
+                                'import.meta.env.CMS_SITE_ID': JSON.stringify(siteId),
+                                'import.meta.env.CMS_API_URL': JSON.stringify(apiUrl),
+                                'import.meta.env.CMS_ADMIN_URL': JSON.stringify(adminUrl),
+                            },
                             server: {
                                 fs: {
                                     allow: allowPaths,

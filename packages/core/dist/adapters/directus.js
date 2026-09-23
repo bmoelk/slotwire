@@ -6,7 +6,7 @@ import { BaseCmsAdapter } from './base.js';
 export class DirectusAdapter extends BaseCmsAdapter {
     provider = 'directus';
     buildAdminLink(options) {
-        const { adminUrl = 'https://directus.example.com/admin', collection = '', documentId, pageSlug, sectionKey, archetype, } = options;
+        const { adminUrl = 'https://directus.example.com/admin', collection = '', documentId, pageSlug, sectionKey, archetype, siteId, } = options;
         const isCollectionArchetype = archetype === 'cards' ||
             archetype === 'gallery' ||
             archetype === 'testimonials' ||
@@ -16,7 +16,7 @@ export class DirectusAdapter extends BaseCmsAdapter {
             archetype === 'table';
         const action = options.action || (documentId ? 'edit' : isCollectionArchetype ? 'list' : 'create');
         const base = this.cleanBaseUrl(adminUrl);
-        const queryStr = this.buildQueryParams(pageSlug, sectionKey);
+        const queryStr = this.buildQueryParams(pageSlug, sectionKey, siteId);
         // 1. Single Document Edit
         if (action === 'edit' && documentId && collection) {
             return `${base}/content/${encodeURIComponent(collection)}/${encodeURIComponent(documentId)}${queryStr}`;

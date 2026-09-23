@@ -545,6 +545,8 @@ export const INSPECTOR_CSS = `
 `;
 export function renderInspectorHtml(options = {}) {
     const adminUrl = options.adminUrl || '/admin';
+    const siteId = options.siteId || '';
+    const siteQuery = siteId ? `?site_id=${encodeURIComponent(siteId)}&site=${encodeURIComponent(siteId)}` : '';
     const envTag = options.envTag || 'DEV';
     const showCloseBtn = Boolean(options.showCloseBtn);
     const rawProvider = options.provider ||
@@ -639,7 +641,7 @@ export function renderInspectorHtml(options = {}) {
             Refresh
           </button>
           ${options.showRequestSlotBtn ? '<button id="sw-btn-request-slot" class="sw-btn" title="Visually select an element to request a slot"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>Request Slot</button>' : ''}
-          <a href="${adminUrl}" target="_blank" rel="noopener noreferrer" class="sw-btn sw-btn-cms sw-provider-${provider}">
+          <a href="${adminUrl}${siteQuery}" target="_blank" rel="noopener noreferrer" class="sw-btn sw-btn-cms sw-provider-${provider}">
             Open CMS ↗
           </a>
         </div>
@@ -723,6 +725,8 @@ export function renderInspectorHtml(options = {}) {
 }
 export function initInspector(containerEl, options = {}) {
     const adminUrl = options.adminUrl || '/admin';
+    const siteId = options.siteId || '';
+    const siteQuery = siteId ? `?site_id=${encodeURIComponent(siteId)}&site=${encodeURIComponent(siteId)}` : '';
     let areOverlaysVisible = sessionStorage.getItem('slotwire_hide_overlays') !== 'true';
     let isHighlightActive = (typeof document !== 'undefined' && document.documentElement.classList.contains('slotwire-highlight-slots')) ||
         sessionStorage.getItem('slotwire_highlight_slots') === 'true';
@@ -823,7 +827,7 @@ export function initInspector(containerEl, options = {}) {
             const archetype = el.getAttribute('data-slotwire-archetype') || el.dataset.slotwireArchetype || 'slot';
             const collection = el.getAttribute('data-slotwire-collection') || el.dataset.slotwireCollection || slot;
             const statusAttr = el.getAttribute('data-slotwire-status') || el.dataset.slotwireStatus || 'Published';
-            const editUrl = el.getAttribute('data-slotwire-edit-url') || el.dataset.slotwireEditUrl || `${adminUrl}/content/${collection}`;
+            const editUrl = el.getAttribute('data-slotwire-edit-url') || el.dataset.slotwireEditUrl || `${adminUrl}/content/${collection}${siteQuery}`;
             const isMissing = el.classList.contains('slotwire-ghost-slot') || el.classList.contains('slotwire-ghost-card') || el.getAttribute('data-slotwire-source') === 'fallback';
             let statusType = 'published';
             let statusLabel = 'Published';

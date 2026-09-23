@@ -22,10 +22,13 @@ export abstract class BaseCmsAdapter implements SlotWireCmsAdapter {
     return (url || '').replace(/\/+$/, '');
   }
 
-  protected buildQueryParams(pageSlug?: string, sectionKey?: string): string {
+  protected buildQueryParams(pageSlug?: string, sectionKey?: string, siteId?: string): string {
     const params = new URLSearchParams();
     if (pageSlug) params.set('pageSlug', pageSlug);
     if (sectionKey) params.set('sectionKey', sectionKey);
+    if (siteId) {
+      params.set('site_id', siteId);
+    }
     return params.toString() ? `?${params.toString()}` : '';
   }
 
@@ -156,7 +159,7 @@ export abstract class BaseCmsAdapter implements SlotWireCmsAdapter {
     collection: string,
     id: string,
     data: Record<string, any>,
-    credentials?: { apiUrl?: string; apiKey?: string; headers?: Record<string, string> }
+    credentials?: { apiUrl?: string; apiKey?: string; siteId?: string; headers?: Record<string, string> }
   ): Promise<{ success: boolean; data?: any; error?: string }> {
     const apiUrl = this.cleanBaseUrl(credentials?.apiUrl || '');
     const headers: Record<string, string> = {
@@ -167,12 +170,14 @@ export abstract class BaseCmsAdapter implements SlotWireCmsAdapter {
       headers['Authorization'] = `Bearer ${credentials.apiKey}`;
     }
 
-    const endpoint = this.getItemEndpoint(apiUrl, collection, id);
+    const siteQuery = credentials?.siteId ? `?site=${encodeURIComponent(credentials.siteId)}` : '';
+    const endpoint = `${this.getItemEndpoint(apiUrl, collection, id)}${siteQuery}`;
+    const payload = credentials?.siteId ? { ...data, site_id: credentials.siteId } : data;
     try {
       const res = await fetch(endpoint, {
         method: 'PATCH',
         headers,
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {

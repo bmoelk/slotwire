@@ -98,10 +98,31 @@ export function introspectPageSlots(): IntrospectedSlot[] {
  * - Pre-Create Page Blueprint Cloner
  * - Live EventStream / SSE Slot Morphing
  */
-export function initSlotWirePreview(options: { adminUrl?: string; provider?: string; editor?: 'markdown' | 'html' } = {}) {
+export function initSlotWirePreview(options: { adminUrl?: string; provider?: string; siteId?: string; editor?: 'markdown' | 'html' } = {}) {
   if (typeof window === 'undefined') return;
 
-  const { adminUrl = '/admin', provider = 'slottd', editor } = options;
+  const globalConfig = (window as any).__SLOTWIRE_CONFIG__;
+  const defaultAdminUrl =
+    (typeof import.meta !== 'undefined' && (import.meta as any).env?.CMS_ADMIN_URL) ||
+    globalConfig?.cms?.adminUrl ||
+    (import.meta.env.DEV ? 'http://127.0.0.1:8787/admin' : '/admin');
+
+  const drawerRoot = document.getElementById('slotwire-quick-drawer-root');
+  const drawerSiteId = drawerRoot?.getAttribute('data-site-id');
+  const defaultSiteId =
+    options.siteId ||
+    drawerSiteId ||
+    (typeof import.meta !== 'undefined' && (import.meta as any).env?.CMS_SITE_ID) ||
+    globalConfig?.siteId ||
+    globalConfig?.cms?.siteId ||
+    (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? window.location.hostname : undefined);
+
+  const {
+    adminUrl = defaultAdminUrl,
+    provider = globalConfig?.cms?.provider || 'slottd',
+    siteId = defaultSiteId,
+    editor = globalConfig?.ui?.editor,
+  } = options;
 
   function updateHud() {
     const slots = introspectPageSlots();
@@ -147,6 +168,7 @@ export function initSlotWirePreview(options: { adminUrl?: string; provider?: str
             sectionKey: s.sectionKey,
             action: s.isGhost ? 'create' : s.documentId ? 'edit' : 'list',
             archetype: s.archetype as any,
+            siteId,
           });
 
           const createLink = buildCmsDeepLink({
@@ -157,6 +179,7 @@ export function initSlotWirePreview(options: { adminUrl?: string; provider?: str
             sectionKey: s.sectionKey,
             action: 'create',
             archetype: s.archetype as any,
+            siteId,
           });
 
           const hasChildItems = Boolean(s.items && s.items.length > 0);
@@ -222,6 +245,7 @@ export function initSlotWirePreview(options: { adminUrl?: string; provider?: str
                     archetype: s.archetype as any,
                     pageSlug: s.pageSlug,
                     sectionKey: s.sectionKey,
+                    siteId,
                   });
                   return `
                   <div class="flex items-center justify-between gap-1 text-[11px]">
@@ -448,13 +472,13 @@ export function initSlotWirePreview(options: { adminUrl?: string; provider?: str
     applyOverlayVisibility(getOverlayHiddenState());
     initInSituBadges();
     updateHud();
-    initQuickEditDrawer({ adminUrl, provider, editor });
+    initQuickEditDrawer({ adminUrl, provider, siteId, editor });
   });
   document.addEventListener('astro:after-swap', () => {
     applyOverlayVisibility(getOverlayHiddenState());
     initInSituBadges();
     updateHud();
-    initQuickEditDrawer({ adminUrl, provider, editor });
+    initQuickEditDrawer({ adminUrl, provider, siteId, editor });
   });
 
   // Pre-Create Modal Handler
@@ -585,7 +609,7 @@ export function initSlotWirePreview(options: { adminUrl?: string; provider?: str
   window.addEventListener('slotwire:recompiled', updateHud);
 
   // Initialize Quick Edit Drawer
-  initQuickEditDrawer({ adminUrl, provider, editor });
+  initQuickEditDrawer({ adminUrl, provider, siteId, editor });
 }
 
 export interface QuickEditDrawerParams {
@@ -735,10 +759,23 @@ export const SlotWireAuthManager = {
  * - Direct mutation dispatcher to POST /api/slotwire/quick-save
  * - Zero-latency optimistic DOM update on save
  */
-export function initQuickEditDrawer(options: { adminUrl?: string; apiUrl?: string; provider?: string; editor?: 'markdown' | 'html' } = {}) {
+export function initQuickEditDrawer(options: { adminUrl?: string; apiUrl?: string; provider?: string; siteId?: string; editor?: 'markdown' | 'html' } = {}) {
   if (typeof window === 'undefined') return;
 
-  const { adminUrl = '/admin' } = options;
+  const globalConfig = (window as any).__SLOTWIRE_CONFIG__;
+  const configuredSiteId =
+    options.siteId ||
+    (typeof import.meta !== 'undefined' && (import.meta as any).env?.CMS_SITE_ID) ||
+    globalConfig?.siteId ||
+    globalConfig?.cms?.siteId ||
+    '';
+
+  const defaultAdminUrl =
+    (typeof import.meta !== 'undefined' && (import.meta as any).env?.CMS_ADMIN_URL) ||
+    globalConfig?.cms?.adminUrl ||
+    (import.meta.env.DEV ? 'http://127.0.0.1:8787/admin' : '/admin');
+
+  const { adminUrl = defaultAdminUrl, siteId = configuredSiteId } = options;
 
   function renderSimpleMarkdown(md: string): string {
     if (!md) return '<p class="text-zinc-500 italic">No content</p>';
@@ -779,9 +816,9 @@ export function initQuickEditDrawer(options: { adminUrl?: string; apiUrl?: strin
   const configuredAdminUrl =
     root?.getAttribute('data-admin-url') ||
     options.adminUrl ||
+    (typeof import.meta !== 'undefined' && (import.meta as any).env?.CMS_ADMIN_URL) ||
     adminUrl ||
-    configuredApiUrl ||
-    '/admin';
+    (configuredApiUrl ? `${configuredApiUrl.replace(/\/+$/, '')}/admin` : (import.meta.env.DEV ? 'http://127.0.0.1:8787/admin' : '/admin'));
 
   const configuredEditor: 'markdown' | 'html' =
     (root?.getAttribute('data-editor') as any) ||
@@ -1092,7 +1129,8 @@ export function initQuickEditDrawer(options: { adminUrl?: string; apiUrl?: strin
     }
 
     if (eh) {
-      const fallbackUrl = `${adminUrl.replace(/\/+$/, '')}/content/${currentCollection}`;
+      const siteParam = siteId ? `?site=${encodeURIComponent(siteId)}` : '';
+      const fallbackUrl = `${configuredAdminUrl.replace(/\/+$/, '')}/content/${currentCollection}${siteParam}`;
       eh.href = params.editUrl || fallbackUrl;
     }
 
@@ -1509,6 +1547,7 @@ export function initQuickEditDrawer(options: { adminUrl?: string; apiUrl?: strin
             collection: resolvedCollection,
             documentId: resolvedDocId,
             publish: true,
+            siteId: siteId,
             data: patchData,
           }),
         });
