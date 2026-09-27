@@ -70,7 +70,7 @@ flowchart TD
 Represents a top-level route with SEO metadata, hero branding, and narrative copy.
 * **Primary Key**: `slug` (e.g. `"home"`, `"about"`, `"technology"`, `"privacy-policy"`)
 * **Standard Fields**: `title`, `slug`, `badgeText`, `subtitle`, `description`, `content`, `authorSlug`, `template`, `status`.
-* **Author Linking**: Master pages that showcase a specific founder or author link via `authorSlug` to the normalized `authors` collection. Page containers must never be polluted with founder-specific fields.
+* **Author Linking**: Master pages that showcase a specific author or profile link via `authorSlug` to the normalized `authors` collection. Page containers must never be polluted with person-specific fields.
 
 ### 2. `page_sections` (Modular Layout Slots)
 Represents discrete page sections mapped by composite identity (`pageSlug` + `sectionKey`).
@@ -83,8 +83,8 @@ Represents structured cards organized into 1-col, 2-col, 3-col, or 4-col respons
 * **Standard Fields**: `title`, `slug`, `icon`, `badgeText`, `summary`, `content`, `colSpan` (1 or 2), `order`.
 
 ### 4. `gallery` (Universal Media Arrays)
-Represents visual image/video sets (carousels, pottery galleries, hardware showcases).
-* **Group Key**: `galleryKey` + `pageSlug` (e.g. `galleryKey="hero_slides"` or `galleryKey="pottery"`)
+Represents visual image/video sets (carousels, portfolio galleries, product showcases).
+* **Group Key**: `galleryKey` + `pageSlug` (e.g. `galleryKey="hero_slides"` or `galleryKey="portfolio"`)
 * **Standard Fields**: `title`, `slug`, `alt`, `imageUrl`, `caption`, `order`.
 
 ### 5. `endorsements` (Social Proof, Partner Quotes & Reviews)
@@ -101,11 +101,11 @@ Represents structured navigation menus for headers, dropdowns, and footers.
 * **Standard Fields**: `title` (menu label), `slug`, `link` (target route URL), `menuKey` (`header_main`, `header_dropdown`, `footer_primary`), `parentSlug`, `order`, `enabled`.
 
 ### 8. `authors` (Profiles, Team Members & Contributors)
-Represents article authors, team members, founders, and contributors.
+Represents article authors, team members, and contributor profiles.
 * **Primary Key**: `slug` (e.g. `"brian-moelk"`)
-* **Standard Fields**: `title` / `name`, `slug`, `role`, `location`, `handle`, `email`, `about` (short bio / byline for articles and blog cards), `bio` (standard biography), `extendedBio` (comprehensive narrative bio for About page), `avatarUrl`, `websiteUrl` / `authorLink`, `careerHighlights` (structured repeater for career milestones).
+* **Standard Fields**: `title` / `name`, `slug`, `role`, `location`, `handle`, `email`, `about` (concise summary bio / byline), `bio` (standard biography), `extendedBio` (comprehensive long-form narrative bio), `avatarUrl`, `websiteUrl` / `authorLink`, `careerHighlights` (structured repeater for career milestones).
 * **Decoupling Rationale**:
-  Prevents pollution of master `pages` containers with person-specific identity attributes (`founderName`, `founderRole`, `founderLocation`, `careerHighlights`). Allows authors to be shared across blog entries and about/team landing pages with dual bio granularity (`about` for concise article bylines vs. `extendedBio` for deep narrative profiles).
+  Prevents pollution of master `pages` containers with person-specific identity attributes (`role`, `location`, `careerHighlights`). Allows authors to be shared across diverse UI components and routes with dual bio granularity (`about` for concise summary bylines vs. `extendedBio` for deep narrative profiles).
 
 ---
 

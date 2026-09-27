@@ -9,7 +9,7 @@ export const SLOT_ARCHETYPES = [
     { id: 'timeline', name: 'timeline (Milestones / Roadmap)', description: 'Chronological timeline or milestone steps' },
     { id: 'stats', name: 'stats (Counter / Metric Grid)', description: 'Key performance indicators and statistics' },
     { id: 'cta', name: 'cta (Call-to-Action Block)', description: 'Promotional call to action banner' },
-    { id: 'author', name: 'author / profile (Author / Team / Founder)', description: 'Author biography, founder profile, and credentials' },
+    { id: 'author', name: 'author / profile (Author / Team / Profile)', description: 'Author biography, contributor profile, and credentials' },
     { id: 'custom', name: 'custom / unknown / new (Custom Schema or New Pattern)', description: 'Custom schema or new component pattern to be defined' },
 ];
 //# sourceMappingURL=types.js.map
