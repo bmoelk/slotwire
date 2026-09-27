@@ -32,6 +32,7 @@ flowchart TD
         CARDS["Multi-Column Cards (feature_cards)"]
         GALLERY["Media Arrays (gallery)"]
         SOCIAL["Social Proof (testimonials)"]
+        AUTHORS["Author / Profile (authors)"]
     end
 
     subgraph Headless CMS Layer (D1 / Postgres)
@@ -40,6 +41,7 @@ flowchart TD
         D1_CARDS[("feature_cards")]
         D1_GALLERY[("gallery")]
         D1_TESTIMONIALS[("testimonials")]
+        D1_AUTHORS[("authors")]
     end
 
     subgraph Astro Frontend Application
@@ -53,9 +55,10 @@ flowchart TD
     CARDS --> D1_CARDS
     GALLERY --> D1_GALLERY
     SOCIAL --> D1_TESTIMONIALS
+    AUTHORS --> D1_AUTHORS
 
     D1_PAGES & D1_SECTIONS & D1_CARDS & D1_GALLERY & D1_TESTIMONIALS --> HOME
-    D1_PAGES & D1_SECTIONS & D1_CARDS & D1_GALLERY --> ABOUT
+    D1_PAGES & D1_AUTHORS & D1_SECTIONS & D1_CARDS & D1_GALLERY --> ABOUT
     D1_PAGES & D1_SECTIONS & D1_CARDS --> TECH
 ```
 
@@ -66,7 +69,8 @@ flowchart TD
 ### 1. `pages` (Master Page Container)
 Represents a top-level route with SEO metadata, hero branding, and narrative copy.
 * **Primary Key**: `slug` (e.g. `"home"`, `"about"`, `"technology"`, `"privacy-policy"`)
-* **Standard Fields**: `title`, `badgeText`, `subtitle`, `description`, `heroImage`, `content`, `founderName`, `founderRole`, `founderHandle`, `careerHighlights`.
+* **Standard Fields**: `title`, `slug`, `badgeText`, `subtitle`, `description`, `content`, `authorSlug`, `template`, `status`.
+* **Author Linking**: Master pages that showcase a specific founder or author link via `authorSlug` to the normalized `authors` collection. Page containers must never be polluted with founder-specific fields.
 
 ### 2. `page_sections` (Modular Layout Slots)
 Represents discrete page sections mapped by composite identity (`pageSlug` + `sectionKey`).
@@ -95,6 +99,13 @@ Represents discrete question-and-answer pairs for topic-specific search, accordi
 ### 7. `site_navigation` (Hierarchical Menus & Link Structures)
 Represents structured navigation menus for headers, dropdowns, and footers.
 * **Standard Fields**: `title` (menu label), `slug`, `link` (target route URL), `menuKey` (`header_main`, `header_dropdown`, `footer_primary`), `parentSlug`, `order`, `enabled`.
+
+### 8. `authors` (Profiles, Team Members & Contributors)
+Represents article authors, team members, founders, and contributors.
+* **Primary Key**: `slug` (e.g. `"brian-moelk"`)
+* **Standard Fields**: `title` / `name`, `slug`, `role`, `location`, `handle`, `email`, `about` (short bio / byline for articles and blog cards), `bio` (standard biography), `extendedBio` (comprehensive narrative bio for About page), `avatarUrl`, `websiteUrl` / `authorLink`, `careerHighlights` (structured repeater for career milestones).
+* **Decoupling Rationale**:
+  Prevents pollution of master `pages` containers with person-specific identity attributes (`founderName`, `founderRole`, `founderLocation`, `careerHighlights`). Allows authors to be shared across blog entries and about/team landing pages with dual bio granularity (`about` for concise article bylines vs. `extendedBio` for deep narrative profiles).
 
 ---
 

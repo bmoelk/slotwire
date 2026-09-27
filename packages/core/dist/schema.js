@@ -188,6 +188,11 @@ export const s = {
         collection: collectionName,
         strategy: options.strategy || 'reference',
     }),
+    author: (options = {}) => ({
+        kind: 'reference',
+        collection: options.collection || 'authors',
+        strategy: options.strategy || 'reference',
+    }),
     archetype: (name, slots, options = {}) => ({
         name,
         collection: options.collection || 'pages',

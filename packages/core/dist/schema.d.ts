@@ -95,6 +95,14 @@ export declare const s: {
         collection: string;
         strategy: "reference";
     };
+    author: (options?: {
+        collection?: string;
+        strategy?: "reference";
+    }) => {
+        kind: "reference";
+        collection: string;
+        strategy: "reference";
+    };
     archetype: (name: string, slots: Record<string, any>, options?: {
         collection?: string;
         template?: string;

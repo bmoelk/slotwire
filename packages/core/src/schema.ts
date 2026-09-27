@@ -250,6 +250,12 @@ export const s = {
     strategy: options.strategy || 'reference',
   }),
 
+  author: (options: { collection?: string; strategy?: 'reference' } = {}) => ({
+    kind: 'reference' as const,
+    collection: options.collection || 'authors',
+    strategy: options.strategy || 'reference',
+  }),
+
   archetype: (
     name: string,
     slots: Record<string, any>,

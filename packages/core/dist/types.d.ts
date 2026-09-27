@@ -56,7 +56,7 @@ export type SlotDefinition = {
     transform?: SlotTransformer;
     editor?: 'markdown' | 'html';
 };
-export type SlotArchetype = 'page' | 'section' | 'hero' | 'cards' | 'gallery' | 'endorsements' | 'testimonials' | 'qa' | 'faq' | 'table' | 'timeline' | 'stats' | 'cta' | 'singleton' | string;
+export type SlotArchetype = 'page' | 'section' | 'hero' | 'cards' | 'gallery' | 'endorsements' | 'testimonials' | 'qa' | 'faq' | 'table' | 'timeline' | 'stats' | 'cta' | 'singleton' | 'author' | 'profile' | 'item' | string;
 export interface ArchetypeCatalogItem {
     id: string;
     name: string;

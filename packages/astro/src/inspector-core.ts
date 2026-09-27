@@ -1369,6 +1369,9 @@ export function openSlotRequestModal(info: {
       qa: 'faq_items',
       table: 'page_sections',
       singleton: 'site_settings',
+      author: 'authors',
+      profile: 'authors',
+      item: 'authors',
     };
 
     archetypeSelect?.addEventListener('change', () => {
